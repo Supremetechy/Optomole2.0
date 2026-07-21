@@ -1,0 +1,106 @@
+{
+  "meta": {
+    "title": "Inbox Zero: The Campaign",
+    "subtitle": "Quest RPG · Progression",
+    "briefing": "Your unread backlog is the map. Take the questline from your Chief of Staff, log every habit, and defeat the patterns that keep refilling your inbox.",
+    "chapterSize": 4
+  },
+  "manifest": {
+    "schemaVersion": "1.0.0",
+    "id": "mapping-inbox-zero-campaign",
+    "templateId": "quest-rpg-progression.v1",
+    "experienceId": "exp-inbox-zero-campaign",
+    "title": "Inbox Zero: The Campaign",
+    "target": "browser",
+    "requiredRuntimeSystems": ["overworld", "quest-log", "encounters", "xp-levels", "skill-tree"],
+    "assetSlots": [
+      { "id": "hero_avatar", "type": "image", "required": false, "fallback": "default-hero" },
+      { "id": "levelup_audio", "type": "audio", "required": false, "fallback": "default-reward" }
+    ],
+    "bindings": [
+      {
+        "id": "giver-chief-of-staff",
+        "sourceElement": { "type": "npc-dialogue", "label": "Your Chief of Staff", "description": "An inbox is a to-do list other people write for you. We are going to take the pen back — one rule at a time.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "npc", "interactionType": "talk", "mechanic": "npc-dialogue", "reward": { "strategy": "unlock-questline", "xp": 0 }, "spawnRules": { "placement": "template-default", "priority": 100 } }
+      },
+      {
+        "id": "giver-productivity-coach",
+        "sourceElement": { "type": "npc-dialogue", "label": "The Productivity Coach", "description": "Processing is not reading. Every message gets one decision, and the decision is never 'later'.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "npc", "interactionType": "talk", "mechanic": "npc-dialogue", "reward": { "strategy": "unlock-questline", "xp": 0 }, "spawnRules": { "placement": "template-default", "priority": 99 } }
+      },
+
+      {
+        "id": "step-two-minute-rule",
+        "sourceElement": { "type": "procedure-step", "label": "Apply the two-minute rule", "description": "If a reply takes under two minutes, send it now instead of queuing it.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "collect", "mechanic": "quest-objective", "reward": { "strategy": "xp-and-quest-progress", "xp": 70, "currency": 4 }, "successConditions": ["complete:collect"], "spawnRules": { "placement": "template-default", "priority": 96 } }
+      },
+      {
+        "id": "step-one-touch",
+        "sourceElement": { "type": "procedure-step", "label": "Touch each message once", "description": "Open it, decide it, file it. Re-reading the same email is the hidden tax on your day.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "collect", "mechanic": "quest-objective", "reward": { "strategy": "xp-and-quest-progress", "xp": 70, "currency": 4 }, "successConditions": ["complete:collect"], "spawnRules": { "placement": "template-default", "priority": 95 } }
+      },
+      {
+        "id": "step-batch-windows",
+        "sourceElement": { "type": "procedure-step", "label": "Batch into two windows", "description": "Process mail at 11:00 and 16:00 only. Outside those windows the tab stays closed.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "collect", "mechanic": "quest-objective", "reward": { "strategy": "xp-and-quest-progress", "xp": 70, "currency": 4 }, "successConditions": ["complete:collect"], "spawnRules": { "placement": "template-default", "priority": 94 } }
+      },
+      {
+        "id": "evidence-context-switch",
+        "sourceElement": { "type": "evidence", "label": "Context switching costs 23 minutes", "description": "Research on interrupted knowledge work puts full re-focus at roughly 23 minutes per switch.", "evidence": "Attention-fragmentation studies on interrupted office work.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "key-item", "reward": { "strategy": "xp-and-skill-point", "xp": 80, "currency": 6 }, "successConditions": ["complete:collect"], "spawnRules": { "placement": "template-default", "priority": 93 } }
+      },
+      {
+        "id": "step-unsubscribe-pass",
+        "sourceElement": { "type": "procedure-step", "label": "Run a weekly unsubscribe pass", "description": "Every Friday, unsubscribe from three senders you did not deliberately choose.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "collect", "mechanic": "quest-objective", "reward": { "strategy": "xp-and-quest-progress", "xp": 70, "currency": 4 }, "successConditions": ["complete:collect"], "spawnRules": { "placement": "template-default", "priority": 92 } }
+      },
+      {
+        "id": "step-templates",
+        "sourceElement": { "type": "procedure-step", "label": "Template your five repeat replies", "description": "Five saved responses cover most of what you type by hand every week.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "collect", "mechanic": "quest-objective", "reward": { "strategy": "xp-and-quest-progress", "xp": 70, "currency": 4 }, "successConditions": ["complete:collect"], "spawnRules": { "placement": "template-default", "priority": 91 } }
+      },
+      {
+        "id": "evidence-defer-decay",
+        "sourceElement": { "type": "evidence", "label": "Deferred mail decays in value", "description": "A message you postpone three times is almost always one you should have declined on sight.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "key-item", "reward": { "strategy": "xp-and-skill-point", "xp": 80, "currency": 6 }, "successConditions": ["complete:collect"], "spawnRules": { "placement": "template-default", "priority": 90 } }
+      },
+      {
+        "id": "step-shutdown-ritual",
+        "sourceElement": { "type": "procedure-step", "label": "Close with a shutdown ritual", "description": "End the day by draining the inbox to zero and writing tomorrow's first task.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "collect", "mechanic": "quest-objective", "reward": { "strategy": "xp-and-quest-progress", "xp": 70, "currency": 4 }, "successConditions": ["complete:collect"], "spawnRules": { "placement": "template-default", "priority": 89 } }
+      },
+      {
+        "id": "step-defend-mornings",
+        "sourceElement": { "type": "procedure-step", "label": "Defend the first 90 minutes", "description": "No mail before your hardest task of the day has moved forward.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "collect", "mechanic": "quest-objective", "reward": { "strategy": "xp-and-quest-progress", "xp": 70, "currency": 4 }, "successConditions": ["complete:collect"], "spawnRules": { "placement": "template-default", "priority": 88 } }
+      },
+
+      {
+        "id": "hazard-notification-pull",
+        "sourceElement": { "type": "hazard", "label": "The Notification Pull", "description": "Every badge and banner drags you back mid-task. Silence the channel, do not fight the urge.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hazard", "interactionType": "battle", "mechanic": "encounter", "reward": { "strategy": "xp-on-defeat-damage-on-miss", "xp": 110, "currency": 10 }, "failureConditions": ["focus:depleted"], "spawnRules": { "placement": "template-default", "priority": 87 } }
+      },
+      {
+        "id": "hazard-reply-all-storm",
+        "sourceElement": { "type": "hazard", "label": "The Reply-All Storm", "description": "One thread with twelve recipients eats an hour. Reply to the sender only, or move it to a call.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hazard", "interactionType": "battle", "mechanic": "encounter", "reward": { "strategy": "xp-on-defeat-damage-on-miss", "xp": 110, "currency": 10 }, "failureConditions": ["focus:depleted"], "spawnRules": { "placement": "template-default", "priority": 86 } }
+      },
+      {
+        "id": "hazard-inbox-as-todo",
+        "sourceElement": { "type": "hazard", "label": "Inbox-as-To-Do-List", "description": "Leaving mail unread as a reminder turns your inbox into a queue you never control.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hazard", "interactionType": "battle", "mechanic": "encounter", "reward": { "strategy": "xp-on-defeat-damage-on-miss", "xp": 110, "currency": 10 }, "failureConditions": ["focus:depleted"], "spawnRules": { "placement": "template-default", "priority": 85 } }
+      },
+      {
+        "id": "hazard-just-checking",
+        "sourceElement": { "type": "hazard", "label": "\"Just Checking\" Syndrome", "description": "Opening mail between windows costs the whole batching benefit. The window is the rule.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hazard", "interactionType": "battle", "mechanic": "encounter", "reward": { "strategy": "xp-on-defeat-damage-on-miss", "xp": 110, "currency": 10 }, "failureConditions": ["focus:depleted"], "spawnRules": { "placement": "template-default", "priority": 84 } }
+      },
+
+      {
+        "id": "gate-chapter-decision",
+        "sourceElement": { "type": "decision", "label": "The Processing Gate", "description": "Do not advance until every rule in this region is logged and every pattern is beaten.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "lock", "interactionType": "unlock", "mechanic": "region-gate", "reward": { "strategy": "unlock-next-chapter", "xp": 60, "currency": 8 }, "spawnRules": { "placement": "template-default", "priority": 60 } }
+      }
+    ]
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "meta": {
+    "title": "Data Literacy Lab",
+    "subtitle": "Idle · Progress",
+    "briefing": "Build up your data-literacy the idle way: study to earn Insight, invest it in each concept to automate it, then compound your way to full mastery.",
+    "roomSize": 6
+  },
+  "manifest": {
+    "schemaVersion": "1.0.0",
+    "id": "mapping-data-literacy-lab",
+    "templateId": "idle-progress.v1",
+    "experienceId": "exp-data-literacy-lab",
+    "title": "Data Literacy Lab",
+    "target": "browser",
+    "requiredRuntimeSystems": ["generators", "upgrades", "resource-loop", "milestones", "tick-loop"],
+    "assetSlots": [
+      { "id": "ambient_loop", "type": "audio", "required": false, "fallback": "default-ambient" }
+    ],
+    "bindings": [
+      {
+        "id": "coach-quinn",
+        "sourceElement": { "type": "npc-dialogue", "label": "Data Coach Quinn", "description": "Start with the fundamentals — they compound.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "npc", "interactionType": "talk", "mechanic": "npc-dialogue", "reward": { "strategy": "context-unlock", "xp": 0 }, "spawnRules": { "placement": "template-default", "priority": 100 } }
+      },
+      {
+        "id": "gen-read-axis",
+        "sourceElement": { "type": "evidence", "label": "Read a chart's axes", "description": "Always check what each axis measures and its scale before reading a trend.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "key-item", "reward": { "strategy": "score", "xp": 10 }, "spawnRules": { "placement": "template-default", "priority": 95 } }
+      },
+      {
+        "id": "gen-mean-median",
+        "sourceElement": { "type": "evidence", "label": "Mean vs. median", "description": "The median resists outliers; a skewed dataset can make the mean misleading.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "key-item", "reward": { "strategy": "score", "xp": 10 }, "spawnRules": { "placement": "template-default", "priority": 90 } }
+      },
+      {
+        "id": "gen-corr-cause",
+        "sourceElement": { "type": "procedure-step", "label": "Correlation ≠ causation", "description": "Two variables moving together doesn't prove one causes the other.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "sequence", "mechanic": "quest-objective", "reward": { "strategy": "score", "xp": 10 }, "spawnRules": { "placement": "template-default", "priority": 85 } }
+      },
+      {
+        "id": "gen-sampling-bias",
+        "sourceElement": { "type": "evidence", "label": "Spot sampling bias", "description": "If the sample isn't representative, the conclusion doesn't generalize.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "key-item", "reward": { "strategy": "score", "xp": 10 }, "spawnRules": { "placement": "template-default", "priority": 80 } }
+      },
+      {
+        "id": "gen-confidence",
+        "sourceElement": { "type": "evidence", "label": "Confidence intervals", "description": "An interval communicates uncertainty a single point estimate hides.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "key-item", "reward": { "strategy": "score", "xp": 10 }, "spawnRules": { "placement": "template-default", "priority": 75 } }
+      },
+      {
+        "id": "gen-regression",
+        "sourceElement": { "type": "procedure-step", "label": "Regression basics", "description": "A fitted line summarizes a relationship — mind its assumptions and residuals.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "sequence", "mechanic": "quest-objective", "reward": { "strategy": "score", "xp": 10 }, "spawnRules": { "placement": "template-default", "priority": 70 } }
+      },
+      {
+        "id": "haz-cherrypick",
+        "sourceElement": { "type": "hazard", "label": "Cherry-picked data", "description": "Selecting only the data that fits a story hides the fuller picture.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hazard", "interactionType": "avoid", "mechanic": "hazard", "reward": { "strategy": "focus-penalty" }, "spawnRules": { "placement": "template-default", "priority": 50 } }
+      },
+      {
+        "id": "haz-truncated-axis",
+        "sourceElement": { "type": "hazard", "label": "Truncated y-axis", "description": "A y-axis that doesn't start at zero can exaggerate small differences.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hazard", "interactionType": "avoid", "mechanic": "hazard", "reward": { "strategy": "focus-penalty" }, "spawnRules": { "placement": "template-default", "priority": 48 } }
+      }
+    ]
+  }
+}

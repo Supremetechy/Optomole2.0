@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "arcade-collect-avoid.v1",
+  "name": "Arcade Collect and Avoid",
+  "genreFamily": "arcade",
+  "version": "1.0.0",
+  "description": "Grid-based collect-and-avoid skeleton for turning definitions, hazards, distractors, and metrics into fast mastery loops.",
+  "engineTargets": ["browser", "unity", "unreal"],
+  "runtimeLoop": ["spawn-grid", "collect-key-terms", "avoid-hazards", "trigger-power-state", "score"],
+  "mechanics": ["grid-navigation", "collectibles", "hazards", "powerups", "score-combo", "time-pressure"],
+  "entityTypes": ["player", "collectible", "hazard", "powerup", "gate", "score-zone"],
+  "interactionTypes": ["move", "collect", "avoid", "buff", "penalty", "score"],
+  "assetSlots": [
+    { "id": "player_avatar", "type": "image", "required": false, "description": "Player avatar sprite or pawn material.", "fallback": "default-player" },
+    { "id": "collectible_icon", "type": "image", "required": false, "description": "Icon used for key terms and definitions.", "fallback": "default-collectible" },
+    { "id": "hazard_actor", "type": "image", "required": false, "description": "Enemy/hazard visual.", "fallback": "default-hazard" },
+    { "id": "powerup_audio", "type": "audio", "required": false, "description": "Audio cue for buffs and correct collections.", "fallback": "default-success" }
+  ],
+  "dataContract": {
+    "requiredBindings": ["definition", "hazard"],
+    "optionalBindings": ["metric", "distractor", "reward"],
+    "layout": { "type": "grid", "minNodes": 8, "maxNodes": 64 }
+  },
+  "engineSkeletons": {
+    "browser": { "kind": "web-runtime", "path": "browser/arcade-grid", "loader": "OptimoleArcadeLoader" },
+    "unity": { "kind": "addressables-template", "path": "Unity/Templates/ArcadeCollectAvoid", "loader": "OptimoleArcadeTemplateLoader" },
+    "unreal": { "kind": "primary-data-asset-template", "path": "Unreal/Templates/ArcadeCollectAvoid", "loader": "BP_OptimoleArcadeLoader" }
+  }
+}

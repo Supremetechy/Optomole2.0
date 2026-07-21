@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "router-failover-defense.v1",
+  "name": "Router Failover Defense",
+  "genreFamily": "network-ops-action",
+  "version": "1.0.0",
+  "description": "Animated top-down network operations template where runbook steps become device actions under automated attack waves.",
+  "engineTargets": ["browser", "mobile", "pixijs"],
+  "runtimeLoop": ["brief-incident", "move-technician", "inspect-device", "flip-correct-switch", "survive-attack-wave", "restore-network"],
+  "mechanics": ["top-down-movement", "device-interaction", "attack-waves", "network-health", "runbook-sequencing", "timed-failover"],
+  "entityTypes": ["player-technician", "router", "switch", "firewall", "server", "attack-packet", "runbook-action"],
+  "interactionTypes": ["move", "inspect", "restart", "promote", "cycle-uplink", "isolate", "sync-policy", "verify-recovery"],
+  "assetSlots": [
+    { "id": "technician_sprite", "type": "spritesheet", "required": false, "fallback": "procedural-technician" },
+    { "id": "router_sprite", "type": "image", "required": false, "fallback": "procedural-router" },
+    { "id": "switch_sprite", "type": "image", "required": false, "fallback": "procedural-switch" },
+    { "id": "firewall_sprite", "type": "image", "required": false, "fallback": "procedural-firewall" },
+    { "id": "server_sprite", "type": "image", "required": false, "fallback": "procedural-server" },
+    { "id": "attack_particle", "type": "image", "required": false, "fallback": "procedural-packet" },
+    { "id": "switch_sfx", "type": "audio", "required": false, "fallback": "procedural-sfx" },
+    { "id": "damage_sfx", "type": "audio", "required": false, "fallback": "procedural-sfx" }
+  ],
+  "dataContract": {
+    "requiredBindings": ["procedure-step", "device", "hazard"],
+    "optionalBindings": ["metric", "decision-point", "recovery-check"],
+    "layout": { "type": "top-down-network-floor", "minDevices": 4, "maxDevices": 12 }
+  },
+  "engineSkeletons": {
+    "browser": { "kind": "pixijs-matter-howler-template", "path": "browser/router-failover-defense", "loader": "OptomoleRouterFailoverRuntime" },
+    "mobile": { "kind": "pixijs-mobile-template", "path": "browser/router-failover-defense", "loader": "OptomoleRouterFailoverRuntime" },
+    "pixijs": { "kind": "pixijs-matter-howler-template", "path": "browser/router-failover-defense", "loader": "OptomoleRouterFailoverRuntime" }
+  }
+}

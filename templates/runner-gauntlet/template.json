@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "runner-gauntlet.v1",
+  "name": "Runner Gauntlet",
+  "genreFamily": "arcade-runner",
+  "version": "1.0.0",
+  "description": "Side-scrolling auto-runner where the content becomes the course itself. Milestones are checkpoint platforms, facts are collectible tokens along the route, and hazards are obstacles to jump. Built for short daily loops: a whole piece of content is one two-minute run with a distance score to beat.",
+  "engineTargets": ["browser", "mobile", "unity"],
+  "runtimeLoop": ["auto-run", "collect-token", "jump-obstacle", "hit-checkpoint", "increase-pace", "finish-stage"],
+  "mechanics": ["auto-run", "jump", "double-jump", "gravity", "parallax-scroll", "checkpoints", "distance-score", "streak-combo", "pace-ramp"],
+  "entityTypes": ["runner", "token", "obstacle", "checkpoint", "platform", "finish-gate"],
+  "interactionTypes": ["run", "jump", "collect", "avoid", "checkpoint"],
+  "assetSlots": [
+    { "id": "runner_avatar", "type": "image", "required": false, "description": "Running character sprite.", "fallback": "default-runner" },
+    { "id": "token_icon", "type": "image", "required": false, "description": "Collectible token for facts.", "fallback": "default-coin" },
+    { "id": "obstacle_actor", "type": "image", "required": false, "description": "Obstacle/hazard visual.", "fallback": "default-spike" },
+    { "id": "platform_tile", "type": "image", "required": false, "description": "Checkpoint platform tile.", "fallback": "default-platform" },
+    { "id": "jump_audio", "type": "audio", "required": false, "description": "Jump cue.", "fallback": "default-pickup" }
+  ],
+  "dataContract": {
+    "requiredBindings": ["procedure-step", "hazard"],
+    "optionalBindings": ["evidence", "definition", "npc-dialogue", "metric"],
+    "layout": { "type": "linear-course", "minNodes": 5, "maxNodes": 50 }
+  },
+  "engineSkeletons": {
+    "browser": { "kind": "web-runtime", "path": "browser/runner-gauntlet", "loader": "OptomoleRunnerLoader" },
+    "mobile": { "kind": "web-runtime", "path": "mobile/runner-gauntlet", "loader": "OptomoleRunnerLoader" },
+    "unity": { "kind": "addressables-template", "path": "Unity/Templates/RunnerGauntlet", "loader": "OptomoleRunnerTemplateLoader" }
+  }
+}

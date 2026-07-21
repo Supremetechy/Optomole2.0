@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "fps-target-gallery.v1",
+  "name": "FPS Target Gallery",
+  "genreFamily": "shooter",
+  "version": "1.0.0",
+  "description": "First-person shooting range rendered as depth-projected billboards. Correct concepts are hostile targets to hit under time pressure; decoys and bystanders must be identified and left standing. Turns dense reference material into a fast identify-and-commit drill with accuracy scoring.",
+  "engineTargets": ["browser", "unity", "unreal"],
+  "runtimeLoop": ["brief-round", "scan-downrange", "identify-target", "fire-or-hold", "score-accuracy", "next-round"],
+  "mechanics": ["first-person-look", "billboard-depth", "crosshair-aim", "hit-scan-fire", "hold-fire-discipline", "accuracy-score", "round-timer", "reload"],
+  "entityTypes": ["shooter", "hostile-target", "bystander-target", "bonus-target", "range-marker"],
+  "interactionTypes": ["look", "shoot", "hold", "identify", "reload"],
+  "assetSlots": [
+    { "id": "target_hostile", "type": "image", "required": false, "description": "Visual for a correct/hostile target.", "fallback": "default-target-good" },
+    { "id": "target_bystander", "type": "image", "required": false, "description": "Visual for a decoy the player must not shoot.", "fallback": "default-target-bad" },
+    { "id": "range_backdrop", "type": "image", "required": false, "description": "Downrange horizon backdrop.", "fallback": "default-range" },
+    { "id": "fire_audio", "type": "audio", "required": false, "description": "Weapon report cue.", "fallback": "default-pickup" },
+    { "id": "hit_audio", "type": "audio", "required": false, "description": "Confirmed-hit cue.", "fallback": "default-success" }
+  ],
+  "dataContract": {
+    "requiredBindings": ["definition", "hazard"],
+    "optionalBindings": ["evidence", "distractor", "metric", "npc-dialogue"],
+    "layout": { "type": "downrange-lanes", "minNodes": 6, "maxNodes": 60 }
+  },
+  "engineSkeletons": {
+    "browser": { "kind": "web-runtime", "path": "browser/fps-gallery", "loader": "OptomoleFpsGalleryLoader" },
+    "unity": { "kind": "addressables-template", "path": "Unity/Templates/FpsTargetGallery", "loader": "OptomoleFpsTemplateLoader" },
+    "unreal": { "kind": "primary-data-asset-template", "path": "Unreal/Templates/FpsTargetGallery", "loader": "BP_OptomoleFpsLoader" }
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "1.0.0",
+  "templateId": "fps-target-gallery.v1",
+  "rules": [
+    {
+      "id": "hazard-to-hostile-target",
+      "workElementType": "hazard",
+      "sourceSignals": ["threat", "risk", "attack", "exploit", "violation", "red flag", "never"],
+      "gameEntityType": "hostile-target",
+      "interactionType": "shoot",
+      "templateSlot": "target_hostile",
+      "priority": 100,
+      "feedbackStrategy": "confirm-threat-on-hit",
+      "rewardStrategy": "accuracy-score-and-streak"
+    },
+    {
+      "id": "definition-to-hostile-target",
+      "workElementType": "definition",
+      "sourceSignals": ["definition", "term", "means", "is defined as", "indicator"],
+      "gameEntityType": "hostile-target",
+      "interactionType": "identify",
+      "templateSlot": "target_hostile",
+      "priority": 85,
+      "feedbackStrategy": "show-definition-on-hit",
+      "rewardStrategy": "accuracy-score-and-streak"
+    },
+    {
+      "id": "distractor-to-bystander",
+      "workElementType": "distractor",
+      "sourceSignals": ["safe", "benign", "legitimate", "expected", "normal", "allowed"],
+      "gameEntityType": "bystander-target",
+      "interactionType": "hold",
+      "templateSlot": "target_bystander",
+      "priority": 95,
+      "feedbackStrategy": "penalize-on-wrongful-fire",
+      "rewardStrategy": "discipline-bonus-on-hold"
+    },
+    {
+      "id": "evidence-to-bonus-target",
+      "workElementType": "evidence",
+      "sourceSignals": ["evidence", "indicator", "signal", "log", "telemetry"],
+      "gameEntityType": "bonus-target",
+      "interactionType": "shoot",
+      "templateSlot": "target_hostile",
+      "priority": 70,
+      "feedbackStrategy": "reveal-supporting-evidence",
+      "rewardStrategy": "score-multiplier"
+    },
+    {
+      "id": "metric-to-range-marker",
+      "workElementType": "metric",
+      "sourceSignals": ["accuracy", "threshold", "rate", "sla", "target score"],
+      "gameEntityType": "range-marker",
+      "interactionType": "look",
+      "templateSlot": "range_backdrop",
+      "priority": 50,
+      "feedbackStrategy": "show-qualifying-threshold",
+      "rewardStrategy": "qualification-badge"
+    }
+  ]
+}

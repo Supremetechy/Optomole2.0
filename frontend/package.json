@@ -1,0 +1,20 @@
+{
+  "name": "optomole-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 3000",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 3000"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^5.2.0",
+    "vite": "^7.3.5",
+    "typescript": "^5.7.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "pdfjs-dist": "^6.1.200"
+  },
+  "devDependencies": {}
+}

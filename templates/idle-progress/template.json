@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "idle-progress.v1",
+  "name": "Idle Progress Engine",
+  "genreFamily": "idle",
+  "version": "1.0.0",
+  "description": "Progress-bar and upgrade skeleton for converting reading, task completion, lessons, and habits into accumulating knowledge currency.",
+  "engineTargets": ["browser", "mobile", "unity"],
+  "runtimeLoop": ["start-task", "consume-content", "generate-currency", "buy-upgrade", "unlock-automation"],
+  "mechanics": ["progress-bars", "currencies", "upgrades", "timers", "streaks", "automation"],
+  "entityTypes": ["task", "generator", "currency", "upgrade", "milestone", "streak"],
+  "interactionTypes": ["start", "wait", "complete", "upgrade", "claim", "streak"],
+  "assetSlots": [
+    { "id": "generator_icon", "type": "image", "required": false, "description": "Generator or task icon.", "fallback": "default-generator" },
+    { "id": "upgrade_icon", "type": "image", "required": false, "description": "Upgrade icon.", "fallback": "default-upgrade" },
+    { "id": "completion_audio", "type": "audio", "required": false, "description": "Completion cue.", "fallback": "default-complete" }
+  ],
+  "dataContract": {
+    "requiredBindings": ["task", "reward"],
+    "optionalBindings": ["metric", "habit", "lesson", "reading"],
+    "layout": { "type": "progression-list", "minGenerators": 1, "maxGenerators": 32 }
+  },
+  "engineSkeletons": {
+    "browser": { "kind": "web-runtime", "path": "browser/idle-progress", "loader": "OptimoleIdleLoader" },
+    "mobile": { "kind": "pwa-runtime", "path": "mobile/idle-progress", "loader": "OptimoleIdlePwaLoader" },
+    "unity": { "kind": "scriptable-object-template", "path": "Unity/Templates/IdleProgress", "loader": "OptimoleIdleTemplateLoader" }
+  }
+}

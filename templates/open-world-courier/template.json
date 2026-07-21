@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "open-world-courier.v1",
+  "name": "Open World Courier",
+  "genreFamily": "open-world-action",
+  "version": "1.0.0",
+  "description": "Top-down open-city driving sandbox. Each content item becomes a delivery contract with a pickup and a drop-off across a procedurally laid-out grid city; hazards become patrols that raise heat. Turns backlogs, task lists, and multi-step workflows into a free-roam run where the player chooses their own route through the work.",
+  "engineTargets": ["browser", "unity", "unreal"],
+  "runtimeLoop": ["free-roam", "accept-contract", "drive-to-pickup", "carry-cargo", "deliver", "evade-heat", "district-complete"],
+  "mechanics": ["vehicle-handling", "scrolling-camera", "open-map", "waypoint-navigation", "cargo-carry", "heat-meter", "minimap", "contract-chaining"],
+  "entityTypes": ["vehicle", "pickup-point", "dropoff-point", "patrol", "city-block", "district-hub"],
+  "interactionTypes": ["drive", "pickup", "deliver", "evade", "unlock"],
+  "assetSlots": [
+    { "id": "vehicle_sprite", "type": "image", "required": false, "description": "Player vehicle top-down sprite.", "fallback": "default-vehicle" },
+    { "id": "pickup_marker", "type": "image", "required": false, "description": "Pickup waypoint marker.", "fallback": "default-waypoint-pickup" },
+    { "id": "dropoff_marker", "type": "image", "required": false, "description": "Drop-off waypoint marker.", "fallback": "default-waypoint-dropoff" },
+    { "id": "patrol_actor", "type": "image", "required": false, "description": "Patrol/hazard vehicle visual.", "fallback": "default-patrol" },
+    { "id": "delivery_audio", "type": "audio", "required": false, "description": "Successful delivery cue.", "fallback": "default-reward" }
+  ],
+  "dataContract": {
+    "requiredBindings": ["procedure-step"],
+    "optionalBindings": ["hazard", "evidence", "npc-dialogue", "metric", "decision"],
+    "layout": { "type": "grid-city", "minNodes": 4, "maxNodes": 48 }
+  },
+  "engineSkeletons": {
+    "browser": { "kind": "web-runtime", "path": "browser/open-world-courier", "loader": "OptomoleCourierLoader" },
+    "unity": { "kind": "addressables-template", "path": "Unity/Templates/OpenWorldCourier", "loader": "OptomoleCourierTemplateLoader" },
+    "unreal": { "kind": "primary-data-asset-template", "path": "Unreal/Templates/OpenWorldCourier", "loader": "BP_OptomoleCourierLoader" }
+  }
+}

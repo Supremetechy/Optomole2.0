@@ -1,0 +1,112 @@
+{
+  "meta": {
+    "title": "Morning Routine Gauntlet",
+    "subtitle": "Arcade · Runner Gauntlet",
+    "briefing": "Your morning, as a two-minute run. Every checkpoint is a habit you're trying to keep; every spike is the thing that usually derails it.",
+    "tokensPerStage": 2
+  },
+  "manifest": {
+    "schemaVersion": "1.0.0",
+    "id": "mapping-morning-routine-gauntlet",
+    "templateId": "runner-gauntlet.v1",
+    "experienceId": "exp-morning-routine-gauntlet",
+    "title": "Morning Routine Gauntlet",
+    "target": "browser",
+    "requiredRuntimeSystems": ["auto-run", "jump", "parallax", "checkpoints", "distance-score", "combo"],
+    "assetSlots": [
+      { "id": "runner_avatar", "type": "image", "required": false, "fallback": "default-runner" },
+      { "id": "jump_audio", "type": "audio", "required": false, "fallback": "default-pickup" }
+    ],
+    "bindings": [
+      {
+        "id": "coach-line",
+        "sourceElement": { "type": "npc-dialogue", "label": "Your Future Self", "description": "You don't need a perfect morning. You need one you can repeat when you're tired.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "npc", "interactionType": "talk", "mechanic": "npc-dialogue", "reward": { "strategy": "context-unlock", "xp": 0 }, "spawnRules": { "placement": "template-default", "priority": 100 } }
+      },
+
+      {
+        "id": "cp-wake-consistent",
+        "sourceElement": { "type": "procedure-step", "label": "Same wake time", "description": "Wake within the same 30-minute window every day, weekends included.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "checkpoint", "mechanic": "checkpoint", "reward": { "strategy": "checkpoint-save-and-bonus", "xp": 150, "currency": 12 }, "successConditions": ["complete:checkpoint"], "spawnRules": { "placement": "template-default", "priority": 98 } }
+      },
+      {
+        "id": "cp-light-first",
+        "sourceElement": { "type": "procedure-step", "label": "Light before screens", "description": "Ten minutes of daylight before the first notification of the day.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "checkpoint", "mechanic": "checkpoint", "reward": { "strategy": "checkpoint-save-and-bonus", "xp": 150, "currency": 12 }, "successConditions": ["complete:checkpoint"], "spawnRules": { "placement": "template-default", "priority": 97 } }
+      },
+      {
+        "id": "cp-move-body",
+        "sourceElement": { "type": "procedure-step", "label": "Move for 20 minutes", "description": "Walk, lift, stretch — the modality matters far less than the streak.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "checkpoint", "mechanic": "checkpoint", "reward": { "strategy": "checkpoint-save-and-bonus", "xp": 150, "currency": 12 }, "successConditions": ["complete:checkpoint"], "spawnRules": { "placement": "template-default", "priority": 96 } }
+      },
+      {
+        "id": "cp-plan-three",
+        "sourceElement": { "type": "procedure-step", "label": "Name your three", "description": "Write the three things that would make today count, before anyone else sets your agenda.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "checkpoint", "mechanic": "checkpoint", "reward": { "strategy": "checkpoint-save-and-bonus", "xp": 150, "currency": 12 }, "successConditions": ["complete:checkpoint"], "spawnRules": { "placement": "template-default", "priority": 95 } }
+      },
+      {
+        "id": "cp-deep-block",
+        "sourceElement": { "type": "procedure-step", "label": "Protect the first block", "description": "Ninety minutes on the hardest of the three, before the inbox opens.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "checkpoint", "mechanic": "checkpoint", "reward": { "strategy": "checkpoint-save-and-bonus", "xp": 180, "currency": 16 }, "successConditions": ["complete:checkpoint"], "spawnRules": { "placement": "template-default", "priority": 94 } }
+      },
+
+      {
+        "id": "token-sleep-anchor",
+        "sourceElement": { "type": "evidence", "label": "Wake time anchors sleep", "description": "A fixed wake time stabilises the whole cycle far more reliably than a fixed bedtime.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "token", "reward": { "strategy": "score-and-combo", "xp": 90, "currency": 5 }, "spawnRules": { "placement": "template-default", "priority": 82 } }
+      },
+      {
+        "id": "token-cortisol",
+        "sourceElement": { "type": "evidence", "label": "Morning light sets the clock", "description": "Early outdoor light is the strongest signal your circadian system gets all day.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "token", "reward": { "strategy": "score-and-combo", "xp": 90, "currency": 5 }, "spawnRules": { "placement": "template-default", "priority": 81 } }
+      },
+      {
+        "id": "token-two-day-rule",
+        "sourceElement": { "type": "definition", "label": "The two-day rule", "description": "Never miss twice. One skipped day is noise; two in a row is how a habit dies.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "token", "reward": { "strategy": "score-and-combo", "xp": 90, "currency": 5 }, "spawnRules": { "placement": "template-default", "priority": 80 } }
+      },
+      {
+        "id": "token-friction",
+        "sourceElement": { "type": "evidence", "label": "Lower the friction", "description": "Shoes by the door, kit packed the night before — most missed mornings are logistics, not willpower.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "token", "reward": { "strategy": "score-and-combo", "xp": 90, "currency": 5 }, "spawnRules": { "placement": "template-default", "priority": 79 } }
+      },
+      {
+        "id": "token-minimum-dose",
+        "sourceElement": { "type": "definition", "label": "Minimum viable version", "description": "Define the five-minute version of every habit for the days that fall apart.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "token", "reward": { "strategy": "score-and-combo", "xp": 90, "currency": 5 }, "spawnRules": { "placement": "template-default", "priority": 78 } }
+      },
+      {
+        "id": "token-stack",
+        "sourceElement": { "type": "definition", "label": "Habit stacking", "description": "Attach a new habit to one that already survives without effort.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "token", "reward": { "strategy": "score-and-combo", "xp": 90, "currency": 5 }, "spawnRules": { "placement": "template-default", "priority": 77 } }
+      },
+
+      {
+        "id": "spike-phone-in-bed",
+        "sourceElement": { "type": "hazard", "label": "Phone in bed", "description": "The first scroll of the day hands your attention to whoever wants it most.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hazard", "interactionType": "avoid", "mechanic": "obstacle", "reward": { "strategy": "streak-break-penalty", "xp": 0 }, "failureConditions": ["collision"], "spawnRules": { "placement": "template-default", "priority": 92 } }
+      },
+      {
+        "id": "spike-snooze",
+        "sourceElement": { "type": "hazard", "label": "The snooze spiral", "description": "Fragmented sleep after the alarm is worse than the twenty minutes you gain.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hazard", "interactionType": "avoid", "mechanic": "obstacle", "reward": { "strategy": "streak-break-penalty", "xp": 0 }, "failureConditions": ["collision"], "spawnRules": { "placement": "template-default", "priority": 91 } }
+      },
+      {
+        "id": "spike-early-meeting",
+        "sourceElement": { "type": "hazard", "label": "The 9am meeting creep", "description": "Every meeting accepted before 10:00 eats the only block nobody else wants.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hazard", "interactionType": "avoid", "mechanic": "obstacle", "reward": { "strategy": "streak-break-penalty", "xp": 0 }, "failureConditions": ["collision"], "spawnRules": { "placement": "template-default", "priority": 90 } }
+      },
+      {
+        "id": "spike-perfectionism",
+        "sourceElement": { "type": "hazard", "label": "All-or-nothing thinking", "description": "Skipping the whole routine because you only have fifteen minutes is how streaks end.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hazard", "interactionType": "avoid", "mechanic": "obstacle", "reward": { "strategy": "streak-break-penalty", "xp": 0 }, "failureConditions": ["collision"], "spawnRules": { "placement": "template-default", "priority": 89 } }
+      },
+
+      {
+        "id": "metric-streak-target",
+        "sourceElement": { "type": "metric", "label": "Target: 21 clean mornings", "description": "Three weeks of not missing twice is the goal — distance here stands in for the streak.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "finish-gate", "interactionType": "run", "mechanic": "target", "reward": { "strategy": "personal-best", "xp": 0 }, "spawnRules": { "placement": "template-default", "priority": 50 } }
+      }
+    ]
+  }
+}

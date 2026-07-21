@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "1.0.0",
+  "templateId": "runner-gauntlet.v1",
+  "rules": [
+    {
+      "id": "procedure-step-to-checkpoint",
+      "workElementType": "procedure-step",
+      "sourceSignals": ["step", "milestone", "stage", "phase", "then", "next"],
+      "gameEntityType": "checkpoint",
+      "interactionType": "checkpoint",
+      "templateSlot": "platform_tile",
+      "priority": 100,
+      "feedbackStrategy": "announce-milestone-at-checkpoint",
+      "rewardStrategy": "checkpoint-save-and-bonus"
+    },
+    {
+      "id": "evidence-to-token",
+      "workElementType": "evidence",
+      "sourceSignals": ["fact", "evidence", "tip", "detail", "note"],
+      "gameEntityType": "token",
+      "interactionType": "collect",
+      "templateSlot": "token_icon",
+      "priority": 80,
+      "feedbackStrategy": "show-fact-on-pickup",
+      "rewardStrategy": "score-and-combo"
+    },
+    {
+      "id": "definition-to-token",
+      "workElementType": "definition",
+      "sourceSignals": ["definition", "term", "means", "key term"],
+      "gameEntityType": "token",
+      "interactionType": "collect",
+      "templateSlot": "token_icon",
+      "priority": 75,
+      "feedbackStrategy": "show-definition-on-pickup",
+      "rewardStrategy": "score-and-combo"
+    },
+    {
+      "id": "hazard-to-obstacle",
+      "workElementType": "hazard",
+      "sourceSignals": ["obstacle", "risk", "mistake", "trap", "setback", "avoid"],
+      "gameEntityType": "obstacle",
+      "interactionType": "avoid",
+      "templateSlot": "obstacle_actor",
+      "priority": 95,
+      "feedbackStrategy": "explain-setback-on-collision",
+      "rewardStrategy": "streak-break-penalty"
+    },
+    {
+      "id": "metric-to-finish-gate",
+      "workElementType": "metric",
+      "sourceSignals": ["target", "goal", "distance", "score", "record"],
+      "gameEntityType": "finish-gate",
+      "interactionType": "run",
+      "templateSlot": "platform_tile",
+      "priority": 60,
+      "feedbackStrategy": "show-target-distance",
+      "rewardStrategy": "personal-best"
+    }
+  ]
+}

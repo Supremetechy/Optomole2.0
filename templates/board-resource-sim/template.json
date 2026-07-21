@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "board-resource-sim.v1",
+  "name": "Board Resource Simulation",
+  "genreFamily": "board-sim",
+  "version": "1.0.0",
+  "description": "Turn-based resource simulation skeleton where real decisions, metrics, stakeholders, and tradeoffs become board spaces and resource moves.",
+  "engineTargets": ["browser", "unity"],
+  "runtimeLoop": ["draw-scenario", "choose-action", "spend-resource", "resolve-metric", "upgrade"],
+  "mechanics": ["turns", "resources", "scenario-cards", "tradeoffs", "upgrade-tree", "score-tracks"],
+  "entityTypes": ["board-space", "scenario-card", "resource", "stakeholder", "metric-track", "upgrade"],
+  "interactionTypes": ["draw", "choose", "spend", "trade", "upgrade", "score"],
+  "assetSlots": [
+    { "id": "board_skin", "type": "image", "required": false, "description": "Board background.", "fallback": "default-board" },
+    { "id": "scenario_card_art", "type": "image", "required": false, "description": "Scenario card art.", "fallback": "default-card" },
+    { "id": "stakeholder_portrait", "type": "image", "required": false, "description": "Stakeholder portrait.", "fallback": "default-stakeholder" }
+  ],
+  "dataContract": {
+    "requiredBindings": ["decision-point", "metric"],
+    "optionalBindings": ["stakeholder", "resource", "risk"],
+    "layout": { "type": "board-track", "minSpaces": 8, "maxSpaces": 40 }
+  },
+  "engineSkeletons": {
+    "browser": { "kind": "web-runtime", "path": "browser/board-resource-sim", "loader": "OptimoleBoardSimLoader" },
+    "unity": { "kind": "scriptable-object-template", "path": "Unity/Templates/BoardResourceSim", "loader": "OptimoleBoardSimTemplateLoader" }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://optomole.local/schema/experience-manifest.schema.json",
+  "title": "Optomole ExperienceManifest",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "game", "supportedPlatforms", "modules", "loadOrder", "aiModelsUsed"],
+  "properties": {
+    "schemaVersion": { "type": "string" },
+    "kind": { "const": "optomole.ExperienceManifest" },
+    "manifestFile": { "type": "string" },
+    "generatedAt": { "type": "string" },
+    "game": {
+      "type": "object",
+      "required": ["id", "title", "version", "creator"],
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "version": { "type": "string" },
+        "creator": { "type": "string" },
+        "summary": { "type": "string" }
+      }
+    },
+    "supportedPlatforms": { "type": "array", "items": { "type": "string" } },
+    "renderers": { "type": "object" },
+    "browserPlayEngine": { "type": "object" },
+    "requiredAssetPacks": { "type": "array" },
+    "modules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "path"],
+        "properties": {
+          "id": { "type": "string" },
+          "kind": { "type": "string" },
+          "path": { "type": "string" },
+          "contentType": { "type": "string" }
+        }
+      }
+    },
+    "loadOrder": { "type": "array", "items": { "type": "string" } },
+    "difficultyProfiles": { "type": "object" },
+    "multiplayerCapabilities": { "type": "object" },
+    "accessibilityOptions": { "type": "object" },
+    "localization": { "type": "object" },
+    "analyticsConfiguration": { "type": "object" },
+    "aiModelsUsed": { "type": "array" },
+    "templateCompatibility": { "type": "object" },
+    "validation": { "type": "object" }
+  }
+}

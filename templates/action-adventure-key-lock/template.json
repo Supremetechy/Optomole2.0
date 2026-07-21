@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "action-adventure-key-lock.v1",
+  "name": "Action Adventure Key and Lock",
+  "genreFamily": "action-adventure",
+  "version": "1.0.0",
+  "description": "Room-based exploration skeleton where SOP steps, evidence, and decisions become keys, locks, rooms, NPCs, and progression gates.",
+  "engineTargets": ["browser", "unity", "unreal"],
+  "runtimeLoop": ["enter-room", "talk-to-npc", "collect-key-item", "unlock-gate", "resolve-room"],
+  "mechanics": ["room-graph", "key-items", "locked-gates", "npc-dialogue", "evidence-gates", "quest-objectives"],
+  "entityTypes": ["room", "npc", "key-item", "lock", "hazard", "quest-objective", "exit-gate"],
+  "interactionTypes": ["talk", "collect", "inspect", "unlock", "sequence", "branch"],
+  "assetSlots": [
+    { "id": "room_backdrop", "type": "image", "required": false, "description": "Room or biome visual.", "fallback": "default-room" },
+    { "id": "npc_voice_intro", "type": "audio", "required": false, "description": "Intro line for the guide NPC.", "fallback": "default-npc-voice" },
+    { "id": "key_item_icon", "type": "image", "required": false, "description": "Key item visual for knowledge evidence.", "fallback": "default-key-item" },
+    { "id": "training_video_slot", "type": "video", "required": false, "description": "Optional instructional video attached to a room.", "fallback": "none" }
+  ],
+  "dataContract": {
+    "requiredBindings": ["procedure-step", "evidence"],
+    "optionalBindings": ["decision-point", "hazard", "npc-dialogue", "video"],
+    "layout": { "type": "room-graph", "minRooms": 1, "maxRooms": 24 }
+  },
+  "engineSkeletons": {
+    "browser": { "kind": "web-runtime", "path": "browser/key-lock-adventure", "loader": "OptimoleAdventureLoader" },
+    "unity": { "kind": "scriptable-object-template", "path": "Unity/Templates/ActionAdventureKeyLock", "loader": "OptimoleAdventureTemplateLoader" },
+    "unreal": { "kind": "primary-data-asset-template", "path": "Unreal/Templates/ActionAdventureKeyLock", "loader": "BP_OptimoleAdventureLoader" }
+  }
+}

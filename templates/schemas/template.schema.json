@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://optimole.local/schemas/template.schema.json",
+  "title": "Optimole Genre Template",
+  "type": "object",
+  "required": ["schemaVersion", "id", "name", "genreFamily", "version", "engineTargets", "mechanics", "entityTypes", "interactionTypes", "assetSlots", "engineSkeletons"],
+  "properties": {
+    "schemaVersion": { "type": "string" },
+    "id": { "type": "string" },
+    "name": { "type": "string" },
+    "genreFamily": { "type": "string" },
+    "version": { "type": "string" },
+    "description": { "type": "string" },
+    "engineTargets": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "mechanics": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "runtimeLoop": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "entityTypes": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "interactionTypes": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "assetSlots": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "required"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "enum": ["image", "audio", "video", "text", "mesh", "animation", "material"] },
+          "required": { "type": "boolean" },
+          "description": { "type": "string" },
+          "fallback": { "type": "string" }
+        }
+      }
+    },
+    "dataContract": { "type": "object" },
+    "engineSkeletons": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["kind", "path", "loader"],
+        "properties": {
+          "kind": { "type": "string" },
+          "path": { "type": "string" },
+          "loader": { "type": "string" },
+          "notes": { "type": "string" }
+        }
+      }
+    }
+  }
+}

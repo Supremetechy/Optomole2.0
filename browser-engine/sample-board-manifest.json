@@ -1,0 +1,72 @@
+{
+  "meta": {
+    "title": "Onboarding Journey",
+    "subtitle": "Board · Resource Sim",
+    "briefing": "Your first week, one square at a time. Lap the board to collect every onboarding concept, bank coins at START, and mind the setbacks.",
+    "roomSize": 12
+  },
+  "manifest": {
+    "schemaVersion": "1.0.0",
+    "id": "mapping-onboarding-journey",
+    "templateId": "board-resource-sim.v1",
+    "experienceId": "exp-onboarding-journey",
+    "title": "Onboarding Journey",
+    "target": "browser",
+    "requiredRuntimeSystems": ["board-spaces", "dice-turns", "resource-changes", "events"],
+    "assetSlots": [
+      { "id": "board_theme", "type": "image", "required": false, "fallback": "default-board" }
+    ],
+    "bindings": [
+      {
+        "id": "coach-sam",
+        "sourceElement": { "type": "npc-dialogue", "label": "Onboarding Buddy Sam", "description": "Take it a lap at a time — you'll have it all by Friday.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "npc", "interactionType": "talk", "mechanic": "npc-dialogue", "reward": { "strategy": "context-unlock", "xp": 0 }, "spawnRules": { "placement": "template-default", "priority": 100 } }
+      },
+      {
+        "id": "c-accounts",
+        "sourceElement": { "type": "evidence", "label": "Set up your accounts", "description": "Activate SSO, email, and your password manager on day one.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "key-item", "reward": { "strategy": "score", "xp": 20 }, "spawnRules": { "placement": "template-default", "priority": 95 } }
+      },
+      {
+        "id": "c-orgchart",
+        "sourceElement": { "type": "evidence", "label": "Learn the org chart", "description": "Know your team, your manager, and who owns what.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "key-item", "reward": { "strategy": "score", "xp": 20 }, "spawnRules": { "placement": "template-default", "priority": 92 } }
+      },
+      {
+        "id": "e-standup",
+        "sourceElement": { "type": "procedure-step", "label": "Join the daily standup", "description": "Share what you're doing and where you're blocked — every morning.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "sequence", "mechanic": "quest-objective", "reward": { "strategy": "score", "xp": 10 }, "spawnRules": { "placement": "template-default", "priority": 88 } }
+      },
+      {
+        "id": "c-repo",
+        "sourceElement": { "type": "evidence", "label": "Clone the main repo", "description": "Get the codebase building locally and run the test suite once.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "key-item", "reward": { "strategy": "score", "xp": 20 }, "spawnRules": { "placement": "template-default", "priority": 85 } }
+      },
+      {
+        "id": "h-scope",
+        "sourceElement": { "type": "hazard", "label": "Scope creep", "description": "Taking on too much at once — a classic new-hire energy drain.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hazard", "interactionType": "avoid", "mechanic": "hazard", "reward": { "strategy": "focus-penalty" }, "spawnRules": { "placement": "template-default", "priority": 60 } }
+      },
+      {
+        "id": "c-deploy",
+        "sourceElement": { "type": "evidence", "label": "Ship a tiny first PR", "description": "A small, real change end-to-end teaches the whole pipeline.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "key-item", "reward": { "strategy": "score", "xp": 20 }, "spawnRules": { "placement": "template-default", "priority": 80 } }
+      },
+      {
+        "id": "e-1on1",
+        "sourceElement": { "type": "procedure-step", "label": "Book a 1:1 with your manager", "description": "Set expectations and your 30/60/90 goals early.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "sequence", "mechanic": "quest-objective", "reward": { "strategy": "score", "xp": 10 }, "spawnRules": { "placement": "template-default", "priority": 76 } }
+      },
+      {
+        "id": "c-oncall",
+        "sourceElement": { "type": "evidence", "label": "Read the on-call runbook", "description": "Know how incidents are handled before you're ever paged.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "key-item", "reward": { "strategy": "score", "xp": 20 }, "spawnRules": { "placement": "template-default", "priority": 72 } }
+      },
+      {
+        "id": "h-burnout",
+        "sourceElement": { "type": "hazard", "label": "Skipping breaks", "description": "Grinding without pause tanks your energy fast.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hazard", "interactionType": "avoid", "mechanic": "hazard", "reward": { "strategy": "focus-penalty" }, "spawnRules": { "placement": "template-default", "priority": 58 } }
+      }
+    ]
+  }
+}

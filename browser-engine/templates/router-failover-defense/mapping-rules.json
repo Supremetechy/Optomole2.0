@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "1.0.0",
+  "templateId": "router-failover-defense.v1",
+  "rules": [
+    {
+      "id": "router-restart",
+      "workElementType": "procedure-step",
+      "sourceSignals": ["restart", "router", "wan1", "led"],
+      "gameEntityType": "router",
+      "interactionType": "restart",
+      "templateSlot": "router_sprite",
+      "feedbackStrategy": "Restart the affected router only after validating the failing link.",
+      "rewardStrategy": "network-health-stabilized",
+      "priority": 95
+    },
+    {
+      "id": "backup-route-promote",
+      "workElementType": "procedure-step",
+      "sourceSignals": ["promote", "wan2", "backup", "failover"],
+      "gameEntityType": "router",
+      "interactionType": "promote",
+      "templateSlot": "router_sprite",
+      "feedbackStrategy": "Promote the backup path before primary link loss cascades.",
+      "rewardStrategy": "traffic-rerouted",
+      "priority": 100
+    },
+    {
+      "id": "switch-uplink-cycle",
+      "workElementType": "procedure-step",
+      "sourceSignals": ["switch", "uplink", "packet storm", "cycle"],
+      "gameEntityType": "switch",
+      "interactionType": "cycle-uplink",
+      "templateSlot": "switch_sprite",
+      "feedbackStrategy": "Cycle the uplink to clear stormed forwarding state.",
+      "rewardStrategy": "packet-flow-restored",
+      "priority": 90
+    },
+    {
+      "id": "firewall-isolate",
+      "workElementType": "hazard",
+      "sourceSignals": ["intrusion", "attack", "isolate", "firewall"],
+      "gameEntityType": "firewall",
+      "interactionType": "isolate",
+      "templateSlot": "firewall_sprite",
+      "feedbackStrategy": "Isolate the firewall path before attack packets reach servers.",
+      "rewardStrategy": "threat-contained",
+      "priority": 98
+    },
+    {
+      "id": "policy-sync",
+      "workElementType": "procedure-step",
+      "sourceSignals": ["policy", "sync", "rules"],
+      "gameEntityType": "firewall",
+      "interactionType": "sync-policy",
+      "templateSlot": "firewall_sprite",
+      "feedbackStrategy": "Synchronize policy after containment to avoid routing drift.",
+      "rewardStrategy": "policy-consistent",
+      "priority": 84
+    },
+    {
+      "id": "server-recovery-check",
+      "workElementType": "recovery-check",
+      "sourceSignals": ["verify", "server", "recover", "restore"],
+      "gameEntityType": "server",
+      "interactionType": "verify-recovery",
+      "templateSlot": "server_sprite",
+      "feedbackStrategy": "Verify app recovery after route and firewall states stabilize.",
+      "rewardStrategy": "service-restored",
+      "priority": 86
+    }
+  ]
+}

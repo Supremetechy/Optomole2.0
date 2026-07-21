@@ -1,0 +1,26 @@
+{
+    "schemaVersion": "1.0.0",
+    "templateId": "memory-palace.v1",
+    "rules": [
+      {
+        "id": "concept-to-room",
+        "workElementType": "evidence",
+        "sourceSignals": ["concept", "definition", "principle"],
+        "gameEntityType": "key-item",
+        "interactionType": "collect",
+        "templateSlot": "memory-object",
+        "priority": 90,
+        "rewardStrategy": "grant-key-item"
+      },
+      {
+        "id": "risk-to-hazard",
+        "workElementType": "hazard",
+        "sourceSignals": ["risk", "warning", "avoid", "mistake"],
+        "gameEntityType": "hazard",
+        "interactionType": "avoid",
+        "templateSlot": "confusion-hazard",
+        "priority": 80,
+        "rewardStrategy": "focus-penalty"
+      }
+    ]
+  }

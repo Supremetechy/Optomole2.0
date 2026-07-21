@@ -1,0 +1,629 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Optomole · Browser Template Demo</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #08111f;
+      --panel: #0d1726;
+      --panel-2: #111d2e;
+      --line: rgba(148, 163, 184, .24);
+      --line-strong: rgba(103, 232, 249, .46);
+      --text: #e5f4ff;
+      --muted: #9fb0c5;
+      --cyan: #67e8f9;
+      --green: #34d399;
+      --amber: #fbbf24;
+      --rose: #fb7185;
+      --shadow: 0 18px 60px rgba(0, 0, 0, .36);
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      overflow: hidden;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: minmax(292px, 340px) minmax(0, 1fr);
+      height: 100vh;
+      min-height: 620px;
+    }
+
+    .sidebar {
+      display: flex;
+      min-height: 0;
+      flex-direction: column;
+      border-right: 1px solid var(--line);
+      background: linear-gradient(180deg, #0c1829 0%, #09111f 100%);
+    }
+
+    .header {
+      flex: 0 0 auto;
+      padding: 18px 16px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .eyebrow {
+      margin: 0;
+      color: var(--cyan);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 7px 0 0;
+      font-size: 21px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .summary {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    button,
+    a.button {
+      min-height: 36px;
+      border: 1px solid rgba(103, 232, 249, .28);
+      border-radius: 8px;
+      background: #102033;
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 750;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    button:hover,
+    a.button:hover {
+      border-color: var(--line-strong);
+      background: #142840;
+    }
+
+    a.button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .list {
+      min-height: 0;
+      overflow: auto;
+      padding: 10px;
+    }
+
+    .card {
+      width: 100%;
+      min-height: 92px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      margin: 0 0 8px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      text-align: left;
+      box-shadow: none;
+    }
+
+    .card[aria-current="true"] {
+      border-color: var(--line-strong);
+      background: linear-gradient(180deg, rgba(20, 40, 64, .98), rgba(12, 26, 43, .98));
+      box-shadow: inset 3px 0 0 var(--cyan);
+    }
+
+    .card-title {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 850;
+      line-height: 1.25;
+    }
+
+    .card-id {
+      margin-top: 4px;
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      overflow-wrap: anywhere;
+    }
+
+    .card-desc {
+      grid-column: 1 / -1;
+      margin: 0;
+      color: #b8c6d8;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .badge {
+      align-self: start;
+      padding: 4px 7px;
+      border: 1px solid rgba(52, 211, 153, .36);
+      border-radius: 999px;
+      color: #b9f8dc;
+      background: rgba(52, 211, 153, .09);
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .badge.warn {
+      border-color: rgba(251, 191, 36, .4);
+      color: #fde68a;
+      background: rgba(251, 191, 36, .1);
+    }
+
+    .stage {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      min-width: 0;
+      min-height: 0;
+      background:
+        linear-gradient(90deg, rgba(103, 232, 249, .08), transparent 34%),
+        linear-gradient(180deg, #0b1424, #060b14);
+    }
+
+    .stage-top {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 14px;
+      min-height: 74px;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .active-title {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    .active-meta {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .stage-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .viewport {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      padding: 14px;
+    }
+
+    .frame-wrap {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      border: 1px solid rgba(103, 232, 249, .25);
+      border-radius: 8px;
+      background: #030712;
+      box-shadow: var(--shadow);
+    }
+
+    iframe {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: #030712;
+    }
+
+    .note {
+      position: absolute;
+      left: 26px;
+      bottom: 26px;
+      max-width: min(560px, calc(100% - 52px));
+      padding: 10px 12px;
+      border: 1px solid rgba(251, 191, 36, .42);
+      border-radius: 8px;
+      background: rgba(24, 18, 7, .92);
+      color: #fde68a;
+      font-size: 12px;
+      line-height: 1.4;
+      box-shadow: 0 10px 32px rgba(0, 0, 0, .3);
+    }
+
+    .note[hidden] {
+      display: none;
+    }
+
+    @media (max-width: 900px) {
+      body { overflow: auto; }
+
+      .shell {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto minmax(520px, 72vh);
+        height: auto;
+        min-height: 100vh;
+      }
+
+      .sidebar {
+        max-height: 46vh;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .stage-top {
+        grid-template-columns: 1fr;
+        align-items: start;
+      }
+
+      .stage-actions {
+        justify-content: start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <aside class="sidebar" aria-label="Template selector">
+      <div class="header">
+        <p class="eyebrow">Browser Engine</p>
+        <h1>Template Demo Deck</h1>
+        <p class="summary">Select any active runtime template and explore it inside the existing playable engine.</p>
+        <div class="toolbar">
+          <button id="reload" type="button">Reload</button>
+          <a id="openStandalone" class="button" href="./" target="_blank" rel="noreferrer">Open</a>
+        </div>
+      </div>
+      <div id="templateList" class="list" role="listbox" aria-label="Current browser templates"></div>
+    </aside>
+
+    <section class="stage" aria-label="Runtime preview">
+      <div class="stage-top">
+        <div>
+          <h2 id="activeTitle" class="active-title">Loading templates</h2>
+          <p id="activeMeta" class="active-meta">Reading template registry…</p>
+        </div>
+        <div class="stage-actions">
+          <button id="previous" type="button">Previous</button>
+          <button id="next" type="button">Next</button>
+        </div>
+      </div>
+      <div class="viewport">
+        <div class="frame-wrap">
+          <iframe id="runtimeFrame" title="Optomole playable runtime"></iframe>
+        </div>
+        <p id="templateNote" class="note" hidden></p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const FALLBACK_REGISTRY = [
+      'action-adventure-key-lock.v1',
+      'arcade-collect-avoid.v1',
+      'board-resource-sim.v1',
+      'fps-target-gallery.v1',
+      'idle-progress.v1',
+      'memory-palace.v1',
+      'open-world-courier.v1',
+      'quest-rpg-progression.v1',
+      'router-failover-defense.v1',
+      'runner-gauntlet.v1',
+      'sandbox-craft-build.v1',
+    ].map((id) => ({ id, status: 'active' }));
+
+    const CONFIG = {
+      'action-adventure-key-lock': {
+        title: 'Action Adventure · Key Lock',
+        sample: './sample-manifest.json',
+        description: 'Explore rooms, collect evidence items, avoid hazards, and unlock gates.',
+      },
+      'arcade-collect-avoid': {
+        title: 'Arcade · Collect Avoid',
+        sample: './sample-arcade-manifest.json',
+        description: 'Collect correct concepts, avoid decoys, and clear timed waves.',
+      },
+      'board-resource-sim': {
+        title: 'Board · Resource Sim',
+        sample: './sample-board-manifest.json',
+        description: 'Roll through a board loop, collect concepts, and manage resources.',
+      },
+      'fps-target-gallery': {
+        title: 'FPS · Target Gallery',
+        sample: './sample-fps-manifest.json',
+        description: 'Aim through a gallery of targets mapped from learning elements.',
+      },
+      'idle-progress': {
+        title: 'Idle · Progress',
+        sample: './sample-idle-manifest.json',
+        description: 'Generate insight, invest in concepts, and compound toward milestones.',
+      },
+      'memory-palace': {
+        title: 'Memory Palace',
+        sample: './sample-memory-manifest.json',
+        description: 'Room-based recall and navigation skeleton for memory anchors.',
+      },
+      'open-world-courier': {
+        title: 'Open World · Courier',
+        sample: './sample-courier-manifest.json',
+        description: 'Pick up and deliver knowledge jobs across a scrolling district.',
+      },
+      'quest-rpg-progression': {
+        title: 'Quest RPG · Progression',
+        sample: './sample-quest-rpg-manifest.json',
+        description: 'Complete quest beats, earn rewards, and advance an RPG progression loop.',
+      },
+      'router-failover-defense': {
+        title: 'Router Failover Defense',
+        inline: createRouterManifest,
+        description: 'A network-ops arcade variant for collecting safe failover actions.',
+      },
+      'runner-gauntlet': {
+        title: 'Runner · Gauntlet',
+        sample: './sample-runner-manifest.json',
+        description: 'Run through lanes, capture the right items, and survive hazards.',
+      },
+      'sandbox-craft-build': {
+        title: 'Sandbox · Craft Build',
+        sample: './sample-sandbox-manifest.json',
+        description: 'Gather knowledge resources and place crafted build elements.',
+      },
+    };
+
+    const state = {
+      templates: [],
+      selectedIndex: 0,
+      inlineUrls: new Map(),
+    };
+
+    const listEl = document.getElementById('templateList');
+    const frameEl = document.getElementById('runtimeFrame');
+    const titleEl = document.getElementById('activeTitle');
+    const metaEl = document.getElementById('activeMeta');
+    const noteEl = document.getElementById('templateNote');
+    const openEl = document.getElementById('openStandalone');
+
+    document.getElementById('reload').addEventListener('click', () => {
+      frameEl.src = frameEl.src;
+    });
+
+    document.getElementById('previous').addEventListener('click', () => {
+      selectTemplate((state.selectedIndex - 1 + state.templates.length) % state.templates.length);
+    });
+
+    document.getElementById('next').addEventListener('click', () => {
+      selectTemplate((state.selectedIndex + 1) % state.templates.length);
+    });
+
+    window.addEventListener('keydown', (event) => {
+      if (event.target !== document.body) return;
+      if (event.key === '[') selectTemplate((state.selectedIndex - 1 + state.templates.length) % state.templates.length);
+      if (event.key === ']') selectTemplate((state.selectedIndex + 1) % state.templates.length);
+    });
+
+    init();
+
+    async function init() {
+      const registry = await loadRegistry();
+      state.templates = registry
+        .filter((template) => template.status === 'active')
+        .map((template) => {
+          const key = template.id.replace(/\.v\d+$/, '');
+          const config = CONFIG[key] || {};
+          return {
+            id: template.id,
+            key,
+            title: config.title || labelFromKey(key),
+            description: config.description || 'Registered browser-engine template.',
+            status: template.status,
+            sample: config.sample,
+            inline: config.inline,
+            note: config.note,
+          };
+        });
+
+      renderList();
+      selectTemplate(0);
+    }
+
+    async function loadRegistry() {
+      try {
+        const response = await fetch('./templates/registry.json', { cache: 'no-store' });
+        if (!response.ok) throw new Error(`registry returned ${response.status}`);
+        const registry = await response.json();
+        return registry.templates || FALLBACK_REGISTRY;
+      } catch (error) {
+        console.warn('[Template demo] using fallback registry', error);
+        return FALLBACK_REGISTRY;
+      }
+    }
+
+    function renderList() {
+      listEl.textContent = '';
+      state.templates.forEach((template, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'card';
+        button.setAttribute('role', 'option');
+        button.setAttribute('aria-selected', 'false');
+        button.addEventListener('click', () => selectTemplate(index));
+
+        const content = document.createElement('div');
+        const title = document.createElement('p');
+        title.className = 'card-title';
+        title.textContent = template.title;
+        const id = document.createElement('div');
+        id.className = 'card-id';
+        id.textContent = template.id;
+        content.append(title, id);
+
+        const badge = document.createElement('span');
+        badge.className = template.note ? 'badge warn' : 'badge';
+        badge.textContent = template.note ? 'stub' : 'active';
+
+        const desc = document.createElement('p');
+        desc.className = 'card-desc';
+        desc.textContent = template.description;
+
+        button.append(content, badge, desc);
+        listEl.append(button);
+      });
+    }
+
+    function selectTemplate(index) {
+      if (!state.templates.length) return;
+      state.selectedIndex = index;
+
+      const template = state.templates[index];
+      const url = runtimeUrl(template);
+      frameEl.src = url;
+      openEl.href = url;
+      titleEl.textContent = template.title;
+      metaEl.textContent = `${template.id} · ${template.description}`;
+
+      if (template.note) {
+        noteEl.hidden = false;
+        noteEl.textContent = template.note;
+      } else {
+        noteEl.hidden = true;
+        noteEl.textContent = '';
+      }
+
+      [...listEl.children].forEach((card, cardIndex) => {
+        const current = cardIndex === index;
+        card.setAttribute('aria-current', current ? 'true' : 'false');
+        card.setAttribute('aria-selected', current ? 'true' : 'false');
+      });
+    }
+
+    function runtimeUrl(template) {
+      const manifest = template.sample || inlineManifestUrl(template);
+      const query = new URLSearchParams({
+        template: template.key,
+        manifest,
+      });
+      return `./?${query.toString()}`;
+    }
+
+    function inlineManifestUrl(template) {
+      if (!state.inlineUrls.has(template.id)) {
+        const payload = template.inline ? template.inline() : createGenericManifest(template);
+        const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+        state.inlineUrls.set(template.id, URL.createObjectURL(blob));
+      }
+      return state.inlineUrls.get(template.id);
+    }
+
+    function labelFromKey(key) {
+      return key
+        .split('-')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+    }
+
+    function createGenericManifest(template) {
+      return {
+        meta: {
+          title: template.title,
+          subtitle: template.id,
+          briefing: template.description,
+        },
+        manifest: {
+          schemaVersion: '1.0.0',
+          id: `demo-${template.key}`,
+          templateId: template.id,
+          experienceId: `demo-${template.key}`,
+          title: template.title,
+          target: 'browser',
+          requiredRuntimeSystems: [],
+          assetSlots: [],
+          bindings: demoBindings(),
+        },
+      };
+    }
+
+    function createRouterManifest() {
+      const payload = createGenericManifest({
+        id: 'router-failover-defense.v1',
+        key: 'router-failover-defense',
+        title: 'Router Failover Defense',
+        description: 'Restore service by collecting correct failover actions.',
+      });
+      payload.meta.subtitle = 'Network Ops · Router Failover Defense';
+      payload.manifest.requiredRuntimeSystems = ['wave-arena', 'failover-actions', 'unsafe-operation-decoys'];
+      payload.manifest.bindings = [
+        binding('peer-health', 'evidence', 'Verify peer health', 'Confirm the standby router is synchronized before failover.', 'collect', 'concept', 90),
+        binding('shift-vip', 'procedure-step', 'Shift the VIP', 'Move the virtual IP only after routing neighbors are stable.', 'collect', 'concept', 88),
+        binding('watch-latency', 'procedure-step', 'Watch latency', 'Monitor service latency during the failover window.', 'collect', 'concept', 86),
+        binding('rollback-plan', 'evidence', 'Keep rollback ready', 'A rollback route prevents an unstable cutover from becoming an outage.', 'collect', 'power-up', 80),
+        binding('split-brain', 'hazard', 'Split-brain route', 'Two active routers advertise the same service path.', 'avoid', 'decoy', 92),
+        binding('stale-config', 'hazard', 'Stale backup config', 'A backup with stale route policy should not take traffic.', 'avoid', 'decoy', 89),
+        binding('packet-flood', 'hazard', 'Attack traffic flood', 'Noise makes bad failover decisions harder to spot.', 'avoid', 'decoy', 84),
+      ];
+      return payload;
+    }
+
+    function demoBindings() {
+      return [
+        binding('mentor', 'npc-dialogue', 'Field Mentor', 'Use the template loop to turn mapped knowledge into action.', 'talk', 'npc', 100),
+        binding('first-concept', 'evidence', 'Primary concept', 'This is the core evidence item for the template.', 'collect', 'key-item', 92),
+        binding('second-concept', 'procedure-step', 'Apply the concept', 'Complete the core action that proves mastery.', 'collect', 'quest-objective', 88),
+        binding('distractor', 'hazard', 'Distractor', 'Avoid the misconception while completing the loop.', 'avoid', 'hazard', 76),
+      ];
+    }
+
+    function binding(id, type, label, description, interactionType, entityType, priority) {
+      return {
+        id,
+        sourceElement: {
+          type,
+          label,
+          description,
+          evidence: description,
+          mediaRefs: [],
+        },
+        gameBinding: {
+          gameEntityType: entityType,
+          interactionType,
+          mechanic: entityType,
+          reward: { strategy: 'demo-reward', xp: type === 'hazard' ? 0 : 60, currency: type === 'hazard' ? 0 : 8 },
+          successConditions: [interactionType === 'avoid' ? 'avoided' : `complete:${interactionType}`],
+          failureConditions: interactionType === 'avoid' ? ['contact'] : [],
+          spawnRules: { placement: 'template-default', priority },
+        },
+      };
+    }
+  </script>
+</body>
+</html>

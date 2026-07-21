@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "memory-palace.v1",
+  "name": "Memory Palace",
+  "genreFamily": "learning-navigation",
+  "version": "1.0.0",
+  "description": "Room-based recall and navigation skeleton where concepts become rooms, facts become memory objects, and hazards become confusion traps.",
+  "engineTargets": ["browser"],
+  "runtimeLoop": ["enter-room", "inspect-memory-object", "answer-recall-prompt", "avoid-confusion", "unlock-next-room"],
+  "mechanics": ["room-graph", "recall-prompts", "evidence-gates", "xp", "concept-navigation"],
+  "entityTypes": ["room", "npc", "key-item", "quest-objective", "hazard", "exit-gate"],
+  "interactionTypes": ["talk", "collect", "inspect", "unlock", "recall"],
+  "assetSlots": [
+    { "id": "room_backdrop", "type": "image", "required": false, "description": "Room or memory location visual.", "fallback": "default-room" },
+    { "id": "memory_object", "type": "image", "required": false, "description": "Visual anchor for a remembered concept.", "fallback": "default-key-item" },
+    { "id": "confusion_hazard", "type": "image", "required": false, "description": "Hazard visual for a misconception or distractor.", "fallback": "default-hazard" }
+  ],
+  "dataContract": {
+    "requiredBindings": ["evidence"],
+    "optionalBindings": ["definition", "hazard", "procedure-step", "npc-dialogue"],
+    "layout": { "type": "room-graph", "minRooms": 1, "maxRooms": 32 }
+  },
+  "engineSkeletons": {
+    "browser": { "kind": "web-runtime", "path": "browser/memory-palace", "loader": "MemoryPalaceLoader" }
+  }
+}

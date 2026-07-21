@@ -1,0 +1,64 @@
+{
+  "meta": {
+    "title": "Incident Response Memory Palace",
+    "subtitle": "Learning Navigation · Memory Palace",
+    "briefing": "Walk the incident response palace. Each room contains memory anchors for a phase of response; collect the right anchors, avoid confusion traps, and unlock the next chamber.",
+    "roomSize": 5
+  },
+  "manifest": {
+    "schemaVersion": "1.0.0",
+    "id": "mapping-incident-response-memory-palace",
+    "templateId": "memory-palace.v1",
+    "experienceId": "exp-incident-response-memory-palace",
+    "title": "Incident Response Memory Palace",
+    "target": "browser",
+    "requiredRuntimeSystems": ["room-graph", "recall-prompts", "evidence-gates", "concept-navigation"],
+    "assetSlots": [
+      { "id": "room_backdrop", "type": "image", "required": false, "fallback": "default-room" },
+      { "id": "memory_object", "type": "image", "required": false, "fallback": "default-key-item" },
+      { "id": "confusion_hazard", "type": "image", "required": false, "fallback": "default-hazard" }
+    ],
+    "bindings": [
+      {
+        "id": "guide-analyst",
+        "sourceElement": { "type": "npc-dialogue", "label": "Response Archivist", "description": "The palace is organized by response phase. Pick up each anchor only when it supports the phase you are standing in.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "npc", "interactionType": "talk", "mechanic": "recall-guide", "reward": { "strategy": "context-unlock", "xp": 10, "currency": 0 }, "successConditions": ["complete:talk"], "failureConditions": [], "spawnRules": { "placement": "template-default", "priority": 100 } }
+      },
+      {
+        "id": "anchor-detect",
+        "sourceElement": { "type": "evidence", "label": "Detect: Confirm the signal", "description": "A useful incident starts with a validated alert, scoped time window, and affected system.", "evidence": "Validate the alert before escalating: identify the affected system, signal source, and time range.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "memory-anchor", "templateSlot": "memory_object", "reward": { "strategy": "grant-key-item", "xp": 75, "currency": 10 }, "successConditions": ["complete:collect"], "failureConditions": [], "spawnRules": { "placement": "template-default", "priority": 96 } }
+      },
+      {
+        "id": "anchor-triage",
+        "sourceElement": { "type": "procedure-step", "label": "Triage: Establish severity", "description": "Severity depends on blast radius, business impact, active exploitation, and data sensitivity.", "evidence": "Set severity from impact, scope, exploit activity, and sensitive data exposure.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "inspect", "mechanic": "recall-prompt", "templateSlot": "memory_object", "reward": { "strategy": "unlock-next-room", "xp": 60, "currency": 6 }, "successConditions": ["complete:inspect"], "failureConditions": [], "spawnRules": { "placement": "template-default", "priority": 92 } }
+      },
+      {
+        "id": "trap-assume-benign",
+        "sourceElement": { "type": "hazard", "label": "Confusion Trap: Assume benign", "description": "Dismissing a repeated alert without evidence can hide a real compromise.", "evidence": "Repeated alerts need evidence-backed closure, not assumptions.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hazard", "interactionType": "avoid", "mechanic": "confusion-trap", "templateSlot": "confusion_hazard", "reward": { "strategy": "focus-penalty", "xp": 0, "currency": 0 }, "successConditions": ["avoided"], "failureConditions": ["contact"], "spawnRules": { "placement": "template-default", "priority": 88 } }
+      },
+      {
+        "id": "anchor-contain",
+        "sourceElement": { "type": "evidence", "label": "Contain: Isolate safely", "description": "Containment should stop spread while preserving evidence and critical service dependencies.", "evidence": "Isolate the affected host or credential path without destroying forensic evidence.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "memory-anchor", "templateSlot": "memory_object", "reward": { "strategy": "grant-key-item", "xp": 75, "currency": 10 }, "successConditions": ["complete:collect"], "failureConditions": [], "spawnRules": { "placement": "template-default", "priority": 84 } }
+      },
+      {
+        "id": "anchor-eradicate",
+        "sourceElement": { "type": "procedure-step", "label": "Eradicate: Remove persistence", "description": "Remove malicious accounts, scheduled tasks, startup entries, and compromised secrets.", "evidence": "Persistence mechanisms must be removed before recovery begins.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "inspect", "mechanic": "recall-prompt", "templateSlot": "memory_object", "reward": { "strategy": "unlock-next-room", "xp": 60, "currency": 6 }, "successConditions": ["complete:inspect"], "failureConditions": [], "spawnRules": { "placement": "template-default", "priority": 80 } }
+      },
+      {
+        "id": "trap-wipe-first",
+        "sourceElement": { "type": "hazard", "label": "Confusion Trap: Wipe first", "description": "Reimaging before evidence capture can erase the root cause and attacker path.", "evidence": "Capture the evidence needed for root cause before destructive recovery steps.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hazard", "interactionType": "avoid", "mechanic": "confusion-trap", "templateSlot": "confusion_hazard", "reward": { "strategy": "focus-penalty", "xp": 0, "currency": 0 }, "successConditions": ["avoided"], "failureConditions": ["contact"], "spawnRules": { "placement": "template-default", "priority": 76 } }
+      },
+      {
+        "id": "anchor-recover",
+        "sourceElement": { "type": "evidence", "label": "Recover: Validate clean service", "description": "Recovery is complete only after patched systems are monitored and normal behavior is confirmed.", "evidence": "Validate recovery with monitoring, service checks, and signs that attacker access is gone.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "memory-anchor", "templateSlot": "memory_object", "reward": { "strategy": "grant-key-item", "xp": 75, "currency": 10 }, "successConditions": ["complete:collect"], "failureConditions": [], "spawnRules": { "placement": "template-default", "priority": 72 } }
+      }
+    ]
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "sandbox-craft-build.v1",
+  "name": "Sandbox Craft and Build",
+  "genreFamily": "sandbox-survival",
+  "version": "1.0.0",
+  "description": "Open tile-world gathering and crafting loop. Facts and evidence become minable resource nodes; procedures become crafting recipes that consume them; milestones become structures the player builds on the map. Turns reference material and long-form content into something the player visibly assembles, which is what makes recall stick.",
+  "engineTargets": ["browser", "unity", "unreal"],
+  "runtimeLoop": ["explore-world", "mine-node", "bank-resources", "open-crafting", "craft-recipe", "place-structure", "complete-blueprint"],
+  "mechanics": ["tile-world", "resource-gathering", "mining-progress", "inventory", "crafting-recipes", "structure-placement", "energy-meter", "day-cycle"],
+  "entityTypes": ["builder", "resource-node", "recipe", "structure", "blueprint-goal", "hazard-zone"],
+  "interactionTypes": ["mine", "gather", "craft", "place", "inspect"],
+  "assetSlots": [
+    { "id": "builder_avatar", "type": "image", "required": false, "description": "Player builder sprite.", "fallback": "default-player" },
+    { "id": "node_material", "type": "image", "required": false, "description": "Resource node block texture.", "fallback": "default-node" },
+    { "id": "structure_model", "type": "image", "required": false, "description": "Built structure visual.", "fallback": "default-structure" },
+    { "id": "ground_tile", "type": "image", "required": false, "description": "World ground tile.", "fallback": "default-ground" },
+    { "id": "craft_audio", "type": "audio", "required": false, "description": "Crafting completion cue.", "fallback": "default-unlock" }
+  ],
+  "dataContract": {
+    "requiredBindings": ["evidence", "procedure-step"],
+    "optionalBindings": ["definition", "hazard", "npc-dialogue", "decision", "metric"],
+    "layout": { "type": "open-tile-world", "minNodes": 6, "maxNodes": 64 }
+  },
+  "engineSkeletons": {
+    "browser": { "kind": "web-runtime", "path": "browser/sandbox-craft", "loader": "OptomoleSandboxLoader" },
+    "unity": { "kind": "addressables-template", "path": "Unity/Templates/SandboxCraftBuild", "loader": "OptomoleSandboxTemplateLoader" },
+    "unreal": { "kind": "primary-data-asset-template", "path": "Unreal/Templates/SandboxCraftBuild", "loader": "BP_OptomoleSandboxLoader" }
+  }
+}

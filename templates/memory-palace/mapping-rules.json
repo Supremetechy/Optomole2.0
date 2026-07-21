@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "1.0.0",
+  "templateId": "memory-palace.v1",
+  "rules": [
+    {
+      "id": "evidence-to-memory-object",
+      "workElementType": "evidence",
+      "sourceSignals": ["concept", "definition", "principle", "evidence", "fact", "remember"],
+      "gameEntityType": "key-item",
+      "interactionType": "collect",
+      "templateSlot": "memory_object",
+      "priority": 90,
+      "feedbackStrategy": "anchor-concept-in-room",
+      "rewardStrategy": "grant-key-item"
+    },
+    {
+      "id": "definition-to-recall-prompt",
+      "workElementType": "definition",
+      "sourceSignals": ["definition", "term", "means", "is defined as"],
+      "gameEntityType": "quest-objective",
+      "interactionType": "recall",
+      "templateSlot": "memory_object",
+      "priority": 85,
+      "feedbackStrategy": "ask-recall-before-unlock",
+      "rewardStrategy": "xp-and-room-unlock"
+    },
+    {
+      "id": "hazard-to-confusion-trap",
+      "workElementType": "hazard",
+      "sourceSignals": ["risk", "warning", "avoid", "mistake", "misconception", "confusing"],
+      "gameEntityType": "hazard",
+      "interactionType": "avoid",
+      "templateSlot": "confusion_hazard",
+      "priority": 80,
+      "feedbackStrategy": "explain-confusion-on-contact",
+      "rewardStrategy": "focus-penalty"
+    },
+    {
+      "id": "npc-dialogue-to-guide",
+      "workElementType": "npc-dialogue",
+      "sourceSignals": ["mentor", "guide", "author", "explains", "says"],
+      "gameEntityType": "npc",
+      "interactionType": "talk",
+      "templateSlot": "room_backdrop",
+      "priority": 70,
+      "feedbackStrategy": "guide-room-context",
+      "rewardStrategy": "context-unlock"
+    }
+  ]
+}

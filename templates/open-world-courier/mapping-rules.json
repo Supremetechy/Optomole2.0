@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "1.0.0",
+  "templateId": "open-world-courier.v1",
+  "rules": [
+    {
+      "id": "procedure-step-to-contract",
+      "workElementType": "procedure-step",
+      "sourceSignals": ["step", "task", "deliver", "submit", "send", "complete", "then"],
+      "gameEntityType": "pickup-point",
+      "interactionType": "pickup",
+      "templateSlot": "pickup_marker",
+      "priority": 95,
+      "feedbackStrategy": "show-task-detail-at-pickup",
+      "rewardStrategy": "fare-on-delivery"
+    },
+    {
+      "id": "evidence-to-dropoff-brief",
+      "workElementType": "evidence",
+      "sourceSignals": ["because", "rationale", "why", "evidence", "requirement"],
+      "gameEntityType": "dropoff-point",
+      "interactionType": "deliver",
+      "templateSlot": "dropoff_marker",
+      "priority": 80,
+      "feedbackStrategy": "explain-why-on-delivery",
+      "rewardStrategy": "bonus-fare"
+    },
+    {
+      "id": "hazard-to-patrol",
+      "workElementType": "hazard",
+      "sourceSignals": ["blocker", "risk", "delay", "violation", "penalty", "interruption"],
+      "gameEntityType": "patrol",
+      "interactionType": "evade",
+      "templateSlot": "patrol_actor",
+      "priority": 100,
+      "feedbackStrategy": "explain-blocker-on-contact",
+      "rewardStrategy": "heat-penalty"
+    },
+    {
+      "id": "npc-dialogue-to-dispatcher",
+      "workElementType": "npc-dialogue",
+      "sourceSignals": ["dispatch", "manager", "client", "says", "requests"],
+      "gameEntityType": "district-hub",
+      "interactionType": "unlock",
+      "templateSlot": "dropoff_marker",
+      "priority": 90,
+      "feedbackStrategy": "dispatcher-district-briefing",
+      "rewardStrategy": "unlock-district"
+    },
+    {
+      "id": "metric-to-payout-rate",
+      "workElementType": "metric",
+      "sourceSignals": ["deadline", "sla", "rate", "quota", "target", "per hour"],
+      "gameEntityType": "district-hub",
+      "interactionType": "drive",
+      "templateSlot": "pickup_marker",
+      "priority": 55,
+      "feedbackStrategy": "show-payout-threshold",
+      "rewardStrategy": "time-bonus-multiplier"
+    }
+  ]
+}

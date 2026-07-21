@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "1.0.0",
+  "templateId": "board-resource-sim.v1",
+  "rules": [
+    {
+      "id": "decision-to-scenario-card",
+      "workElementType": "decision-point",
+      "sourceSignals": ["decide", "choose", "approve", "prioritize", "tradeoff", "option"],
+      "gameEntityType": "scenario-card",
+      "interactionType": "choose",
+      "templateSlot": "scenario_card_art",
+      "priority": 100,
+      "feedbackStrategy": "show-business-consequence",
+      "rewardStrategy": "resource-shift"
+    },
+    {
+      "id": "metric-to-score-track",
+      "workElementType": "metric",
+      "sourceSignals": ["metric", "kpi", "budget", "cost", "revenue", "time", "score"],
+      "gameEntityType": "metric-track",
+      "interactionType": "score",
+      "templateSlot": "metric-track",
+      "priority": 90,
+      "feedbackStrategy": "compare-against-threshold",
+      "rewardStrategy": "score-track-update"
+    },
+    {
+      "id": "stakeholder-to-board-agent",
+      "workElementType": "stakeholder",
+      "sourceSignals": ["customer", "manager", "team", "client", "vendor", "auditor"],
+      "gameEntityType": "stakeholder",
+      "interactionType": "trade",
+      "templateSlot": "stakeholder_portrait",
+      "priority": 70,
+      "feedbackStrategy": "show-stakeholder-reaction",
+      "rewardStrategy": "reputation-shift"
+    }
+  ]
+}

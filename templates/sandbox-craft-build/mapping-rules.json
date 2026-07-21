@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "1.0.0",
+  "templateId": "sandbox-craft-build.v1",
+  "rules": [
+    {
+      "id": "evidence-to-resource-node",
+      "workElementType": "evidence",
+      "sourceSignals": ["evidence", "data", "fact", "figure", "source", "reference"],
+      "gameEntityType": "resource-node",
+      "interactionType": "mine",
+      "templateSlot": "node_material",
+      "priority": 90,
+      "feedbackStrategy": "reveal-fact-while-mining",
+      "rewardStrategy": "grant-resource-units"
+    },
+    {
+      "id": "definition-to-resource-node",
+      "workElementType": "definition",
+      "sourceSignals": ["definition", "term", "concept", "means", "component"],
+      "gameEntityType": "resource-node",
+      "interactionType": "gather",
+      "templateSlot": "node_material",
+      "priority": 85,
+      "feedbackStrategy": "reveal-definition-while-mining",
+      "rewardStrategy": "grant-resource-units"
+    },
+    {
+      "id": "procedure-step-to-recipe",
+      "workElementType": "procedure-step",
+      "sourceSignals": ["step", "assemble", "build", "combine", "produce", "then"],
+      "gameEntityType": "recipe",
+      "interactionType": "craft",
+      "templateSlot": "structure_model",
+      "priority": 95,
+      "feedbackStrategy": "show-recipe-requirements",
+      "rewardStrategy": "unlock-structure-placement"
+    },
+    {
+      "id": "decision-to-blueprint-goal",
+      "workElementType": "decision",
+      "sourceSignals": ["milestone", "goal", "outcome", "deliverable", "complete when"],
+      "gameEntityType": "blueprint-goal",
+      "interactionType": "place",
+      "templateSlot": "structure_model",
+      "priority": 100,
+      "feedbackStrategy": "show-blueprint-progress",
+      "rewardStrategy": "milestone-completion"
+    },
+    {
+      "id": "hazard-to-hazard-zone",
+      "workElementType": "hazard",
+      "sourceSignals": ["hazard", "risk", "depletes", "drain", "blocker", "avoid"],
+      "gameEntityType": "hazard-zone",
+      "interactionType": "inspect",
+      "templateSlot": "node_material",
+      "priority": 80,
+      "feedbackStrategy": "explain-risk-on-entry",
+      "rewardStrategy": "energy-penalty"
+    }
+  ]
+}

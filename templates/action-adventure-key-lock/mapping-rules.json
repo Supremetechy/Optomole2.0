@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "1.0.0",
+  "templateId": "action-adventure-key-lock.v1",
+  "rules": [
+    {
+      "id": "sop-step-to-objective",
+      "workElementType": "procedure-step",
+      "sourceSignals": ["step", "first", "next", "then", "verify", "confirm", "document"],
+      "gameEntityType": "quest-objective",
+      "interactionType": "sequence",
+      "templateSlot": "room-objective",
+      "priority": 100,
+      "feedbackStrategy": "show-correct-sequence",
+      "rewardStrategy": "unlock-next-room"
+    },
+    {
+      "id": "evidence-to-key-item",
+      "workElementType": "evidence",
+      "sourceSignals": ["evidence", "proof", "support", "indicates", "because", "required"],
+      "gameEntityType": "key-item",
+      "interactionType": "collect",
+      "templateSlot": "key_item_icon",
+      "priority": 90,
+      "feedbackStrategy": "explain-why-key-unlocks",
+      "rewardStrategy": "grant-key-item"
+    },
+    {
+      "id": "decision-to-locked-gate",
+      "workElementType": "decision-point",
+      "sourceSignals": ["decide", "choose", "if", "unless", "approve", "escalate"],
+      "gameEntityType": "lock",
+      "interactionType": "branch",
+      "templateSlot": "exit-gate",
+      "priority": 80,
+      "feedbackStrategy": "show-branch-consequence",
+      "rewardStrategy": "branch-unlock"
+    },
+    {
+      "id": "hazard-to-room-obstacle",
+      "workElementType": "hazard",
+      "sourceSignals": ["hazard", "risk", "mistake", "warning", "skip", "unsafe", "spill"],
+      "gameEntityType": "hazard",
+      "interactionType": "avoid",
+      "templateSlot": "room-hazard",
+      "priority": 85,
+      "feedbackStrategy": "explain-hazard-on-contact",
+      "rewardStrategy": "focus-penalty"
+    },
+    {
+      "id": "metric-to-room-score",
+      "workElementType": "metric",
+      "sourceSignals": ["metric", "target", "under", "minutes", "threshold", "response"],
+      "gameEntityType": "score-condition",
+      "interactionType": "score",
+      "templateSlot": "room-score-condition",
+      "priority": 65,
+      "feedbackStrategy": "show-target-threshold",
+      "rewardStrategy": "bonus-xp"
+    },
+    {
+      "id": "video-to-room-media",
+      "workElementType": "video",
+      "sourceSignals": ["video", "clip", "demonstration", "walkthrough"],
+      "gameEntityType": "room",
+      "interactionType": "inspect",
+      "templateSlot": "training_video_slot",
+      "priority": 50,
+      "feedbackStrategy": "play-media-before-objective",
+      "rewardStrategy": "context-unlock"
+    }
+  ]
+}

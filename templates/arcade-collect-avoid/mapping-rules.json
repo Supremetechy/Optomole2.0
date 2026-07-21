@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "1.0.0",
+  "templateId": "arcade-collect-avoid.v1",
+  "rules": [
+    {
+      "id": "definition-to-collectible",
+      "workElementType": "definition",
+      "sourceSignals": ["definition", "term", "means", "is defined as", "key term"],
+      "gameEntityType": "collectible",
+      "interactionType": "collect",
+      "templateSlot": "collectible_icon",
+      "priority": 90,
+      "feedbackStrategy": "show-definition-after-collection",
+      "rewardStrategy": "score-and-combo"
+    },
+    {
+      "id": "hazard-to-enemy",
+      "workElementType": "hazard",
+      "sourceSignals": ["hazard", "risk", "mistake", "warning", "avoid", "failure"],
+      "gameEntityType": "hazard",
+      "interactionType": "avoid",
+      "templateSlot": "hazard_actor",
+      "priority": 100,
+      "feedbackStrategy": "explain-risk-on-collision",
+      "rewardStrategy": "focus-penalty"
+    },
+    {
+      "id": "metric-to-score-zone",
+      "workElementType": "metric",
+      "sourceSignals": ["metric", "kpi", "score", "rate", "time", "threshold"],
+      "gameEntityType": "score-zone",
+      "interactionType": "score",
+      "templateSlot": "score-zone",
+      "priority": 60,
+      "feedbackStrategy": "show-performance-threshold",
+      "rewardStrategy": "score-multiplier"
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "meta": {
+    "title": "Threat Recognition Range",
+    "subtitle": "FPS · Target Gallery",
+    "briefing": "Security onboarding, live-fire edition. Every target downrange is something that showed up in your logs this quarter. Engage the real threats — and leave the routine traffic standing.",
+    "roundSize": 4
+  },
+  "manifest": {
+    "schemaVersion": "1.0.0",
+    "id": "mapping-threat-recognition-range",
+    "templateId": "fps-target-gallery.v1",
+    "experienceId": "exp-threat-recognition-range",
+    "title": "Threat Recognition Range",
+    "target": "browser",
+    "requiredRuntimeSystems": ["first-person-camera", "billboard-depth", "hit-scan", "accuracy-score", "rounds"],
+    "assetSlots": [
+      { "id": "range_backdrop", "type": "image", "required": false, "fallback": "default-range" },
+      { "id": "fire_audio", "type": "audio", "required": false, "fallback": "default-pickup" }
+    ],
+    "bindings": [
+      {
+        "id": "officer-briefing",
+        "sourceElement": { "type": "npc-dialogue", "label": "Range Officer Vega", "description": "Anyone can hit everything. Qualification is knowing what not to shoot.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "npc", "interactionType": "talk", "mechanic": "npc-dialogue", "reward": { "strategy": "context-unlock", "xp": 0 }, "spawnRules": { "placement": "template-default", "priority": 100 } }
+      },
+
+      {
+        "id": "threat-credential-stuffing",
+        "sourceElement": { "type": "hazard", "label": "Credential stuffing burst", "description": "Hundreds of logins across many accounts from one address — reused passwords being tested at scale.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hostile-target", "interactionType": "shoot", "mechanic": "engage", "reward": { "strategy": "accuracy-score-and-streak", "xp": 130, "currency": 8 }, "successConditions": ["complete:shoot"], "spawnRules": { "placement": "template-default", "priority": 98 } }
+      },
+      {
+        "id": "threat-impossible-travel",
+        "sourceElement": { "type": "hazard", "label": "Impossible travel login", "description": "Same account authenticating from two continents within minutes — a stolen session or stolen password.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hostile-target", "interactionType": "shoot", "mechanic": "engage", "reward": { "strategy": "accuracy-score-and-streak", "xp": 130, "currency": 8 }, "successConditions": ["complete:shoot"], "spawnRules": { "placement": "template-default", "priority": 97 } }
+      },
+      {
+        "id": "threat-privilege-escalation",
+        "sourceElement": { "type": "hazard", "label": "Sudden privilege escalation", "description": "A standard account granting itself admin rights outside any change window.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hostile-target", "interactionType": "shoot", "mechanic": "engage", "reward": { "strategy": "accuracy-score-and-streak", "xp": 130, "currency": 8 }, "successConditions": ["complete:shoot"], "spawnRules": { "placement": "template-default", "priority": 96 } }
+      },
+      {
+        "id": "threat-data-exfil",
+        "sourceElement": { "type": "hazard", "label": "Off-hours bulk export", "description": "Gigabytes leaving a database at 03:00 to an address never seen before.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hostile-target", "interactionType": "shoot", "mechanic": "engage", "reward": { "strategy": "accuracy-score-and-streak", "xp": 130, "currency": 8 }, "successConditions": ["complete:shoot"], "spawnRules": { "placement": "template-default", "priority": 95 } }
+      },
+      {
+        "id": "threat-dormant-account",
+        "sourceElement": { "type": "hazard", "label": "Dormant account wakes up", "description": "An account untouched for eight months suddenly authenticating and enumerating shares.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hostile-target", "interactionType": "shoot", "mechanic": "engage", "reward": { "strategy": "accuracy-score-and-streak", "xp": 130, "currency": 8 }, "successConditions": ["complete:shoot"], "spawnRules": { "placement": "template-default", "priority": 94 } }
+      },
+      {
+        "id": "threat-mfa-fatigue",
+        "sourceElement": { "type": "hazard", "label": "MFA push flooding", "description": "Dozens of approval prompts in a row, betting the user taps yes to make it stop.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hostile-target", "interactionType": "shoot", "mechanic": "engage", "reward": { "strategy": "accuracy-score-and-streak", "xp": 130, "currency": 8 }, "successConditions": ["complete:shoot"], "spawnRules": { "placement": "template-default", "priority": 93 } }
+      },
+      {
+        "id": "threat-lookalike-domain",
+        "sourceElement": { "type": "definition", "label": "Lookalike sender domain", "description": "A domain one character off your own, registered last week, sending invoices.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hostile-target", "interactionType": "identify", "mechanic": "engage", "reward": { "strategy": "accuracy-score-and-streak", "xp": 120, "currency": 6 }, "successConditions": ["complete:shoot"], "spawnRules": { "placement": "template-default", "priority": 92 } }
+      },
+      {
+        "id": "threat-disabled-logging",
+        "sourceElement": { "type": "hazard", "label": "Audit logging switched off", "description": "Someone disabling log forwarding right before a maintenance window nobody scheduled.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hostile-target", "interactionType": "shoot", "mechanic": "engage", "reward": { "strategy": "accuracy-score-and-streak", "xp": 130, "currency": 8 }, "successConditions": ["complete:shoot"], "spawnRules": { "placement": "template-default", "priority": 91 } }
+      },
+
+      {
+        "id": "bystander-scheduled-backup",
+        "sourceElement": { "type": "distractor", "label": "Nightly backup job", "description": "Large scheduled transfer to your own backup bucket — expected, documented, benign.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "bystander-target", "interactionType": "hold", "mechanic": "hold-fire", "reward": { "strategy": "discipline-bonus-on-hold", "xp": 60 }, "failureConditions": ["wrongful-engagement"], "spawnRules": { "placement": "template-default", "priority": 90 } }
+      },
+      {
+        "id": "bystander-vpn-travel",
+        "sourceElement": { "type": "distractor", "label": "Approved VPN from a conference", "description": "A logged travel exception filed two weeks ago — unusual geography, fully expected.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "bystander-target", "interactionType": "hold", "mechanic": "hold-fire", "reward": { "strategy": "discipline-bonus-on-hold", "xp": 60 }, "failureConditions": ["wrongful-engagement"], "spawnRules": { "placement": "template-default", "priority": 89 } }
+      },
+      {
+        "id": "bystander-new-hire-burst",
+        "sourceElement": { "type": "distractor", "label": "New-hire onboarding burst", "description": "Twelve accounts created in an hour on the first Monday of the month — that is HR, not an attacker.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "bystander-target", "interactionType": "hold", "mechanic": "hold-fire", "reward": { "strategy": "discipline-bonus-on-hold", "xp": 60 }, "failureConditions": ["wrongful-engagement"], "spawnRules": { "placement": "template-default", "priority": 88 } }
+      },
+
+      {
+        "id": "evidence-baseline-first",
+        "sourceElement": { "type": "evidence", "label": "Baseline before you alert", "description": "Every one of these calls depends on knowing what your normal week actually looks like.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "bonus-target", "interactionType": "shoot", "mechanic": "bonus", "reward": { "strategy": "score-multiplier", "xp": 100, "currency": 12 }, "spawnRules": { "placement": "template-default", "priority": 70 } }
+      },
+      {
+        "id": "metric-qualification",
+        "sourceElement": { "type": "metric", "label": "Qualification threshold: 85%", "description": "Sharpshooter needs 85% accuracy with zero wrongful engagements.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "range-marker", "interactionType": "look", "mechanic": "threshold", "reward": { "strategy": "qualification-badge", "xp": 0 }, "spawnRules": { "placement": "template-default", "priority": 40 } }
+      }
+    ]
+  }
+}

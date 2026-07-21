@@ -1,0 +1,232 @@
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { ExperienceCompilerService } from '../compiler/experience-compiler.service';
+import { gatewayConfig } from '../shared/config';
+import { classifyExperienceOutputType } from '../shared/experience-output-types';
+import { ExperiencePackage, SourcePayload } from '../shared/types';
+import { buildRuntimeContract, displayGenre, heuristicArchetype, RUNTIME_ARCHETYPES } from '../shared/runtime-archetypes';
+
+@Injectable()
+export class AiGenerationService {
+  constructor(private readonly compiler: ExperienceCompilerService) {}
+
+  async compileExperience(input: {
+    source: SourcePayload;
+    options?: Record<string, unknown>;
+  }): Promise<ExperiencePackage> {
+    const config = gatewayConfig();
+    const options = input.options || {};
+
+    if (this.compiler.canCompile(options)) {
+      return this.compiler.compileWithAi(input.source, options);
+    }
+
+    const generated = await this.tryPost(`${config.aiGenerationUrl}/v1/experiences/compile`, input);
+    if (generated) return generated as ExperiencePackage;
+
+    if (config.legacyOptomoleApiUrl) {
+      const legacy = await this.tryPost(`${config.legacyOptomoleApiUrl}/api/experience/package`, input);
+      if (legacy && typeof legacy === 'object' && 'package' in legacy) {
+        return (legacy as { package: ExperiencePackage }).package;
+      }
+    }
+
+    if (config.nodeEnv === 'production') {
+      throw new ServiceUnavailableException('AI generation cluster is unavailable.');
+    }
+
+    return this.localFallback(input.source, input.options);
+  }
+
+  private async tryPost(url: string, body: unknown): Promise<unknown | null> {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) return null;
+      return response.json();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  private localFallback(source: SourcePayload, options: Record<string, unknown> = {}): ExperiencePackage {
+    const title = String(options.title || source.title || 'Generated Optimole Experience');
+    const experienceId = `exp-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'experience'}`;
+    const irx = this.getIrx(source);
+    const outputType = classifyExperienceOutputType({
+      sourceType: source.sourceType,
+      title,
+      text: source.text,
+      metadata: source.metadata,
+    });
+    const quests = irx ? this.questsFromIrx(irx, source) : this.singleQuest(title, source);
+    const domain = this.domainFor(source, irx);
+    const archetypeId = options.genre || options.archetype
+      ? heuristicArchetype({
+        domain,
+        genre: String(options.genre || options.archetype || ''),
+        text: JSON.stringify({ title, sourceType: source.sourceType, source: source.text, irx: irx?.classification }),
+      })
+      : outputType.selected.recommendedArchetype;
+    const archetype = RUNTIME_ARCHETYPES[archetypeId];
+    const preference = this.templatePreference(options);
+    const skillTree = this.skillTree(domain);
+    const proceduralMap = this.proceduralMap(title, quests);
+    const preprocessing = irx?.preprocessingPipeline || {
+      semanticExtraction: irx?.semanticExtraction,
+      gameplayNormalization: irx?.gameplayNormalization,
+      storyboard: irx?.storyboard,
+      knowledgeGraph: irx?.knowledgeGraph,
+    };
+    return {
+      id: experienceId,
+      templatePreference: preference,
+      source,
+      experience: {
+        id: experienceId,
+        title,
+        genre: displayGenre(preference, archetype),
+        outputType: outputType.selected.id,
+        outputExperience: outputType.selected.output,
+        world: { planet: options.worldTitle || 'Knowledge Frontier' },
+      },
+      blueprint: {
+        quests,
+        characters: [{ name: 'Optimole Guide', role: 'guide' }],
+        achievements: Array.isArray(irx?.achievements)
+          ? irx.achievements.map((achievement: string, index: number) => ({
+            id: `achievement-${index + 1}`,
+            title: achievement,
+            condition: `Complete IRX objective ${index + 1}`,
+          }))
+          : [],
+        goals: Array.isArray(irx?.goals) ? irx.goals : [],
+        analystChallenge: this.analystChallenge(quests, source),
+        skillTree,
+        proceduralMap,
+        storyboard: irx?.storyboard,
+        knowledgeGraph: irx?.knowledgeGraph,
+      },
+      specification: {
+        experienceOutputType: outputType.selected,
+        experienceOutputTypeConfidence: outputType.confidence,
+        preprocessing,
+        semanticExtraction: irx?.semanticExtraction,
+        gameplayNormalization: irx?.gameplayNormalization,
+        storyboard: irx?.storyboard,
+        knowledgeGraph: irx?.knowledgeGraph,
+      },
+      progression: {
+        domain,
+        xpReward: quests.reduce((sum: number, quest: any, index: number) => sum + (typeof quest?.reward?.xp === 'number' ? quest.reward.xp : 100 + index * 25), 0),
+        skillTree,
+        loot: ['Compiled Insight', `${domain[0].toUpperCase()}${domain.slice(1)} Evidence Token`],
+        profileVersion: 'optimole-rpg-v3',
+      },
+      runtimeContract: buildRuntimeContract({ archetypeId, map: proceduralMap }),
+      renderTargets: [
+        { target: 'pixijs', engine: 'pixijs-runtime', status: 'ready' },
+        { target: 'browser', engine: 'pixijs-runtime', status: 'ready' },
+      ],
+    };
+  }
+
+  /** The raw, user-supplied genre/template selection, if any. */
+  private templatePreference(options: Record<string, unknown>): string | undefined {
+    const pref = options.templateId || options.genre || options.archetype;
+    const value = typeof pref === 'string' ? pref.trim() : '';
+    return value || undefined;
+  }
+
+  private getIrx(source: SourcePayload): any | null {
+    const irx = source.metadata?.irx;
+    return irx && typeof irx === 'object' ? irx : null;
+  }
+
+  private questsFromIrx(irx: any, source: SourcePayload) {
+    const blocks = Array.isArray(irx.contentBlocks) ? irx.contentBlocks : [];
+    const quests = blocks.slice(0, 12).map((block: any, index: number) => {
+      const evidenceCandidates = Array.isArray(block.evidenceCandidates) ? block.evidenceCandidates : [];
+      const objectives = Array.isArray(block.objectives) ? block.objectives : [];
+      const evidence = evidenceCandidates.length
+        ? evidenceCandidates.map((candidate: any) => ({ text: candidate.text || candidate.label || String(candidate), correct: true }))
+        : [{ text: block.summary || block.title || source.text || 'Review the source material.', correct: true }];
+
+      return {
+        id: `quest-${index + 1}`,
+        title: block.title || `${irx.title || 'IRX'} Objective ${index + 1}`,
+        summary: block.summary || objectives.join(' ') || source.text || 'Complete the generated mission.',
+        objectives: objectives.map((objective: string, objectiveIndex: number) => ({
+          id: `objective-${index + 1}-${objectiveIndex + 1}`,
+          title: objective,
+          prompt: objective,
+        })),
+        reward: { xp: 100 + index * 25 },
+        evidence,
+      };
+    });
+
+    return quests.length ? quests : this.singleQuest(irx.title || source.title || 'Generated Mission', source);
+  }
+
+  private singleQuest(title: string, source: SourcePayload) {
+    return [
+      {
+        id: 'quest-1',
+        title,
+        summary: source.text || 'Complete the generated mission.',
+        reward: { xp: 100 },
+        evidence: [{ text: source.text || 'Complete the generated mission.', correct: true }],
+      },
+    ];
+  }
+
+  private domainFor(source: SourcePayload, irx: any | null) {
+    const explicit = String(irx?.classification?.domain || source.metadata?.domain || '').toLowerCase();
+    if (['strategy', 'science', 'defense', 'engineering'].includes(explicit)) return explicit;
+    const text = JSON.stringify(source).toLowerCase();
+    const scores = {
+      strategy: ['market', 'roadmap', 'competitor', 'growth', 'decision', 'client'].filter((term) => text.includes(term)).length,
+      science: ['research', 'model', 'experiment', 'data', 'gradient', 'theory'].filter((term) => text.includes(term)).length,
+      defense: ['security', 'risk', 'threat', 'compliance', 'credential', 'breach'].filter((term) => text.includes(term)).length,
+      engineering: ['system', 'api', 'build', 'deploy', 'power', 'workflow', 'infrastructure'].filter((term) => text.includes(term)).length,
+    };
+    return Object.entries(scores).sort((a, b) => b[1] - a[1])[0]?.[0] || 'engineering';
+  }
+
+  private analystChallenge(quests: any[], source: SourcePayload) {
+    const firstQuest = quests[0] || {};
+    const evidence = Array.isArray(firstQuest.evidence) ? firstQuest.evidence : [];
+    return {
+      instructions: 'Select every source-backed evidence snippet and reject distractors.',
+      summaryToVerify: firstQuest.summary || source.text || 'Verify the compiled mission.',
+      correctEvidenceSnippets: evidence.filter((item: any) => item.correct !== false).map((item: any) => String(item.text || item.label || item)).slice(0, 6),
+      distractorSnippets: evidence.filter((item: any) => item.correct === false).map((item: any) => String(item.text || item.label || item)).slice(0, 4),
+    };
+  }
+
+  private skillTree(domain: string) {
+    return [
+      { id: `${domain}-triage`, name: 'Source Triage', description: 'Prioritize source items by mission value.', category: domain, unlocks: [`${domain}-evidence`] },
+      { id: `${domain}-evidence`, name: 'Evidence Binding', description: 'Bind objectives to source-backed proof.', category: domain, unlocks: [`${domain}-runtime`] },
+      { id: `${domain}-runtime`, name: 'Runtime Transfer', description: 'Carry compiled knowledge into browser and engine runtimes.', category: domain, unlocks: [] },
+    ];
+  }
+
+  private proceduralMap(title: string, quests: any[]) {
+    return {
+      regionName: title,
+      description: 'A domain map generated from compiled source signals.',
+      locations: quests.slice(0, 6).map((quest: any, index: number) => ({
+        name: quest.title || `Mission Node ${index + 1}`,
+        description: quest.summary || 'Compiled quest location.',
+        type: 'mission_node',
+        hazards: (Array.isArray(quest.evidence) ? quest.evidence : []).filter((item: any) => item.correct === false).map((item: any) => String(item.text || item.label || item)).slice(0, 3),
+        spawns: ['Evidence prompt', 'Objective marker'],
+        lootTable: ['Compiled Insight', 'Evidence Token'],
+      })),
+    };
+  }
+}

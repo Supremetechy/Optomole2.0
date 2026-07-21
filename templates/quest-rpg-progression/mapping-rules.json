@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "1.0.0",
+  "templateId": "quest-rpg-progression.v1",
+  "rules": [
+    {
+      "id": "procedure-step-to-quest-objective",
+      "workElementType": "procedure-step",
+      "sourceSignals": ["step", "first", "next", "then", "finally", "procedure", "how to"],
+      "gameEntityType": "quest-objective",
+      "interactionType": "collect",
+      "templateSlot": "objective_icon",
+      "priority": 95,
+      "feedbackStrategy": "show-step-detail-on-pickup",
+      "rewardStrategy": "xp-and-quest-progress"
+    },
+    {
+      "id": "evidence-to-loot",
+      "workElementType": "evidence",
+      "sourceSignals": ["because", "evidence", "data shows", "research", "study", "fact"],
+      "gameEntityType": "loot",
+      "interactionType": "collect",
+      "templateSlot": "objective_icon",
+      "priority": 80,
+      "feedbackStrategy": "add-to-codex",
+      "rewardStrategy": "xp-and-skill-point"
+    },
+    {
+      "id": "hazard-to-enemy",
+      "workElementType": "hazard",
+      "sourceSignals": ["risk", "mistake", "pitfall", "warning", "failure", "do not"],
+      "gameEntityType": "enemy",
+      "interactionType": "battle",
+      "templateSlot": "enemy_actor",
+      "priority": 100,
+      "feedbackStrategy": "encounter-quiz-on-engage",
+      "rewardStrategy": "xp-on-defeat-damage-on-miss"
+    },
+    {
+      "id": "npc-dialogue-to-quest-giver",
+      "workElementType": "npc-dialogue",
+      "sourceSignals": ["says", "advises", "explains", "mentor", "coach", "author"],
+      "gameEntityType": "quest-giver",
+      "interactionType": "talk",
+      "templateSlot": "quest_giver_portrait",
+      "priority": 90,
+      "feedbackStrategy": "deliver-chapter-briefing",
+      "rewardStrategy": "unlock-questline"
+    },
+    {
+      "id": "decision-to-region-gate",
+      "workElementType": "decision",
+      "sourceSignals": ["if", "choose", "decide", "either", "when to", "criteria"],
+      "gameEntityType": "region-gate",
+      "interactionType": "unlock",
+      "templateSlot": "objective_icon",
+      "priority": 70,
+      "feedbackStrategy": "explain-decision-criteria",
+      "rewardStrategy": "unlock-next-chapter"
+    }
+  ]
+}

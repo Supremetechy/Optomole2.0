@@ -1,0 +1,79 @@
+{
+  "meta": {
+    "title": "Warehouse Forklift Safety",
+    "subtitle": "Action Adventure · Key & Lock",
+    "briefing": "You're the new operator on the warehouse floor. Talk to the safety leads, collect the evidence that proves each procedure, dodge the hazards, and unlock each gate to earn your certification.",
+    "roomSize": 5
+  },
+  "manifest": {
+    "schemaVersion": "1.0.0",
+    "id": "mapping-warehouse-forklift-safety",
+    "templateId": "action-adventure-key-lock.v1",
+    "experienceId": "exp-warehouse-forklift-safety",
+    "title": "Warehouse Forklift Safety",
+    "target": "browser",
+    "requiredRuntimeSystems": ["room-graph", "key-items", "locked-gates", "npc-dialogue", "evidence-gates", "quest-objectives"],
+    "assetSlots": [
+      { "id": "room_backdrop", "type": "image", "required": false, "fallback": "default-room" },
+      { "id": "npc_voice_intro", "type": "audio", "required": false, "fallback": "default-npc-voice" },
+      { "id": "key_item_icon", "type": "image", "required": false, "fallback": "default-key-item" }
+    ],
+    "bindings": [
+      {
+        "id": "npc-dana",
+        "sourceElement": { "type": "npc-dialogue", "label": "Safety Officer Dana", "description": "Welcome to the floor. Before you touch a forklift, you prove you know the pre-op checks. Collect the evidence, then take it to the gate.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "npc", "interactionType": "talk", "mechanic": "npc-dialogue", "templateSlot": "npc_voice_intro", "reward": { "strategy": "context-unlock", "xp": 10, "currency": 0 }, "successConditions": ["complete:talk"], "failureConditions": [], "spawnRules": { "placement": "template-default", "priority": 95 } }
+      },
+      {
+        "id": "npc-reyes",
+        "sourceElement": { "type": "npc-dialogue", "label": "Dock Supervisor Reyes", "description": "Second stage. Out here it's about right-of-way and load limits. Get me the proof and I'll open the dock.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "npc", "interactionType": "talk", "mechanic": "npc-dialogue", "templateSlot": "npc_voice_intro", "reward": { "strategy": "context-unlock", "xp": 10, "currency": 0 }, "successConditions": ["complete:talk"], "failureConditions": [], "spawnRules": { "placement": "template-default", "priority": 94 } }
+      },
+      {
+        "id": "key-preop",
+        "sourceElement": { "type": "evidence", "label": "Pre-Operation Inspection Log", "description": "A completed pre-op inspection log is required evidence before operating any forklift.", "evidence": "Operators must complete and sign a pre-operation inspection log at the start of every shift.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "key-item", "templateSlot": "key_item_icon", "reward": { "strategy": "grant-key-item", "xp": 75, "currency": 12 }, "successConditions": ["complete:collect"], "failureConditions": ["incorrect-selection"], "spawnRules": { "placement": "template-default", "priority": 90 } }
+      },
+      {
+        "id": "key-seatbelt",
+        "sourceElement": { "type": "evidence", "label": "Seatbelt Engagement Proof", "description": "Seatbelt use is mandatory whenever the forklift is in motion.", "evidence": "The operator's seatbelt must be fastened before the forklift is moved.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "key-item", "templateSlot": "key_item_icon", "reward": { "strategy": "grant-key-item", "xp": 75, "currency": 12 }, "successConditions": ["complete:collect"], "failureConditions": ["incorrect-selection"], "spawnRules": { "placement": "template-default", "priority": 89 } }
+      },
+      {
+        "id": "key-capacity",
+        "sourceElement": { "type": "evidence", "label": "Load Capacity Rating", "description": "The data plate load rating must never be exceeded.", "evidence": "Never exceed the rated load capacity shown on the forklift data plate.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "key-item", "templateSlot": "key_item_icon", "reward": { "strategy": "grant-key-item", "xp": 75, "currency": 12 }, "successConditions": ["complete:collect"], "failureConditions": ["incorrect-selection"], "spawnRules": { "placement": "template-default", "priority": 78 } }
+      },
+      {
+        "id": "key-rightofway",
+        "sourceElement": { "type": "evidence", "label": "Pedestrian Right-of-Way Sign-off", "description": "Pedestrians always have the right of way in shared aisles.", "evidence": "Pedestrians have the right of way; operators must yield in all shared walkways.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "key-item", "templateSlot": "key_item_icon", "reward": { "strategy": "grant-key-item", "xp": 75, "currency": 12 }, "successConditions": ["complete:collect"], "failureConditions": ["incorrect-selection"], "spawnRules": { "placement": "template-default", "priority": 77 } }
+      },
+      {
+        "id": "obj-walkaround",
+        "sourceElement": { "type": "procedure-step", "label": "Perform a 360° walk-around", "description": "Step 1: walk a full circle around the forklift checking tires, forks, and leaks.", "evidence": "First, perform a 360-degree walk-around inspection before start-up.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "sequence", "mechanic": "quest-objective", "templateSlot": "room-objective", "reward": { "strategy": "unlock-next-room", "xp": 60, "currency": 6 }, "successConditions": ["complete:sequence"], "failureConditions": ["out-of-order"], "spawnRules": { "placement": "template-default", "priority": 100 } }
+      },
+      {
+        "id": "obj-horn",
+        "sourceElement": { "type": "procedure-step", "label": "Sound the horn at blind corners", "description": "Step 2: sound the horn when approaching intersections and blind corners.", "evidence": "Then sound the horn at every intersection and blind corner.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "sequence", "mechanic": "quest-objective", "templateSlot": "room-objective", "reward": { "strategy": "unlock-next-room", "xp": 60, "currency": 6 }, "successConditions": ["complete:sequence"], "failureConditions": ["out-of-order"], "spawnRules": { "placement": "template-default", "priority": 76 } }
+      },
+      {
+        "id": "obj-lowerforks",
+        "sourceElement": { "type": "procedure-step", "label": "Lower the forks before travel", "description": "Step 3: keep forks low and tilted back while traveling.", "evidence": "Keep the forks lowered and tilted back whenever the forklift is moving.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "sequence", "mechanic": "quest-objective", "templateSlot": "room-objective", "reward": { "strategy": "unlock-next-room", "xp": 60, "currency": 6 }, "successConditions": ["complete:sequence"], "failureConditions": ["out-of-order"], "spawnRules": { "placement": "template-default", "priority": 72 } }
+      },
+      {
+        "id": "hazard-spill",
+        "sourceElement": { "type": "hazard", "label": "Unsecured pallet spill", "description": "An unsecured load has spilled across the aisle — a struck-by and slip hazard.", "evidence": "Unsecured loads can spill and create struck-by hazards; secure loads before moving.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hazard", "interactionType": "avoid", "mechanic": "hazard", "templateSlot": "room-hazard", "reward": { "strategy": "focus-penalty", "xp": 0, "currency": 0 }, "successConditions": ["avoided"], "failureConditions": ["contact"], "spawnRules": { "placement": "template-default", "priority": 85 } }
+      },
+      {
+        "id": "hazard-blindcorner",
+        "sourceElement": { "type": "hazard", "label": "Blind-corner pedestrian", "description": "A pedestrian steps out from a blind corner — yield or you cause an incident.", "evidence": "Blind corners hide pedestrians; slow down and yield to avoid collisions.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hazard", "interactionType": "avoid", "mechanic": "hazard", "templateSlot": "room-hazard", "reward": { "strategy": "focus-penalty", "xp": 0, "currency": 0 }, "successConditions": ["avoided"], "failureConditions": ["contact"], "spawnRules": { "placement": "template-default", "priority": 71 } }
+      }
+    ]
+  }
+}

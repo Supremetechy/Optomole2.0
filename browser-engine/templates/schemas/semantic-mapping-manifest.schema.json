@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://optimole.local/schemas/semantic-mapping-manifest.schema.json",
+  "title": "Optimole Semantic Mapping Manifest",
+  "type": "object",
+  "required": ["schemaVersion", "templateId", "experienceId", "target", "bindings"],
+  "properties": {
+    "schemaVersion": { "type": "string" },
+    "templateId": { "type": "string" },
+    "experienceId": { "type": "string" },
+    "target": { "type": "string" },
+    "bindings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "sourceElement", "gameBinding"],
+        "properties": {
+          "id": { "type": "string" },
+          "sourceRef": { "type": "object" },
+          "workElementType": { "type": "string" },
+          "gameEntityType": { "type": "string" },
+          "interactionType": { "type": "string" },
+          "templateSlot": { "type": "string" },
+          "label": { "type": "string" },
+          "description": { "type": "string" },
+          "mediaRefs": { "type": "array" },
+          "feedback": { "type": "string" },
+          "reward": { "type": "object" },
+          "sourceElement": {
+            "type": "object",
+            "required": ["type", "label"],
+            "properties": {
+              "type": { "type": "string" },
+              "label": { "type": "string" },
+              "description": { "type": "string" },
+              "evidence": { "type": "string" },
+              "sourceRef": { "type": "object" },
+              "mediaRefs": { "type": "array" }
+            }
+          },
+          "gameBinding": {
+            "type": "object",
+            "required": ["gameEntityType", "interactionType", "templateSlot"],
+            "properties": {
+              "gameEntityType": { "type": "string" },
+              "interactionType": { "type": "string" },
+              "mechanic": { "type": "string" },
+              "templateSlot": { "type": "string" },
+              "gameVerb": { "type": "string" },
+              "workVerb": { "type": "string" },
+              "feedback": { "type": "string" },
+              "reward": { "type": "object" },
+              "successConditions": { "type": "array" },
+              "failureConditions": { "type": "array" },
+              "spawnRules": { "type": "object" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

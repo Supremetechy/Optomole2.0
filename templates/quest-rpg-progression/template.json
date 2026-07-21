@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "quest-rpg-progression.v1",
+  "name": "Quest RPG Progression",
+  "genreFamily": "rpg",
+  "version": "1.0.0",
+  "description": "Chaptered overworld RPG where quest-givers hand out content-derived questlines, key facts become quest objectives, and hazards become enemies defeated by recalling the right counter-fact. Levels and a three-branch skill tree make long-form content (ebooks, courses, newsletters) feel like character progression.",
+  "engineTargets": ["browser", "unity", "unreal"],
+  "runtimeLoop": ["accept-quest", "explore-region", "collect-objectives", "resolve-encounter", "level-up", "advance-chapter"],
+  "mechanics": ["overworld-navigation", "quest-log", "npc-dialogue", "turn-based-encounter", "xp-levels", "skill-tree", "loot"],
+  "entityTypes": ["hero", "quest-giver", "quest-objective", "enemy", "loot", "region-gate"],
+  "interactionTypes": ["talk", "accept", "collect", "battle", "answer", "unlock"],
+  "assetSlots": [
+    { "id": "hero_avatar", "type": "image", "required": false, "description": "Player character sprite.", "fallback": "default-hero" },
+    { "id": "quest_giver_portrait", "type": "image", "required": false, "description": "Portrait for quest-giving NPCs.", "fallback": "default-npc" },
+    { "id": "enemy_actor", "type": "image", "required": false, "description": "Encounter enemy visual.", "fallback": "default-enemy" },
+    { "id": "objective_icon", "type": "image", "required": false, "description": "Icon for collectible quest objectives.", "fallback": "default-objective" },
+    { "id": "levelup_audio", "type": "audio", "required": false, "description": "Cue played on level-up.", "fallback": "default-reward" }
+  ],
+  "dataContract": {
+    "requiredBindings": ["procedure-step", "evidence"],
+    "optionalBindings": ["hazard", "npc-dialogue", "decision", "metric"],
+    "layout": { "type": "chaptered-overworld", "minNodes": 6, "maxNodes": 80 }
+  },
+  "engineSkeletons": {
+    "browser": { "kind": "web-runtime", "path": "browser/quest-rpg", "loader": "OptomoleQuestRpgLoader" },
+    "unity": { "kind": "addressables-template", "path": "Unity/Templates/QuestRpgProgression", "loader": "OptomoleQuestRpgTemplateLoader" },
+    "unreal": { "kind": "primary-data-asset-template", "path": "Unreal/Templates/QuestRpgProgression", "loader": "BP_OptomoleQuestRpgLoader" }
+  }
+}

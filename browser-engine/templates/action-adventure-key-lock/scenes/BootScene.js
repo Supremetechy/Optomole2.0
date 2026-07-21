@@ -1,0 +1,88 @@
+/**
+ * BootScene — the title card shown before gameplay.
+ *
+ * Displays the experience title, template, and a short mission briefing, then
+ * waits for the player to start (click / tap / E / Space). Doubles as the
+ * required first user gesture that unlocks audio.
+ */
+const PIXI = window.PIXI;
+
+export class BootScene {
+  constructor(ctx, { title, subtitle, briefing, onStart }) {
+    this.ctx = ctx;
+    this.onStart = onStart;
+    this.container = new PIXI.Container();
+    this._title = title || 'Optomole Experience';
+    this._subtitle = subtitle || 'Action Adventure · Key & Lock';
+    this._briefing = briefing || 'Explore the room, gather what you need, and unlock the way forward.';
+    this._t = 0;
+  }
+
+  enter(ctx) {
+    this._layout(ctx.runtime.size());
+  }
+
+  _layout({ width, height }) {
+    this.container.removeChildren();
+    const cx = width / 2;
+
+    const panel = new PIXI.Graphics();
+    const pw = Math.min(560, width - 48);
+    const ph = 300;
+    panel.roundRect(cx - pw / 2, height / 2 - ph / 2, pw, ph, 14)
+      .fill({ color: 0x050c18, alpha: 0.92 })
+      .stroke({ width: 1, color: 0x67e8f9, alpha: 0.35 });
+    this.container.addChild(panel);
+
+    const kicker = text(this._subtitle.toUpperCase(), { fill: 0x67e8f9, fontSize: 12, fontWeight: '800', letterSpacing: 2 });
+    kicker.anchor.set(0.5);
+    kicker.position.set(cx, height / 2 - 96);
+    this.container.addChild(kicker);
+
+    const title = text(this._title, { fill: 0xffffff, fontSize: 30, fontWeight: '900', align: 'center', wordWrap: true, wordWrapWidth: pw - 60 });
+    title.anchor.set(0.5);
+    title.position.set(cx, height / 2 - 52);
+    this.container.addChild(title);
+
+    const brief = text(this._briefing, { fill: 0x94a3b8, fontSize: 15, align: 'center', wordWrap: true, wordWrapWidth: pw - 72, lineHeight: 21 });
+    brief.anchor.set(0.5);
+    brief.position.set(cx, height / 2 + 12);
+    this.container.addChild(brief);
+
+    this.cta = text('▶  PRESS E / TAP TO START', { fill: 0x03131d, fontSize: 15, fontWeight: '900' });
+    this.cta.anchor.set(0.5);
+    const ctaBg = new PIXI.Graphics();
+    ctaBg.roundRect(cx - 150, height / 2 + 66, 300, 44, 22).fill(0x67e8f9);
+    this.container.addChild(ctaBg);
+    this.container.addChild(this.cta);
+    this.cta.position.set(cx, height / 2 + 88);
+
+    this.container.eventMode = 'static';
+    this.container.hitArea = new PIXI.Rectangle(0, 0, width, height);
+    this.container.on('pointertap', () => this._start());
+  }
+
+  _start() {
+    if (this._started) return;
+    this._started = true;
+    this.ctx.audio?.unlock();
+    this.onStart?.();
+  }
+
+  update(dt) {
+    this._t += dt;
+    if (this.cta) this.cta.alpha = 0.6 + Math.sin(this._t * 4) * 0.4;
+    if (this.ctx.input.consumeInteract()) this._start();
+  }
+
+  resize(w, h) {
+    this._layout({ width: w, height: h });
+  }
+}
+
+function text(str, style) {
+  return new PIXI.Text({
+    text: str,
+    style: { fontFamily: 'Inter, system-ui, sans-serif', ...style },
+  });
+}

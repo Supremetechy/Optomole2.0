@@ -1,0 +1,193 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://optomole.local/schema/game-definition.schema.json",
+  "title": "Optomole Portable Game Definition",
+  "type": "object",
+  "required": ["schemaVersion", "engine", "game", "world", "quests", "characters", "inventory", "progression", "integrations"],
+  "properties": {
+    "schemaVersion": { "type": "string" },
+    "engine": {
+      "type": "object",
+      "required": ["name", "contract", "generatedAt"],
+      "properties": {
+        "name": { "type": "string" },
+        "contract": { "type": "string" },
+        "generatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "game": {
+      "type": "object",
+      "required": ["id", "title", "style", "difficulty", "players", "domains"],
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "style": { "type": "string" },
+        "difficulty": { "type": "string" },
+        "players": { "type": "integer", "minimum": 1 },
+        "domains": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "world": { "type": "object" },
+    "entities": {
+      "type": "array",
+      "description": "Template-ready game entities derived from source content. Quests are one view over these entities.",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "label"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string" },
+          "label": { "type": "string" },
+          "description": { "type": "string" },
+          "sourceRef": { "type": "object" },
+          "mediaRefs": { "type": "array", "items": { "type": "string" } },
+          "tags": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "interactions": {
+      "type": "array",
+      "description": "Game interactions generated from work verbs.",
+      "items": {
+        "type": "object",
+        "required": ["id", "gameVerb", "workVerb", "sourceEntityId", "targetEntityId"],
+        "properties": {
+          "id": { "type": "string" },
+          "gameVerb": { "type": "string" },
+          "workVerb": { "type": "string" },
+          "sourceEntityId": { "type": "string" },
+          "targetEntityId": { "type": "string" },
+          "interactionType": { "type": "string" },
+          "successConditions": { "type": "array", "items": { "type": "string" } },
+          "failureConditions": { "type": "array", "items": { "type": "string" } },
+          "feedback": { "type": "string" },
+          "reward": { "type": "object" }
+        }
+      }
+    },
+    "media": {
+      "type": "array",
+      "description": "External media references that templates bind into asset slots.",
+      "items": {
+        "type": "object",
+        "required": ["id", "type"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "enum": ["image", "audio", "video", "text", "mesh", "animation", "material"] },
+          "uri": { "type": "string" },
+          "slot": { "type": "string" },
+          "sourceRef": { "type": "object" },
+          "metadata": { "type": "object" }
+        }
+      }
+    },
+    "rules": {
+      "type": "array",
+      "description": "Template-independent gameplay rules.",
+      "items": {
+        "type": "object",
+        "required": ["id", "type"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string" },
+          "conditions": { "type": "array" },
+          "effects": { "type": "array" }
+        }
+      }
+    },
+    "templateBindings": {
+      "type": "array",
+      "description": "Bindings from source elements to template slots and game mechanics.",
+      "items": {
+        "type": "object",
+        "required": ["id", "templateId", "sourceElement", "gameBinding"],
+        "properties": {
+          "id": { "type": "string" },
+          "templateId": { "type": "string" },
+          "sourceElement": { "type": "object" },
+          "gameBinding": { "type": "object" }
+        }
+      }
+    },
+    "spatialLayout": {
+      "type": "object",
+      "description": "Renderer-neutral layout plan such as grid, room graph, board track, or progression list.",
+      "properties": {
+        "type": { "type": "string" },
+        "nodes": { "type": "array" },
+        "edges": { "type": "array" },
+        "spawnRules": { "type": "array" }
+      }
+    },
+    "quests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "summary", "domain", "reward", "objectives", "evidence"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "summary": { "type": "string" },
+          "sourceId": { "type": "string" },
+          "domain": { "enum": ["strategy", "science", "defense", "engineering"] },
+          "reward": {
+            "type": "object",
+            "required": ["xp"],
+            "properties": {
+              "xp": { "type": "integer", "minimum": 0 },
+              "currency": { "type": "integer", "minimum": 0 }
+            }
+          },
+          "estimatedSeconds": { "type": "integer", "minimum": 1 },
+          "objectives": { "type": "array" },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["text", "correct"],
+              "properties": {
+                "text": { "type": "string" },
+                "correct": { "type": "boolean" },
+                "kind": { "type": "string" }
+              }
+            }
+          },
+          "tags": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "characters": { "type": "array" },
+    "inventory": { "type": "array" },
+    "progression": { "type": "object" },
+    "integrations": { "type": "object" },
+    "compiler": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "sourceType": { "type": "string" },
+        "title": { "type": "string" },
+        "summary": { "type": "string" },
+        "structure": { "type": "object" },
+        "beatCount": { "type": "integer" },
+        "downstreamContract": { "type": "string" }
+      }
+    },
+    "ai": {
+      "type": "object",
+      "properties": {
+        "provider": { "type": "string" },
+        "generatedAt": { "type": "string" },
+        "narrative": { "type": "object" },
+        "npcDialogue": { "type": "object" },
+        "skillTree": { "type": "object" },
+        "achievements": { "type": "array" },
+        "branchingStory": { "type": "object" },
+        "adaptiveDifficulty": { "type": "object" },
+        "proceduralMap": { "type": "object" },
+        "voiceover": { "type": "object" },
+        "imageGeneration": { "type": "object" },
+        "multiplayer": { "type": "object" }
+      }
+    }
+  }
+}

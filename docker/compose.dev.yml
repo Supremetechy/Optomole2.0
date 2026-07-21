@@ -1,0 +1,74 @@
+services:
+  frontend:
+    build:
+      context: ../frontend
+      args:
+        VITE_OPTOMOLE_API_URL: http://localhost:8080/v1
+    ports:
+      - "3000:3000"
+    depends_on:
+      - gateway
+
+  gateway:
+    build:
+      context: ../api
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: 8080
+      NODE_ENV: development
+      CORS_ORIGIN: "*"
+      BUILD_QUEUE_MODE: rabbitmq
+      BUILD_QUEUE_NAME: optomole.build.jobs
+      RABBITMQ_URL: amqp://rabbitmq:5672
+      REDIS_URL: redis://redis:6379
+      OBJECT_STORAGE_MODE: memory
+      PUBLIC_GATEWAY_URL: http://localhost:8080
+      CDN_BASE_URL: http://localhost:9000/optomole
+      WORKER_CALLBACK_TOKEN: dev-worker-token
+      INTERNAL_API_TOKEN: dev-internal-token
+      TEMPLATE_REGISTRY_PATH: /templates/registry.json
+      BROWSER_ENGINE_PATH: /browser-engine
+      LOCAL_OBJECT_STORE_PATH: /optomole-data/objects
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      WHISPER_MODEL: ${WHISPER_MODEL:-whisper-1}
+      OPENAI_TRANSCRIBE_MODEL: ${OPENAI_TRANSCRIBE_MODEL:-gpt-4o-mini-transcribe}
+      AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY:-}
+      AZURE_SPEECH_REGION: ${AZURE_SPEECH_REGION:-}
+      AZURE_SPEECH_ENDPOINT: ${AZURE_SPEECH_ENDPOINT:-}
+      AZURE_SPEECH_LANGUAGE: ${AZURE_SPEECH_LANGUAGE:-en-US}
+      LEGACY_OPTOMOLE_API_URL: http://host.docker.internal:3741
+    volumes:
+      - ../templates:/templates:ro
+      - ../browser-engine:/browser-engine:ro
+      - ../.optomole-data/objects:/optomole-data/objects
+    depends_on:
+      - rabbitmq
+      - redis
+      - minio
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: optomole
+      MINIO_ROOT_PASSWORD: optomole-dev-password
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+
+volumes:
+  minio-data:

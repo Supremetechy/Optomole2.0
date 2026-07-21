@@ -1,0 +1,83 @@
+{
+  "meta": {
+    "title": "Phishing Defense Arcade",
+    "subtitle": "Arcade · Collect & Avoid",
+    "briefing": "New-hire security training. Sweep the inbox floor and grab every safe habit — but one touch on a risky behavior costs you integrity.",
+    "waveSize": 4
+  },
+  "manifest": {
+    "schemaVersion": "1.0.0",
+    "id": "mapping-phishing-defense-arcade",
+    "templateId": "arcade-collect-avoid.v1",
+    "experienceId": "exp-phishing-defense-arcade",
+    "title": "Phishing Defense Arcade",
+    "target": "browser",
+    "requiredRuntimeSystems": ["arena", "collectibles", "decoys", "score", "waves", "power-ups"],
+    "assetSlots": [
+      { "id": "arena_backdrop", "type": "image", "required": false, "fallback": "default-arena" },
+      { "id": "pickup_sound", "type": "audio", "required": false, "fallback": "default-pickup" }
+    ],
+    "bindings": [
+      {
+        "id": "coach-mira",
+        "sourceElement": { "type": "npc-dialogue", "label": "Security Coach Mira", "description": "Real threats hide next to safe habits — read before you grab.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "npc", "interactionType": "talk", "mechanic": "npc-dialogue", "reward": { "strategy": "context-unlock", "xp": 0 }, "spawnRules": { "placement": "template-default", "priority": 100 } }
+      },
+      {
+        "id": "good-hover-link",
+        "sourceElement": { "type": "evidence", "label": "Hover to check links", "description": "Hover over a link to preview the real URL before clicking.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "key-item", "reward": { "strategy": "score", "xp": 100 }, "successConditions": ["complete:collect"], "spawnRules": { "placement": "template-default", "priority": 95 } }
+      },
+      {
+        "id": "good-verify-sender",
+        "sourceElement": { "type": "evidence", "label": "Verify the sender", "description": "Confirm the sender's real address on a separate channel before acting.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "key-item", "reward": { "strategy": "score", "xp": 100 }, "successConditions": ["complete:collect"], "spawnRules": { "placement": "template-default", "priority": 94 } }
+      },
+      {
+        "id": "good-report-suspicious",
+        "sourceElement": { "type": "evidence", "label": "Report suspicious mail", "description": "Use the Report Phishing button so security can warn everyone else.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "key-item", "reward": { "strategy": "score", "xp": 100 }, "successConditions": ["complete:collect"], "spawnRules": { "placement": "template-default", "priority": 93 } }
+      },
+      {
+        "id": "good-mfa",
+        "sourceElement": { "type": "procedure-step", "label": "Keep MFA on", "description": "Multi-factor auth blocks most credential theft even if a password leaks.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "collect", "mechanic": "quest-objective", "reward": { "strategy": "score", "xp": 100 }, "successConditions": ["complete:collect"], "spawnRules": { "placement": "template-default", "priority": 92 } }
+      },
+      {
+        "id": "good-slow-down",
+        "sourceElement": { "type": "evidence", "label": "Slow down on urgency", "description": "\"Act now or lose access\" pressure is a classic phishing tell — pause.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "key-item", "reward": { "strategy": "score", "xp": 100 }, "successConditions": ["complete:collect"], "spawnRules": { "placement": "template-default", "priority": 91 } }
+      },
+      {
+        "id": "good-check-attachment",
+        "sourceElement": { "type": "evidence", "label": "Don't open surprise files", "description": "Unexpected invoices/ZIPs are a top malware vector — verify first.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "collect", "mechanic": "key-item", "reward": { "strategy": "score", "xp": 100 }, "successConditions": ["complete:collect"], "spawnRules": { "placement": "template-default", "priority": 90 } }
+      },
+      {
+        "id": "good-lock-screen",
+        "sourceElement": { "type": "procedure-step", "label": "Lock your screen", "description": "Lock the workstation whenever you step away, even for a minute.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "collect", "mechanic": "quest-objective", "reward": { "strategy": "score", "xp": 100 }, "successConditions": ["complete:collect"], "spawnRules": { "placement": "template-default", "priority": 89 } }
+      },
+      {
+        "id": "bad-click-link",
+        "sourceElement": { "type": "hazard", "label": "Click the reset link", "description": "You clicked a link from an unverified 'IT' email — credential-harvesting page.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hazard", "interactionType": "avoid", "mechanic": "hazard", "reward": { "strategy": "focus-penalty" }, "failureConditions": ["contact"], "spawnRules": { "placement": "template-default", "priority": 60 } }
+      },
+      {
+        "id": "bad-reuse-password",
+        "sourceElement": { "type": "hazard", "label": "Reuse one password", "description": "One reused password means one breach unlocks every account.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hazard", "interactionType": "avoid", "mechanic": "hazard", "reward": { "strategy": "focus-penalty" }, "failureConditions": ["contact"], "spawnRules": { "placement": "template-default", "priority": 58 } }
+      },
+      {
+        "id": "bad-share-otp",
+        "sourceElement": { "type": "hazard", "label": "Share the OTP code", "description": "Never read your one-time code to a caller — support never asks for it.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hazard", "interactionType": "avoid", "mechanic": "hazard", "reward": { "strategy": "focus-penalty" }, "failureConditions": ["contact"], "spawnRules": { "placement": "template-default", "priority": 56 } }
+      },
+      {
+        "id": "power-shield",
+        "sourceElement": { "type": "power-up", "label": "Security Awareness", "description": "A burst of focus — brief shield and double score.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "power-up", "interactionType": "collect", "mechanic": "power-up", "reward": { "strategy": "power-up", "xp": 50 }, "spawnRules": { "placement": "template-default", "priority": 50 } }
+      }
+    ]
+  }
+}

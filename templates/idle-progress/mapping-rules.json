@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "1.0.0",
+  "templateId": "idle-progress.v1",
+  "rules": [
+    {
+      "id": "task-to-generator",
+      "workElementType": "task",
+      "sourceSignals": ["task", "todo", "respond", "finish", "complete", "read"],
+      "gameEntityType": "generator",
+      "interactionType": "start",
+      "templateSlot": "generator_icon",
+      "priority": 100,
+      "feedbackStrategy": "show-progress-earned",
+      "rewardStrategy": "currency-per-completion"
+    },
+    {
+      "id": "lesson-to-upgrade",
+      "workElementType": "lesson",
+      "sourceSignals": ["lesson", "module", "chapter", "course", "training"],
+      "gameEntityType": "upgrade",
+      "interactionType": "upgrade",
+      "templateSlot": "upgrade_icon",
+      "priority": 90,
+      "feedbackStrategy": "show-skill-unlock",
+      "rewardStrategy": "generator-multiplier"
+    },
+    {
+      "id": "habit-to-streak",
+      "workElementType": "habit",
+      "sourceSignals": ["daily", "streak", "habit", "workout", "meditation", "practice"],
+      "gameEntityType": "streak",
+      "interactionType": "streak",
+      "templateSlot": "streak-track",
+      "priority": 80,
+      "feedbackStrategy": "show-streak-risk",
+      "rewardStrategy": "streak-multiplier"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://optomole.local/schema/game-design-package.schema.json",
+  "title": "Optomole Game Design Package",
+  "type": "object",
+  "required": ["ok", "kind", "experienceManifest", "documents", "files"],
+  "properties": {
+    "ok": { "type": "boolean" },
+    "kind": { "const": "game-design-package" },
+    "generatedAt": { "type": "string" },
+    "experienceManifest": { "$ref": "experience-manifest.schema.json" },
+    "documents": { "type": "object" },
+    "files": {
+      "type": "object",
+      "required": ["ExperienceManifest.json"],
+      "additionalProperties": { "type": "object" }
+    }
+  }
+}

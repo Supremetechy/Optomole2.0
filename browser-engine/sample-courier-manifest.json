@@ -1,0 +1,102 @@
+{
+  "meta": {
+    "title": "Quarter Close Run",
+    "subtitle": "Open World · Courier",
+    "briefing": "Every job on this board is a step in the month-end close. Run them in whatever order you like — but the auditors are circling, so don't let the heat build.",
+    "districtSize": 4
+  },
+  "manifest": {
+    "schemaVersion": "1.0.0",
+    "id": "mapping-quarter-close-run",
+    "templateId": "open-world-courier.v1",
+    "experienceId": "exp-quarter-close-run",
+    "title": "Quarter Close Run",
+    "target": "browser",
+    "requiredRuntimeSystems": ["grid-city", "vehicle-handling", "scrolling-camera", "contracts", "heat", "minimap"],
+    "assetSlots": [
+      { "id": "vehicle_sprite", "type": "image", "required": false, "fallback": "default-vehicle" },
+      { "id": "delivery_audio", "type": "audio", "required": false, "fallback": "default-reward" }
+    ],
+    "bindings": [
+      {
+        "id": "dispatch-controller",
+        "sourceElement": { "type": "npc-dialogue", "label": "The Controller", "description": "Close is a route, not a checklist. Sequence it well and you finish early; sequence it badly and you finish twice.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "npc", "interactionType": "unlock", "mechanic": "district-hub", "reward": { "strategy": "unlock-district", "xp": 0 }, "spawnRules": { "placement": "template-default", "priority": 100 } }
+      },
+
+      {
+        "id": "job-lock-subledgers",
+        "sourceElement": { "type": "procedure-step", "label": "Lock the sub-ledgers", "description": "Freeze AP, AR, and payroll so nothing posts into the period you are closing.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "pickup", "mechanic": "contract", "reward": { "strategy": "fare-on-delivery", "xp": 120, "currency": 10 }, "successConditions": ["complete:deliver"], "spawnRules": { "placement": "template-default", "priority": 96 } }
+      },
+      {
+        "id": "job-bank-recs",
+        "sourceElement": { "type": "procedure-step", "label": "Clear the bank reconciliations", "description": "Every account reconciled to the statement, with the unmatched items explained in writing.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "pickup", "mechanic": "contract", "reward": { "strategy": "fare-on-delivery", "xp": 120, "currency": 10 }, "successConditions": ["complete:deliver"], "spawnRules": { "placement": "template-default", "priority": 95 } }
+      },
+      {
+        "id": "job-accruals",
+        "sourceElement": { "type": "procedure-step", "label": "Post the accruals", "description": "Anything received but not invoiced gets accrued before the ledger closes.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "pickup", "mechanic": "contract", "reward": { "strategy": "fare-on-delivery", "xp": 120, "currency": 10 }, "successConditions": ["complete:deliver"], "spawnRules": { "placement": "template-default", "priority": 94 } }
+      },
+      {
+        "id": "job-intercompany",
+        "sourceElement": { "type": "procedure-step", "label": "Settle intercompany balances", "description": "Both sides of every intercompany pair must agree to the cent before consolidation.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "pickup", "mechanic": "contract", "reward": { "strategy": "fare-on-delivery", "xp": 120, "currency": 10 }, "successConditions": ["complete:deliver"], "spawnRules": { "placement": "template-default", "priority": 93 } }
+      },
+      {
+        "id": "job-fx-revaluation",
+        "sourceElement": { "type": "procedure-step", "label": "Run FX revaluation", "description": "Revalue foreign-currency balances at the closing rate and book the difference.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "pickup", "mechanic": "contract", "reward": { "strategy": "fare-on-delivery", "xp": 120, "currency": 10 }, "successConditions": ["complete:deliver"], "spawnRules": { "placement": "template-default", "priority": 92 } }
+      },
+      {
+        "id": "job-flux-analysis",
+        "sourceElement": { "type": "procedure-step", "label": "Write the flux analysis", "description": "Explain every line that moved more than 10% against prior period, in plain language.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "pickup", "mechanic": "contract", "reward": { "strategy": "fare-on-delivery", "xp": 120, "currency": 10 }, "successConditions": ["complete:deliver"], "spawnRules": { "placement": "template-default", "priority": 91 } }
+      },
+      {
+        "id": "job-review-signoff",
+        "sourceElement": { "type": "procedure-step", "label": "Get controller sign-off", "description": "No pack goes out without a reviewed, dated, named approval on the file.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "pickup", "mechanic": "contract", "reward": { "strategy": "fare-on-delivery", "xp": 140, "currency": 14 }, "successConditions": ["complete:deliver"], "spawnRules": { "placement": "template-default", "priority": 90 } }
+      },
+      {
+        "id": "job-file-pack",
+        "sourceElement": { "type": "procedure-step", "label": "File the close pack", "description": "Archive the full pack where an auditor can find it without asking you.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "pickup", "mechanic": "contract", "reward": { "strategy": "fare-on-delivery", "xp": 140, "currency": 14 }, "successConditions": ["complete:deliver"], "spawnRules": { "placement": "template-default", "priority": 89 } }
+      },
+
+      {
+        "id": "why-audit-trail",
+        "sourceElement": { "type": "evidence", "label": "Why it matters", "description": "An unexplained variance found by an auditor costs ten times what it costs to explain up front.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "evidence", "interactionType": "deliver", "mechanic": "evidence", "reward": { "strategy": "bonus-fare", "xp": 40 }, "spawnRules": { "placement": "template-default", "priority": 75 } }
+      },
+      {
+        "id": "why-cutoff",
+        "sourceElement": { "type": "evidence", "label": "Cut-off is the whole game", "description": "Almost every close error is a transaction landing in the wrong period, not a wrong number.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "evidence", "interactionType": "deliver", "mechanic": "evidence", "reward": { "strategy": "bonus-fare", "xp": 40 }, "spawnRules": { "placement": "template-default", "priority": 74 } }
+      },
+
+      {
+        "id": "blocker-late-invoices",
+        "sourceElement": { "type": "hazard", "label": "Late invoice flood", "description": "Invoices arriving after cut-off force reopened periods — chase them before you lock, not after.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hazard", "interactionType": "evade", "mechanic": "patrol", "reward": { "strategy": "heat-penalty", "xp": 0 }, "failureConditions": ["heat:max"], "spawnRules": { "placement": "template-default", "priority": 88 } }
+      },
+      {
+        "id": "blocker-manual-journals",
+        "sourceElement": { "type": "hazard", "label": "Unapproved manual journals", "description": "A top-side entry with no approver is the single most common audit finding.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hazard", "interactionType": "evade", "mechanic": "patrol", "reward": { "strategy": "heat-penalty", "xp": 0 }, "failureConditions": ["heat:max"], "spawnRules": { "placement": "template-default", "priority": 87 } }
+      },
+      {
+        "id": "blocker-spreadsheet-drift",
+        "sourceElement": { "type": "hazard", "label": "Spreadsheet drift", "description": "Three versions of the same schedule in three inboxes — nobody knows which one closed.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hazard", "interactionType": "evade", "mechanic": "patrol", "reward": { "strategy": "heat-penalty", "xp": 0 }, "failureConditions": ["heat:max"], "spawnRules": { "placement": "template-default", "priority": 86 } }
+      },
+
+      {
+        "id": "metric-close-window",
+        "sourceElement": { "type": "metric", "label": "Five-day close target", "description": "The team's standing goal is a five-business-day close with zero reopened periods.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "district-hub", "interactionType": "drive", "mechanic": "payout-rate", "reward": { "strategy": "time-bonus-multiplier", "xp": 0 }, "spawnRules": { "placement": "template-default", "priority": 50 } }
+      }
+    ]
+  }
+}

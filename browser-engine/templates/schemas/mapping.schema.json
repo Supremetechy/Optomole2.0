@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://optimole.local/schemas/mapping.schema.json",
+  "title": "Optimole Template Mapping Rules",
+  "type": "object",
+  "required": ["schemaVersion", "templateId", "rules"],
+  "properties": {
+    "schemaVersion": { "type": "string" },
+    "templateId": { "type": "string" },
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "workElementType", "gameEntityType", "interactionType", "templateSlot"],
+        "properties": {
+          "id": { "type": "string" },
+          "workElementType": { "type": "string" },
+          "sourceSignals": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "gameEntityType": { "type": "string" },
+          "interactionType": { "type": "string" },
+          "templateSlot": { "type": "string" },
+          "priority": { "type": "integer" },
+          "feedbackStrategy": { "type": "string" },
+          "rewardStrategy": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,127 @@
+{
+  "meta": {
+    "title": "Build Your Onboarding",
+    "subtitle": "Sandbox · Craft & Build",
+    "briefing": "Your first-90-days handbook, as a claim you work. Mine the facts for materials, craft each step of the plan, and watch your onboarding rise out of the ground.",
+    "chapterSize": 4
+  },
+  "manifest": {
+    "schemaVersion": "1.0.0",
+    "id": "mapping-build-your-onboarding",
+    "templateId": "sandbox-craft-build.v1",
+    "experienceId": "exp-build-your-onboarding",
+    "title": "Build Your Onboarding",
+    "target": "browser",
+    "requiredRuntimeSystems": ["tile-world", "gathering", "inventory", "crafting", "structure-placement", "energy"],
+    "assetSlots": [
+      { "id": "ground_tile", "type": "image", "required": false, "fallback": "default-ground" },
+      { "id": "craft_audio", "type": "audio", "required": false, "fallback": "default-unlock" }
+    ],
+    "bindings": [
+      {
+        "id": "foreman-your-manager",
+        "sourceElement": { "type": "npc-dialogue", "label": "Your Manager", "description": "Nobody remembers a handbook. You remember what you built. Go dig up the facts and assemble the thing.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "npc", "interactionType": "talk", "mechanic": "npc-dialogue", "reward": { "strategy": "context-unlock", "xp": 0 }, "spawnRules": { "placement": "template-default", "priority": 100 } }
+      },
+
+      {
+        "id": "fact-org-chart",
+        "sourceElement": { "type": "evidence", "label": "Who owns what", "description": "Four teams own the product surface: platform, growth, billing, and support. Escalations route by surface, not by seniority.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "mine", "mechanic": "resource-node", "reward": { "strategy": "grant-resource-units", "xp": 30 }, "spawnRules": { "placement": "template-default", "priority": 90 } }
+      },
+      {
+        "id": "fact-deploy-cadence",
+        "sourceElement": { "type": "evidence", "label": "Deploy cadence", "description": "Production ships twice daily at 10:00 and 16:00. Anything outside that window needs an incident ticket.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "mine", "mechanic": "resource-node", "reward": { "strategy": "grant-resource-units", "xp": 30 }, "spawnRules": { "placement": "template-default", "priority": 89 } }
+      },
+      {
+        "id": "fact-oncall",
+        "sourceElement": { "type": "evidence", "label": "On-call rotation", "description": "One week per engineer per quarter, handover every Monday at 11:00 with a written summary.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "mine", "mechanic": "resource-node", "reward": { "strategy": "grant-resource-units", "xp": 30 }, "spawnRules": { "placement": "template-default", "priority": 88 } }
+      },
+      {
+        "id": "fact-code-review",
+        "sourceElement": { "type": "definition", "label": "Review standard", "description": "Two approvals for anything touching billing or auth; one approval everywhere else.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "gather", "mechanic": "resource-node", "reward": { "strategy": "grant-resource-units", "xp": 30 }, "spawnRules": { "placement": "template-default", "priority": 87 } }
+      },
+      {
+        "id": "fact-customer-promise",
+        "sourceElement": { "type": "evidence", "label": "The customer promise", "description": "99.9% uptime and a four-hour first response on paid plans — every technical decision ladders up to those two numbers.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "mine", "mechanic": "resource-node", "reward": { "strategy": "grant-resource-units", "xp": 30 }, "spawnRules": { "placement": "template-default", "priority": 86 } }
+      },
+      {
+        "id": "fact-glossary",
+        "sourceElement": { "type": "definition", "label": "Internal glossary", "description": "\"Surface\" means a product area. \"Lane\" means a delivery team. \"Freeze\" means no deploys, not no work.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "gather", "mechanic": "resource-node", "reward": { "strategy": "grant-resource-units", "xp": 30 }, "spawnRules": { "placement": "template-default", "priority": 85 } }
+      },
+      {
+        "id": "fact-tooling",
+        "sourceElement": { "type": "evidence", "label": "The tool chain", "description": "Tickets in Linear, docs in Notion, incidents in PagerDuty, everything else in the repo.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "mine", "mechanic": "resource-node", "reward": { "strategy": "grant-resource-units", "xp": 30 }, "spawnRules": { "placement": "template-default", "priority": 84 } }
+      },
+      {
+        "id": "fact-decision-log",
+        "sourceElement": { "type": "evidence", "label": "Decision records", "description": "Every architectural decision gets a one-page record with the alternatives that were rejected and why.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "mine", "mechanic": "resource-node", "reward": { "strategy": "grant-resource-units", "xp": 30 }, "spawnRules": { "placement": "template-default", "priority": 83 } }
+      },
+      {
+        "id": "fact-meeting-rhythm",
+        "sourceElement": { "type": "evidence", "label": "Meeting rhythm", "description": "Standup Monday and Thursday, review on Friday, and nothing else on the calendar by default.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "key-item", "interactionType": "mine", "mechanic": "resource-node", "reward": { "strategy": "grant-resource-units", "xp": 30 }, "spawnRules": { "placement": "template-default", "priority": 82 } }
+      },
+
+      {
+        "id": "step-setup-environment",
+        "sourceElement": { "type": "procedure-step", "label": "Stand up your dev environment", "description": "Clone, seed, and get the test suite green locally before touching anything shared.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "craft", "mechanic": "recipe", "reward": { "strategy": "unlock-structure-placement", "xp": 130, "currency": 10 }, "spawnRules": { "placement": "template-default", "priority": 96 } }
+      },
+      {
+        "id": "step-first-pr",
+        "sourceElement": { "type": "procedure-step", "label": "Ship a first pull request", "description": "Something small and real in week one — a doc fix counts, a no-op does not.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "craft", "mechanic": "recipe", "reward": { "strategy": "unlock-structure-placement", "xp": 130, "currency": 10 }, "spawnRules": { "placement": "template-default", "priority": 95 } }
+      },
+      {
+        "id": "step-shadow-oncall",
+        "sourceElement": { "type": "procedure-step", "label": "Shadow an on-call week", "description": "Sit the rotation with someone experienced before you carry the pager yourself.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "craft", "mechanic": "recipe", "reward": { "strategy": "unlock-structure-placement", "xp": 130, "currency": 10 }, "spawnRules": { "placement": "template-default", "priority": 94 } }
+      },
+      {
+        "id": "step-meet-the-surfaces",
+        "sourceElement": { "type": "procedure-step", "label": "Meet all four surface owners", "description": "A 30-minute conversation with each owner, with one written takeaway per meeting.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "craft", "mechanic": "recipe", "reward": { "strategy": "unlock-structure-placement", "xp": 130, "currency": 10 }, "spawnRules": { "placement": "template-default", "priority": 93 } }
+      },
+      {
+        "id": "step-own-a-surface",
+        "sourceElement": { "type": "procedure-step", "label": "Take ownership of one surface", "description": "By day 60 you should be the person others ask about one specific area.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "craft", "mechanic": "recipe", "reward": { "strategy": "unlock-structure-placement", "xp": 150, "currency": 14 }, "spawnRules": { "placement": "template-default", "priority": 92 } }
+      },
+      {
+        "id": "step-write-a-decision-record",
+        "sourceElement": { "type": "procedure-step", "label": "Write your first decision record", "description": "Pick something you changed and document why, including what you chose not to do.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "quest-objective", "interactionType": "craft", "mechanic": "recipe", "reward": { "strategy": "unlock-structure-placement", "xp": 150, "currency": 14 }, "spawnRules": { "placement": "template-default", "priority": 91 } }
+      },
+
+      {
+        "id": "hazard-silent-blocker",
+        "sourceElement": { "type": "hazard", "label": "The silent blocker", "description": "Being stuck for more than half a day without asking costs the team more than the interruption would.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hazard", "interactionType": "inspect", "mechanic": "hazard-zone", "reward": { "strategy": "energy-penalty", "xp": 0 }, "spawnRules": { "placement": "template-default", "priority": 80 } }
+      },
+      {
+        "id": "hazard-scope-creep",
+        "sourceElement": { "type": "hazard", "label": "First-month scope creep", "description": "Saying yes to everything in month one is how new hires end up owning nothing by month three.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "hazard", "interactionType": "inspect", "mechanic": "hazard-zone", "reward": { "strategy": "energy-penalty", "xp": 0 }, "spawnRules": { "placement": "template-default", "priority": 79 } }
+      },
+
+      {
+        "id": "blueprint-first-30",
+        "sourceElement": { "type": "decision", "label": "First 30 days", "description": "Environment running, first PR shipped, and every surface owner met.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "blueprint-goal", "interactionType": "place", "mechanic": "blueprint", "reward": { "strategy": "milestone-completion", "xp": 200, "currency": 25 }, "spawnRules": { "placement": "template-default", "priority": 100 } }
+      },
+      {
+        "id": "blueprint-first-90",
+        "sourceElement": { "type": "decision", "label": "First 90 days", "description": "On-call shadowed, one surface owned, and a decision record written.", "mediaRefs": [] },
+        "gameBinding": { "gameEntityType": "blueprint-goal", "interactionType": "place", "mechanic": "blueprint", "reward": { "strategy": "milestone-completion", "xp": 260, "currency": 32 }, "spawnRules": { "placement": "template-default", "priority": 99 } }
+      }
+    ]
+  }
+}

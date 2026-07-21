@@ -1,0 +1,119 @@
+{
+  "schemaVersion": "1.0.0",
+  "kind": "optimole.template-registry",
+  "name": "Optimole Core Template Registry",
+  "description": "Versioned genre templates and mapping rules used by the Experience Fabric before worker build dispatch.",
+  "defaultTemplateId": "action-adventure-key-lock.v1",
+  "templates": [
+    {
+      "id": "arcade-collect-avoid.v1",
+      "name": "Arcade Collect and Avoid",
+      "genreFamily": "arcade",
+      "templatePath": "arcade-collect-avoid/template.json",
+      "mappingRulesPath": "arcade-collect-avoid/mapping-rules.json",
+      "status": "active",
+      "engineTargets": ["browser", "unity", "unreal"],
+      "bestFor": ["definitions", "hazards", "quick checks", "recall drills"]
+    },
+    {
+      "id": "action-adventure-key-lock.v1",
+      "name": "Action Adventure Key and Lock",
+      "genreFamily": "action-adventure",
+      "templatePath": "action-adventure-key-lock/template.json",
+      "mappingRulesPath": "action-adventure-key-lock/mapping-rules.json",
+      "status": "active",
+      "engineTargets": ["browser", "unity", "unreal"],
+      "bestFor": ["SOPs", "procedures", "courses", "compliance training"]
+    },
+    {
+      "id": "board-resource-sim.v1",
+      "name": "Board Resource Simulation",
+      "genreFamily": "board-sim",
+      "templatePath": "board-resource-sim/template.json",
+      "mappingRulesPath": "board-resource-sim/mapping-rules.json",
+      "status": "active",
+      "engineTargets": ["browser", "unity"],
+      "bestFor": ["business training", "finance", "resource tradeoffs", "decision scenarios"]
+    },
+    {
+      "id": "idle-progress.v1",
+      "name": "Idle Progress Engine",
+      "genreFamily": "idle",
+      "templatePath": "idle-progress/template.json",
+      "mappingRulesPath": "idle-progress/mapping-rules.json",
+      "status": "active",
+      "engineTargets": ["browser", "mobile", "unity"],
+      "bestFor": ["daily tasks", "courses", "reading queues", "habit loops"]
+    },
+    {
+      "id": "router-failover-defense.v1",
+      "name": "Router Failover Defense",
+      "genreFamily": "network-ops-action",
+      "templatePath": "router-failover-defense/template.json",
+      "mappingRulesPath": "router-failover-defense/mapping-rules.json",
+      "status": "active",
+      "engineTargets": ["browser", "mobile", "pixijs"],
+      "bestFor": ["router failover runbooks", "cloud security drills", "network operations", "incident response"]
+    },
+    {
+      "id": "quest-rpg-progression.v1",
+      "name": "Quest RPG Progression",
+      "genreFamily": "rpg",
+      "templatePath": "quest-rpg-progression/template.json",
+      "mappingRulesPath": "quest-rpg-progression/mapping-rules.json",
+      "status": "active",
+      "engineTargets": ["browser", "unity", "unreal"],
+      "bestFor": ["ebooks", "long-form courses", "certification paths", "multi-chapter content"]
+    },
+    {
+      "id": "fps-target-gallery.v1",
+      "name": "FPS Target Gallery",
+      "genreFamily": "shooter",
+      "templatePath": "fps-target-gallery/template.json",
+      "mappingRulesPath": "fps-target-gallery/mapping-rules.json",
+      "status": "active",
+      "engineTargets": ["browser", "unity", "unreal"],
+      "bestFor": ["threat recognition", "judgement drills", "true-vs-false discrimination", "security training"]
+    },
+    {
+      "id": "open-world-courier.v1",
+      "name": "Open World Courier",
+      "genreFamily": "open-world-action",
+      "templatePath": "open-world-courier/template.json",
+      "mappingRulesPath": "open-world-courier/mapping-rules.json",
+      "status": "active",
+      "engineTargets": ["browser", "unity", "unreal"],
+      "bestFor": ["task backlogs", "multi-step workflows", "checklists with free ordering", "operational runbooks"]
+    },
+    {
+      "id": "sandbox-craft-build.v1",
+      "name": "Sandbox Craft and Build",
+      "genreFamily": "sandbox-survival",
+      "templatePath": "sandbox-craft-build/template.json",
+      "mappingRulesPath": "sandbox-craft-build/mapping-rules.json",
+      "status": "active",
+      "engineTargets": ["browser", "unity", "unreal"],
+      "bestFor": ["reference manuals", "onboarding plans", "knowledge bases", "assembly-style procedures"]
+    },
+    {
+      "id": "runner-gauntlet.v1",
+      "name": "Runner Gauntlet",
+      "genreFamily": "arcade-runner",
+      "templatePath": "runner-gauntlet/template.json",
+      "mappingRulesPath": "runner-gauntlet/mapping-rules.json",
+      "status": "active",
+      "engineTargets": ["browser", "mobile", "unity"],
+      "bestFor": ["habit loops", "daily routines", "newsletters", "short repeatable content"]
+    },
+    {
+      "id": "memory-palace.v1",
+      "name": "Memory Palace",
+      "genreFamily": "learning-navigation",
+      "templatePath": "memory-palace/template.json",
+      "mappingRulesPath": "memory-palace/mapping-rules.json",
+      "status": "active",
+      "engineTargets": ["browser"],
+      "bestFor": ["ebooks", "courses", "research notes", "concept recall"]
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0.0",
+  "kind": "optimole.browser-template-registry",
+  "name": "Optimole Browser Runtime Template Registry",
+  "defaultTemplateId": "action-adventure-key-lock.v1",
+  "templates": [
+    { "id": "action-adventure-key-lock.v1", "runtimePath": "action-adventure-key-lock/template-runtime.js", "factory": "createKeyLockRuntime", "status": "active" },
+    { "id": "arcade-collect-avoid.v1", "runtimePath": "arcade-collect-avoid/template-runtime.js", "factory": "createArcadeRuntime", "status": "active" },
+    { "id": "board-resource-sim.v1", "runtimePath": "board-resource-sim/template-runtime.js", "factory": "createBoardRuntime", "status": "active" },
+    { "id": "fps-target-gallery.v1", "runtimePath": "fps-target-gallery/template-runtime.js", "factory": "createFpsGalleryRuntime", "status": "active" },
+    { "id": "idle-progress.v1", "runtimePath": "idle-progress/template-runtime.js", "factory": "createIdleRuntime", "status": "active" },
+    { "id": "memory-palace.v1", "runtimePath": "memory-palace/template-runtime.js", "factory": "createMemoryPalaceRuntime", "status": "active" },
+    { "id": "open-world-courier.v1", "runtimePath": "open-world-courier/template-runtime.js", "factory": "createCourierRuntime", "status": "active" },
+    { "id": "quest-rpg-progression.v1", "runtimePath": "quest-rpg-progression/template-runtime.js", "factory": "createQuestRpgRuntime", "status": "active" },
+    { "id": "router-failover-defense.v1", "runtimePath": "router-failover-defense/template-runtime.js", "factory": "createRouterFailoverRuntime", "status": "active" },
+    { "id": "runner-gauntlet.v1", "runtimePath": "runner-gauntlet/template-runtime.js", "factory": "createRunnerRuntime", "status": "active" },
+    { "id": "sandbox-craft-build.v1", "runtimePath": "sandbox-craft-build/template-runtime.js", "factory": "createSandboxRuntime", "status": "active" }
+  ]
+}
