@@ -3,6 +3,7 @@ import path from 'node:path';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { gatewayConfig } from '../shared/config';
 import { id } from '../shared/ids';
+import { plainText, shortLabel } from '../shared/text';
 import { EngineTarget, ExperiencePackage } from '../shared/types';
 
 export interface RegistryEntry {
@@ -185,33 +186,14 @@ export class TemplatesService {
   }
 
   private buildMappingManifest(pkg: ExperiencePackage, template: TemplateManifest, mappingRules: MappingRules, target: EngineTarget) {
-    const quests = Array.isArray(pkg.blueprint?.quests) ? pkg.blueprint.quests as Array<Record<string, any>> : [];
-    const bindings = quests.flatMap((quest, questIndex) => {
-      const objectiveBindings = this.arrayOf(quest.objectives).map((objective, objectiveIndex) => {
-        const text = `${objective.title || ''} ${objective.prompt || ''} ${quest.title || ''} ${quest.summary || ''}`;
-        const rule = this.matchRule(mappingRules.rules, text, 'procedure-step');
-        return this.binding(rule, {
-          sourceRef: { kind: 'objective', questId: quest.id, questIndex, objectiveIndex },
-          label: objective.title || quest.title || `Objective ${objectiveIndex + 1}`,
-          description: objective.prompt || quest.summary || '',
-          reward: quest.reward || {},
-        });
-      });
-
-      const evidenceBindings = this.arrayOf(quest.evidence).map((evidence, evidenceIndex) => {
-        const text = `${evidence.kind || ''} ${evidence.text || ''} ${quest.title || ''}`;
-        const fallback = evidence.correct === false ? 'hazard' : 'evidence';
-        const rule = this.matchRule(mappingRules.rules, text, fallback);
-        return this.binding(rule, {
-          sourceRef: { kind: 'evidence', questId: quest.id, questIndex, evidenceIndex },
-          label: evidence.text || `Evidence ${evidenceIndex + 1}`,
-          description: evidence.text || '',
-          reward: evidence.correct === false ? { focusPenalty: 15 } : quest.reward || {},
-        });
-      });
-
-      return [...objectiveBindings, ...evidenceBindings];
-    });
+    // Content precedence: the pipeline's gameplay projection (gameplayNormalization
+    // / knowledgeGraph) is the highest-fidelity view of the ingested source — it
+    // already carries per-element gameplay type, interaction, salience and reward.
+    // Quest bindings supplement it. Historically only quests were read, so every
+    // extracted concept, entity and action was discarded at build time.
+    const graphBindings = this.graphBindings(pkg, mappingRules);
+    const questBindings = this.questBindings(pkg, mappingRules);
+    const bindings = this.dedupeBindings([...graphBindings, ...questBindings]).slice(0, TemplatesService.MAX_BINDINGS);
 
     return {
       schemaVersion: '1.0.0',
@@ -223,16 +205,268 @@ export class TemplatesService {
       engineSkeleton: template.engineSkeletons[target] || null,
       requiredRuntimeSystems: template.mechanics,
       assetSlots: template.assetSlots,
+      bindingSources: {
+        graph: graphBindings.length,
+        quests: questBindings.length,
+        emitted: bindings.length,
+      },
       bindings,
     };
   }
 
-  private binding(rule: MappingRule, input: { sourceRef: Record<string, unknown>; label: string; description: string; reward: Record<string, unknown> }) {
+  private questBindings(pkg: ExperiencePackage, mappingRules: MappingRules) {
+    const quests = Array.isArray(pkg.blueprint?.quests) ? pkg.blueprint.quests as Array<Record<string, any>> : [];
+    return quests.flatMap((quest, questIndex) => {
+      const objectiveBindings = this.arrayOf(quest.objectives).map((objective, objectiveIndex) => {
+        // Packages can arrive here without passing through compiler normalization
+        // (a client may POST one straight to /v1/builds), so an objective may still
+        // be a bare string. plainText handles both shapes.
+        const description = plainText(objective) || plainText(quest.summary);
+        const label = shortLabel(objective?.title) || shortLabel(description) || `Objective ${objectiveIndex + 1}`;
+        const text = `${objective.title || ''} ${objective.prompt || ''} ${quest.title || ''} ${quest.summary || ''}`;
+        const rule = this.matchRule(mappingRules.rules, text, 'procedure-step');
+        return this.binding(rule, {
+          sourceRef: { kind: 'objective', questId: quest.id, questIndex, objectiveIndex },
+          label,
+          description,
+          reward: quest.reward || {},
+        });
+      });
+
+      const evidenceBindings = this.arrayOf(quest.evidence).map((evidence, evidenceIndex) => {
+        const description = plainText(evidence);
+        const label = shortLabel(evidence?.label) || shortLabel(description) || `Evidence ${evidenceIndex + 1}`;
+        const text = `${evidence.kind || ''} ${evidence.text || ''} ${quest.title || ''}`;
+        const fallback = evidence.correct === false ? 'hazard' : 'evidence';
+        const rule = this.matchRule(mappingRules.rules, text, fallback);
+        return this.binding(rule, {
+          sourceRef: { kind: 'evidence', questId: quest.id, questIndex, evidenceIndex },
+          label,
+          description,
+          reward: evidence.correct === false ? { focusPenalty: 15 } : quest.reward || {},
+        });
+      });
+
+      return [...objectiveBindings, ...evidenceBindings];
+    });
+  }
+
+  /** Upper bound on emitted bindings — a large graph should not produce an unplayable room count. */
+  private static readonly MAX_BINDINGS = 60;
+
+  /**
+   * Gameplay atom type -> the work-element type the template's mapping rules key
+   * off. This keeps each template in charge of the concrete game entity: an
+   * `inventory_item` becomes a key-item in key-lock and a collectible in arcade,
+   * because both declare an `evidence` rule.
+   */
+  private static readonly ATOM_WORK_TYPE: Record<string, string> = {
+    quiz: 'evidence',
+    inventory_item: 'evidence',
+    puzzle: 'procedure-step',
+    mission: 'procedure-step',
+    challenge: 'procedure-step',
+    simulation: 'metric',
+    branch: 'decision-point',
+    boss_battle: 'hazard',
+    avoidance_challenge: 'hazard',
+  };
+
+  /** Semantic/KG node type -> work-element type, for sources with no gameplay layer. */
+  private static readonly NODE_WORK_TYPE: Record<string, string> = {
+    learning_objective: 'procedure-step',
+    action: 'procedure-step',
+    concept: 'evidence',
+    proper_noun: 'evidence',
+    entity: 'evidence',
+    person: 'evidence',
+    place: 'evidence',
+  };
+
+  /**
+   * Project the ingested content graph into bindings.
+   *
+   * Prefers `gameplayNormalization.gameplayAtoms` (already typed for gameplay),
+   * falling back to the semantic layer of the knowledge graph. Atom labels are
+   * short by construction, so descriptions are enriched from the originating
+   * semantic node's `context` — that's the sentence the element was extracted
+   * from, and it is what the runtime shows as evidence.
+   */
+  private graphBindings(pkg: ExperiencePackage, mappingRules: MappingRules) {
+    const blueprint = (pkg.blueprint || {}) as Record<string, any>;
+    const specification = (pkg.specification || {}) as Record<string, any>;
+    const gameplay = blueprint.gameplayNormalization || specification.gameplayNormalization || null;
+    const graph = blueprint.knowledgeGraph || specification.knowledgeGraph || null;
+    const semantic = blueprint.semanticExtraction || specification.semanticExtraction || null;
+    const storyboard = blueprint.storyboard || specification.storyboard || null;
+
+    const context = this.sourceContextIndex(semantic, graph);
+    const order = this.storyboardOrder(storyboard);
+    const atoms = this.arrayOf(gameplay?.gameplayAtoms);
+    const items = atoms.length ? atoms : this.semanticNodes(graph);
+    if (!items.length) return [] as ReturnType<TemplatesService['binding']>[];
+
+    const bindings = items.map((item, index) => {
+      const atomType = String(item.gameplayType || item.type || '').toLowerCase();
+      const declaredWorkType = atoms.length
+        ? TemplatesService.ATOM_WORK_TYPE[atomType]
+        : TemplatesService.NODE_WORK_TYPE[atomType];
+
+      const sourceId = String(item.sourceId || item.id || '');
+      const label = shortLabel(item.label || item.title) || `Element ${index + 1}`;
+      // The extracted sentence, when we can find it; otherwise the label stands alone.
+      const description = plainText(context.get(sourceId)) || plainText(item.summary) || label;
+      // A declared gameplay type is authoritative. Keyword matching only guesses
+      // for untyped elements — running it over the source sentence would let
+      // words like "decide" or "if" reclassify a collectible as a gate.
+      const rule = declaredWorkType
+        ? this.ruleFor(mappingRules.rules, declaredWorkType)
+        : this.matchRule(mappingRules.rules, `${label} ${description}`, atoms.length ? 'procedure-step' : 'evidence');
+
+      // Narrative order drives spawn priority: the runtime sorts descending, so
+      // earlier storyboard elements land in earlier rooms.
+      const sequence = order.get(String(item.id)) ?? order.get(sourceId) ?? index;
+      return this.binding(rule, {
+        sourceRef: { kind: 'graph', atomId: item.id || null, sourceId: sourceId || null, sourceKind: item.sourceKind || item.type || null },
+        label,
+        description,
+        evidence: description,
+        reward: this.atomReward(item),
+        priority: TemplatesService.MAX_BINDINGS * 2 - sequence,
+      });
+    });
+
+    const npcBindings = this.arrayOf(gameplay?.npcs).map((npc, index) => this.npcBinding(npc, gameplay, index));
+    return [...npcBindings, ...bindings];
+  }
+
+  /** Map a source element id -> the sentence it was extracted from. */
+  private sourceContextIndex(semantic: any, graph: any): Map<string, string> {
+    const index = new Map<string, string>();
+    const remember = (node: any) => {
+      const key = String(node?.id || '');
+      if (!key) return;
+      const text = plainText(node.context) || plainText(node.text) || plainText(node.goalStatement);
+      if (text) index.set(key, text);
+    };
+    for (const key of ['concepts', 'entities', 'actions', 'people', 'places', 'learningObjectives']) {
+      this.arrayOf(semantic?.[key]).forEach(remember);
+    }
+    for (const node of this.arrayOf(graph?.nodes)) {
+      remember({ id: node.id, ...(node.properties || {}) });
+    }
+    return index;
+  }
+
+  /** Element id -> position along the storyboard's selected narrative path. */
+  private storyboardOrder(storyboard: any): Map<string, number> {
+    const order = new Map<string, number>();
+    const push = (rawId: unknown) => {
+      const key = String(rawId || '');
+      if (key && !order.has(key)) order.set(key, order.size);
+    };
+    for (const scene of this.arrayOf(storyboard?.scenes).sort((a, b) => (a.order || 0) - (b.order || 0))) {
+      this.arrayOf(scene.gameplayAtomIds).forEach(push);
+      this.arrayOf(scene.nodeIds).forEach(push);
+    }
+    this.arrayOf(storyboard?.selectedPath?.nodeIds).forEach(push);
+    for (const anchor of this.arrayOf(storyboard?.anchorNodes)) push(anchor.id);
+    return order;
+  }
+
+  /** Semantic-layer graph nodes, used when no gameplay projection exists. */
+  private semanticNodes(graph: any): Array<Record<string, any>> {
+    return this.arrayOf(graph?.nodes)
+      .filter((node) => node.layer === 'semantic' || TemplatesService.NODE_WORK_TYPE[String(node.type || '').toLowerCase()])
+      .map((node) => ({
+        id: node.id,
+        sourceId: node.id,
+        label: node.label,
+        type: node.type,
+        sourceKind: node.type,
+        ...(node.properties || {}),
+      }));
+  }
+
+  private atomReward(item: Record<string, any>): Record<string, unknown> {
+    const reward = (item.reward || {}) as Record<string, unknown>;
+    const salience = Number(item.salience);
+    return {
+      ...reward,
+      ...(Number.isFinite(salience) ? { salience } : {}),
+      ...(item.successCondition ? { successCondition: item.successCondition } : {}),
+    };
+  }
+
+  /**
+   * NPCs bypass rule matching: no template declares a work-element rule for them,
+   * but the runtime looks for `gameEntityType === 'npc'` when populating rooms.
+   */
+  private npcBinding(npc: Record<string, any>, gameplay: any, index: number) {
+    const dialogue = this.arrayOf(gameplay?.npcDialogue).find((line) => line.npcId === npc.id);
+    const lines = this.arrayOf(dialogue?.lines).map((line) => plainText(line)).filter(Boolean);
+    const label = shortLabel(npc.name) || `Guide ${index + 1}`;
+    const description = plainText(dialogue?.prompt) || plainText(npc.role) || label;
+    return {
+      id: id('binding'),
+      sourceElement: {
+        type: 'npc',
+        label,
+        description,
+        evidence: lines.join(' ') || description,
+        sourceRef: { kind: 'npc', npcId: npc.id || null, missionId: npc.missionId || null },
+        mediaRefs: [],
+      },
+      gameBinding: {
+        gameEntityType: 'npc',
+        interactionType: 'talk',
+        mechanic: 'npc',
+        templateSlot: 'room-npc',
+        gameVerb: 'talk',
+        workVerb: 'npc',
+        feedback: 'dialogue',
+        reward: { strategy: 'dialogue', trust: npc.trust ?? 50 },
+        successConditions: ['complete:talk'],
+        failureConditions: [],
+        spawnRules: { placement: 'template-default', priority: TemplatesService.MAX_BINDINGS * 2 },
+        dialogue: lines,
+      },
+      sourceRef: { kind: 'npc', npcId: npc.id || null },
+      workElementType: 'npc',
+      gameEntityType: 'npc',
+      interactionType: 'talk',
+      templateSlot: 'room-npc',
+      label,
+      description,
+      feedback: 'dialogue',
+      reward: { strategy: 'dialogue', trust: npc.trust ?? 50 },
+    };
+  }
+
+  /**
+   * Drop bindings that repeat an element already emitted. The compiler can emit
+   * the same excerpt several times (once per quest it appears in), and the graph
+   * layer overlaps the quest layer by construction.
+   */
+  private dedupeBindings<T extends { sourceElement?: any; label?: string }>(bindings: T[]): T[] {
+    const seen = new Set<string>();
+    return bindings.filter((binding) => {
+      const label = plainText(binding.sourceElement?.label ?? binding.label).toLowerCase().replace(/\s+/g, ' ').trim();
+      const key = `${binding.sourceElement?.type || ''}::${label}`;
+      if (!label || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  private binding(rule: MappingRule, input: { sourceRef: Record<string, unknown>; label: string; description: string; evidence?: string; reward: Record<string, unknown>; priority?: number }) {
     const sourceElement = {
       type: rule.workElementType,
       label: input.label,
       description: input.description,
-      evidence: input.description,
+      // Callers that have a distinct supporting excerpt pass it explicitly;
+      // otherwise the description doubles as the evidence body.
+      evidence: input.evidence ?? input.description,
       sourceRef: input.sourceRef,
       mediaRefs: [],
     };
@@ -250,7 +484,7 @@ export class TemplatesService {
       },
       successConditions: [`complete:${rule.interactionType}`],
       failureConditions: rule.interactionType === 'avoid' ? ['collision', 'incorrect-selection'] : ['incorrect-selection'],
-      spawnRules: { placement: 'template-default', priority: rule.priority || 0 },
+      spawnRules: { placement: 'template-default', priority: input.priority ?? rule.priority ?? 0 },
     };
     return {
       id: id('binding'),
@@ -271,12 +505,35 @@ export class TemplatesService {
     };
   }
 
+  /**
+   * Signals are matched on word boundaries. Plain substring matching made short
+   * signals ("if", "step", "target") fire inside unrelated words ("specific",
+   * "sidestep", "targeting"), which skewed long excerpts toward whichever rule
+   * happened to own the most common fragments.
+   */
+  private static readonly SIGNAL_PATTERNS = new Map<string, RegExp>();
+
+  private signalPattern(signal: string): RegExp {
+    const key = signal.toLowerCase();
+    let pattern = TemplatesService.SIGNAL_PATTERNS.get(key);
+    if (!pattern) {
+      pattern = new RegExp(`\\b${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+      TemplatesService.SIGNAL_PATTERNS.set(key, pattern);
+    }
+    return pattern;
+  }
+
+  /** The rule a template declares for a known work-element type. */
+  private ruleFor(rules: MappingRule[], workElementType: string): MappingRule {
+    return rules.find((rule) => rule.workElementType === workElementType) || rules[0];
+  }
+
   private matchRule(rules: MappingRule[], text: string, fallbackWorkType: string): MappingRule {
     const lowered = String(text || '').toLowerCase();
     const scored = rules
       .map((rule) => ({
         rule,
-        score: (rule.priority || 0) + (rule.sourceSignals || []).filter((signal) => lowered.includes(signal.toLowerCase())).length * 50,
+        score: (rule.priority || 0) + (rule.sourceSignals || []).filter((signal) => this.signalPattern(signal).test(lowered)).length * 50,
       }))
       .sort((a, b) => b.score - a.score);
     return scored.find((item) => item.score > (item.rule.priority || 0))?.rule

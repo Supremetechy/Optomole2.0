@@ -17,6 +17,10 @@ export interface GatewayConfig {
   objectStorageMode: ObjectStorageMode;
   workerCallbackToken: string;
   internalApiToken: string;
+  adminApiToken: string;
+  accountStorePath: string;
+  personNodeModulePath: string;
+  personNodeSchemaPath: string;
   templateRegistryPath: string;
   browserEnginePath: string;
   browserEngineUrl: string;
@@ -56,6 +60,14 @@ export function gatewayConfig(): GatewayConfig {
     objectStorageMode: value('OBJECT_STORAGE_MODE', 'memory') as ObjectStorageMode,
     workerCallbackToken: value('WORKER_CALLBACK_TOKEN', 'dev-worker-token'),
     internalApiToken: value('INTERNAL_API_TOKEN', 'dev-internal-token'),
+    // Admin console backend access. The AdminConsole sends this as `x-admin-token`
+    // (or `Authorization: Bearer …`) to reach the account-management endpoints.
+    adminApiToken: value('ADMIN_API_TOKEN', 'dev-admin-token'),
+    accountStorePath: value('ACCOUNT_STORE_PATH', '../.optomole-data/accounts'),
+    // The shared, framework-free Person Node contract both AdminConsole and the
+    // api import. Resolved from the api's cwd, like templateRegistryPath.
+    personNodeModulePath: value('PERSON_NODE_MODULE_PATH', '../shared/person-node/person-node.mjs'),
+    personNodeSchemaPath: value('PERSON_NODE_SCHEMA_PATH', '../shared/person-node/person-node.schema.json'),
     templateRegistryPath: value('TEMPLATE_REGISTRY_PATH', '../templates/registry.json'),
     browserEnginePath: value('BROWSER_ENGINE_PATH', '../browser-engine'),
     // Base URL where the playable browser-engine is actually served. Set this

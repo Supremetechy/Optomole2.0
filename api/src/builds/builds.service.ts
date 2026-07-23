@@ -62,19 +62,73 @@ export class BuildsService {
   }
 
   listBuilds(): BuildJob[] {
+    this.recoverPersistedBuilds();
     return [...this.builds.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   getBuild(id: string): BuildJob | null {
+    this.recoverPersistedBuilds();
     return this.builds.get(id) || null;
   }
 
   listArtifacts(): ArtifactRecord[] {
+    this.recoverPersistedBuilds();
     return [...this.artifacts.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   getArtifact(id: string): ArtifactRecord | null {
+    this.recoverPersistedBuilds();
     return this.artifacts.get(id) || null;
+  }
+
+  /**
+   * Rebuild build/artifact records from the object store.
+   *
+   * Build state lives in memory, but every browser build durably writes
+   * `<experienceId>/<buildId>/manifest.json`. Without this, restarting the
+   * gateway emptied the console's build list and "Open Playable" silently fell
+   * back to whichever build happened to be created since the restart — even
+   * though every manifest was still on disk.
+   *
+   * Records already in memory win: a live or just-completed build is more
+   * accurate than anything reconstructed from a filename.
+   */
+  private recoverPersistedBuilds(): void {
+    const publicBaseUrl = gatewayConfig().publicGatewayUrl.replace(/\/$/, '');
+    for (const { key, createdAt } of this.storage.listObjectKeys()) {
+      const match = /^(.+)\/(build_[^/]+)\/manifest\.json$/.exec(key);
+      if (!match) continue;
+      const [, experienceId, buildId] = match;
+      if (this.builds.has(buildId)) continue;
+
+      const downloadUrl = `${publicBaseUrl}/v1/objects/${encodeURIComponent(key)}`;
+      // The template is omitted deliberately: the runtime falls back to the
+      // manifest's own templateId, so we never have to parse the payload here.
+      const launchUrl = `${this.engineLaunchBase(publicBaseUrl)}?manifest=${encodeURIComponent(downloadUrl)}`;
+      const artifact = this.createArtifact({
+        jobId: buildId,
+        experienceId,
+        target: 'browser',
+        kind: 'playable-session',
+        launchUrl,
+        downloadUrl,
+        storageKey: key,
+        contentType: 'application/json; charset=utf-8',
+        metadata: { runtime: 'browser-engine', recovered: true },
+      });
+      this.builds.set(buildId, {
+        id: buildId,
+        experienceId,
+        target: 'browser',
+        status: 'succeeded',
+        createdAt,
+        updatedAt: createdAt,
+        logs: ['Recovered from object store after a gateway restart.'],
+        artifactId: artifact.id,
+        launchUrl,
+        downloadUrl,
+      });
+    }
   }
 
   async workerSucceeded(input: {
@@ -169,7 +223,7 @@ export class BuildsService {
       analystChallenge: (pkg.blueprint as any)?.analystChallenge || null,
       proceduralMap: (pkg.blueprint as any)?.proceduralMap || null,
       skillTree: (pkg.blueprint as any)?.skillTree || [],
-      preprocessing: (pkg.specification as any)?.preprocessing || null,
+      preprocessing: this.preprocessingSummary((pkg.specification as any)?.preprocessing),
       semanticExtraction: (pkg.specification as any)?.semanticExtraction || null,
       gameplayNormalization: (pkg.specification as any)?.gameplayNormalization || null,
       storyboard: (pkg.blueprint as any)?.storyboard || (pkg.specification as any)?.storyboard || null,
@@ -227,6 +281,32 @@ export class BuildsService {
       downloadUrl: artifact.downloadUrl,
       logs: [...build.logs, `Browser-engine manifest compiled with ${resolved.template.id}.`, 'Playable runtime URL created.'],
     });
+  }
+
+  /**
+   * The full preprocessing pipeline dump is ~98% of a browser manifest's bytes
+   * (mostly `contentSanitization`, plus copies of knowledgeGraph /
+   * semanticExtraction / storyboard / gameplayNormalization that the manifest
+   * already carries at the top level). Nothing in the runtime reads it, so the
+   * playable payload ships a descriptor instead of the raw pipeline output.
+   */
+  private preprocessingSummary(preprocessing: any): Record<string, unknown> | null {
+    if (!preprocessing || typeof preprocessing !== 'object') return null;
+    const stageNames = ['contentSanitization', 'semanticExtraction', 'emotionalIntelligence', 'knowledgeGraph', 'storyboard', 'gameplayNormalization'];
+    const stages: Record<string, unknown> = {};
+    for (const name of stageNames) {
+      const stage = preprocessing[name];
+      if (!stage || typeof stage !== 'object') continue;
+      stages[name] = { id: stage.id ?? null, generatedAt: stage.generatedAt ?? null, stats: stage.stats ?? null };
+    }
+    return {
+      schemaVersion: preprocessing.schemaVersion ?? null,
+      kind: preprocessing.kind ?? null,
+      id: preprocessing.id ?? null,
+      generatedAt: preprocessing.generatedAt ?? null,
+      stages,
+      note: 'Stage detail omitted from the playable payload; fetch the experience record for full pipeline output.',
+    };
   }
 
   private createArtifact(input: Omit<ArtifactRecord, 'id' | 'status' | 'createdAt'>): ArtifactRecord {

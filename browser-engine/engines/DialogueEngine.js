@@ -78,7 +78,11 @@ export class DialogueEngine {
     const speaker = npc?.label || 'Facility Guide';
     const keyItems = (room?.entities || []).filter((e) => e.entityType === 'key-item');
     const hazards = (room?.entities || []).filter((e) => e.entityType === 'hazard');
+    // Real dialogue lines from the manifest win over the generic briefing —
+    // that's the ingested NPC actually speaking rather than boilerplate.
+    const scripted = Array.isArray(npc?.dialogue) ? npc.dialogue.filter(Boolean) : [];
     const briefing =
+      scripted.join(' ') ||
       npc?.description ||
       `Welcome to ${room?.title || 'the facility'}. Collect the evidence you need, avoid the hazards, then unlock the gate.`;
 

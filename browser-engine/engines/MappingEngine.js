@@ -43,6 +43,7 @@ export function bindingToEntitySpec(binding = {}) {
     success: gb.successConditions || [],
     failure: gb.failureConditions || [],
     media: Array.isArray(src.mediaRefs) ? src.mediaRefs : [],
+    dialogue: Array.isArray(gb.dialogue) ? gb.dialogue : [],
     sourceRef: src.sourceRef || binding.sourceRef || null,
   };
 }
@@ -55,16 +56,37 @@ export function bindingToEntitySpec(binding = {}) {
 export function buildRoomGraph(specs, { roomSize = 6, title = 'Training Facility' } = {}) {
   const sorted = [...specs].sort((a, b) => b.priority - a.priority);
 
-  const doors = sorted.filter((s) => s.entityType === 'lock' || s.entityType === 'exit-gate');
+  const gates = sorted.filter((s) => s.entityType === 'lock' || s.entityType === 'exit-gate');
   const npcs = sorted.filter((s) => s.entityType === 'npc');
   const playable = sorted.filter(
     (s) => !['lock', 'exit-gate', 'npc'].includes(s.entityType),
   );
 
+  // A room consumes at most one gate. Surplus gates used to be dropped on the
+  // floor — with a decision-heavy source that silently discarded most of the
+  // content (11 locks, 1 room, 10 elements never rendered). Demote the extras to
+  // in-room objectives instead, then size the room count to hold everything.
+  let roomCount = Math.max(1, Math.ceil(playable.length / roomSize) || 1);
+  for (let pass = 0; pass < 4; pass++) {
+    const contentCount = playable.length + Math.max(0, gates.length - Math.min(gates.length, roomCount));
+    const next = Math.max(1, Math.ceil(contentCount / roomSize) || 1);
+    if (next === roomCount) break;
+    roomCount = next;
+  }
+
+  const doors = gates.slice(0, roomCount);
+  const demoted = gates.slice(roomCount).map((spec) => ({
+    ...spec,
+    entityType: 'quest-objective',
+    interaction: spec.interaction === 'branch' ? 'inspect' : spec.interaction,
+    demotedFrom: spec.entityType,
+  }));
+  const contents = [...playable, ...demoted].sort((a, b) => b.priority - a.priority);
+
   const rooms = [];
-  const chunkCount = Math.max(1, Math.ceil(playable.length / roomSize) || 1);
+  const chunkCount = Math.max(1, Math.ceil(contents.length / roomSize) || 1);
   for (let i = 0; i < chunkCount; i++) {
-    const chunk = playable.slice(i * roomSize, (i + 1) * roomSize);
+    const chunk = contents.slice(i * roomSize, (i + 1) * roomSize);
     // Ensure every room has at least one collectible key to open its gate.
     const keys = chunk.filter((s) => s.entityType === 'key-item');
     const requiredKeys = keys.map((k) => k.id);

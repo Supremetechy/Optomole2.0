@@ -63,13 +63,31 @@ function ensureLibs() {
   }
 }
 
+/**
+ * Pick the rendering build. Default is the bundled PixiJS runtime; a manifest can
+ * opt into the Phaser build with `engine: "phaser"`, and `?engine=phaser` forces
+ * it for quick testing. Any unknown value falls back to Pixi.
+ */
+function selectEngine(manifest) {
+  const override = new URL(location.href).searchParams.get('engine');
+  const id = String(override || manifest.engine || 'pixi').toLowerCase();
+  return id === 'phaser' ? 'phaser' : 'pixi';
+}
+
 async function main() {
-  ensureLibs();
   const payload = await loadPayload();
   // Accept either a raw manifest or a { manifest, meta } envelope.
   const manifest = payload.manifest || payload;
   const meta = payload.meta || { title: manifest.title || 'Optomole Experience' };
 
+  // Engine dispatch: the Phaser build lives behind a lazy import so the Pixi path
+  // never loads Phaser (and vice-versa). Only the selected stack is fetched.
+  if (selectEngine(manifest) === 'phaser') {
+    const { bootPhaser } = await import('./runtime-phaser/boot-phaser.js');
+    return bootPhaser(manifest, meta);
+  }
+
+  ensureLibs();
   const runtime = new OptomoleRuntime();
   await runtime.init('#game');
   mountHud(runtime.services.state);

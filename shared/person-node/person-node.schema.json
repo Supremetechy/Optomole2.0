@@ -1,0 +1,1156 @@
+{
+  "$schema": "https://json-schema.org/draft/2026-07/schema",
+  "$id": "https://optomole.dev/schemas/PersonNode.json",
+  "title": "PersonNode",
+  "description": "An extensive representation of a Person — human or digital persona — used to gather data about an individual person. Nearly every field is optional so partial profiles remain valid; the object is designed to be filled in progressively over time.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "identity", "system"],
+
+  "$defs": {
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "0..1 confidence that this value is accurate / current."
+    },
+    "scale5": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "description": "1 (low) .. 5 (high)."
+    },
+    "unitScore": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Normalized 0..1 score."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sourceType": {
+      "type": "string",
+      "enum": [
+        "first_person_record",
+        "explicit_user_input",
+        "direct_observation",
+        "original_document",
+        "documentary_evidence",
+        "verifiable_record",
+        "third_party_verification",
+        "behavioral_telemetry",
+        "domain_reference",
+        "model_inference",
+        "imported",
+        "unknown"
+      ],
+      "description": "Evidence class used by the source discipline policy. Primary/direct evidence should generally outrank inferred or third-party evidence."
+    },
+    "confidenceTier": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "unknown"],
+      "description": "Actionability tier: high can drive personalization, medium should keep fallback options, low is only a weak ranking hint."
+    },
+    "currentStatus": {
+      "type": "string",
+      "enum": ["verified_current", "probably_current", "stale", "outdated", "disputed", "unknown"],
+      "description": "Whether this value should be treated as current for operational decisions."
+    },
+    "fieldCriticality": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical"],
+      "description": "Risk if the field is wrong. Critical fields require recent high-strength evidence before action."
+    },
+    "timeScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Explicit temporal boundary for facts that may change.",
+      "properties": {
+        "startAt": { "$ref": "#/$defs/timestamp" },
+        "endAt": { "$ref": "#/$defs/timestamp" },
+        "asOf": { "$ref": "#/$defs/timestamp" },
+        "window": { "type": "string", "description": "Human-readable freshness/currentness window, e.g. 'last_30_days'." },
+        "context": { "type": "string", "description": "Situation where this time scope applies." }
+      }
+    },
+    "evidencePointer": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Traceable evidence backing a field or claim.",
+      "properties": {
+        "evidenceId": { "type": "string" },
+        "sourceId": { "type": "string" },
+        "sourceType": { "$ref": "#/$defs/sourceType" },
+        "sourceName": { "type": "string" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "collectedAt": { "$ref": "#/$defs/timestamp" },
+        "producedBy": { "type": "string", "description": "Person, system, institution, or device that produced the evidence." },
+        "custody": { "type": "string", "description": "Provenance / chain-of-custody notes." },
+        "authenticitySignals": { "type": "array", "items": { "type": "string" } },
+        "extractionMethod": { "type": "string", "enum": ["human_review", "automated_extraction", "model_extraction", "import", "direct_entry", "unknown"] },
+        "extractionMethodVersion": { "type": "string" },
+        "quoteOrSpan": { "type": "string", "description": "Exact supporting span or compact explanation of how this was obtained." },
+        "uri": { "type": "string", "format": "uri" },
+        "hash": { "type": "string", "description": "Optional content hash for provenance-controlled storage." }
+      },
+      "required": ["evidenceId", "sourceType"]
+    },
+    "confidenceAssessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Per-field confidence calculation from evidence strength and freshness.",
+      "properties": {
+        "score": { "$ref": "#/$defs/confidence" },
+        "tier": { "$ref": "#/$defs/confidenceTier" },
+        "currentStatus": { "$ref": "#/$defs/currentStatus" },
+        "evidenceStrength": { "$ref": "#/$defs/unitScore" },
+        "freshnessFactor": { "$ref": "#/$defs/unitScore" },
+        "methodRisk": { "$ref": "#/$defs/unitScore", "description": "0 means low method risk; 1 means high ambiguity/inference risk." },
+        "criticality": { "$ref": "#/$defs/fieldCriticality" },
+        "freshnessWindow": { "type": "string" },
+        "lastConfirmedAt": { "$ref": "#/$defs/timestamp" },
+        "lastObservedAt": { "$ref": "#/$defs/timestamp" },
+        "calculationPolicyId": { "type": "string" },
+        "reasoning": { "type": "string" }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Evidence-first graph claim. Update claims and evidence links rather than overwriting the person node blindly.",
+      "properties": {
+        "claimId": { "type": "string" },
+        "path": { "type": "string", "description": "JSON Pointer or dotted path to the field this claim supports." },
+        "predicate": { "type": "string" },
+        "value": {},
+        "scope": { "$ref": "#/$defs/timeScope" },
+        "contextTags": { "$ref": "#/$defs/tags" },
+        "confidence": { "$ref": "#/$defs/confidenceAssessment" },
+        "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidencePointer" } },
+        "status": { "type": "string", "enum": ["candidate", "active", "superseded", "rejected", "disputed", "historical"] },
+        "createdAt": { "$ref": "#/$defs/timestamp" },
+        "updatedAt": { "$ref": "#/$defs/timestamp" },
+        "version": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["claimId", "predicate", "status"]
+    },
+    "conflictRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Detected disagreement between claims or evidence records.",
+      "properties": {
+        "conflictId": { "type": "string" },
+        "type": { "type": "string", "enum": ["contradiction", "time_mismatch", "scope_mismatch", "entity_mismatch", "evidence_mismatch"] },
+        "fieldPath": { "type": "string" },
+        "claimIds": { "type": "array", "items": { "type": "string" } },
+        "resolution": { "type": "string", "enum": ["unresolved", "winner_selected", "context_split", "history_split", "entity_review_required", "rejected"] },
+        "winningClaimId": { "type": "string" },
+        "resolutionReason": { "type": "string" },
+        "personalizationBehavior": { "type": "string", "enum": ["use_winner", "offer_choice", "use_generic_fallback", "ask_confirmation", "block_until_verified"] },
+        "createdAt": { "$ref": "#/$defs/timestamp" },
+        "resolvedAt": { "$ref": "#/$defs/timestamp" }
+      },
+      "required": ["conflictId", "type", "resolution"]
+    },
+    "auditEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Append-only audit trail entry for updates, merges, reviews, and publications.",
+      "properties": {
+        "auditId": { "type": "string" },
+        "actor": { "type": "string" },
+        "actorType": { "type": "string", "enum": ["person", "human_reviewer", "system", "model", "import_job"] },
+        "action": { "type": "string" },
+        "targetPath": { "type": "string" },
+        "reason": { "type": "string" },
+        "evidenceIds": { "type": "array", "items": { "type": "string" } },
+        "timestamp": { "$ref": "#/$defs/timestamp" }
+      },
+      "required": ["auditId", "action", "timestamp"]
+    },
+    "preferenceItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Context-aware positive or negative preference for customization.",
+      "properties": {
+        "preferenceItemId": { "type": "string" },
+        "domain": { "type": "string", "enum": ["communication", "content_type", "scheduling", "goals", "format", "tone", "ui", "accessibility", "language", "privacy", "pricing", "other"] },
+        "polarity": { "type": "string", "enum": ["prefer", "avoid", "require", "disallow"] },
+        "value": {},
+        "constraints": { "type": "array", "items": { "type": "string" } },
+        "contextTags": { "$ref": "#/$defs/tags" },
+        "recencyProfile": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "lastConfirmedAt": { "$ref": "#/$defs/timestamp" },
+            "lastObservedAt": { "$ref": "#/$defs/timestamp" },
+            "decaysOverTime": { "type": "boolean" },
+            "decayPolicyId": { "type": "string" }
+          }
+        },
+        "confidence": { "$ref": "#/$defs/confidenceAssessment" },
+        "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidencePointer" } }
+      },
+      "required": ["preferenceItemId", "domain", "polarity"]
+    },
+    "capabilityItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Current capability or readiness field with evidence, confirmation date, and operational requirements.",
+      "properties": {
+        "capabilityId": { "type": "string" },
+        "label": { "type": "string" },
+        "level": { "type": "string", "enum": ["none", "beginner", "intermediate", "advanced", "expert", "unknown"] },
+        "requirements": { "type": "array", "items": { "type": "string" } },
+        "confidence": { "$ref": "#/$defs/confidenceAssessment" },
+        "lastConfirmedAt": { "$ref": "#/$defs/timestamp" },
+        "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidencePointer" } }
+      },
+      "required": ["capabilityId", "label"]
+    },
+    "sourcedString": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "value": { "type": "string" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "confidenceAssessment": { "$ref": "#/$defs/confidenceAssessment" },
+        "source": { "type": "string", "description": "How this was learned: 'self-reported', 'inferred', 'observed', 'imported', etc." },
+        "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidencePointer" } },
+        "timeScope": { "$ref": "#/$defs/timeScope" },
+        "updatedAt": { "$ref": "#/$defs/timestamp" }
+      },
+      "required": ["value"]
+    },
+    "trait": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A single measured tendency with strength and confidence.",
+      "properties": {
+        "label": { "type": "string" },
+        "score": { "$ref": "#/$defs/unitScore" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "confidenceAssessment": { "$ref": "#/$defs/confidenceAssessment" },
+        "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidencePointer" } },
+        "measurementInstrument": { "type": "string", "description": "Validated scale, rubric, or taxonomy used to define/score this trait." },
+        "notes": { "type": "string" }
+      },
+      "required": ["label"]
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "bodyMarking": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A tattoo, piercing, scar, birthmark, or other mark on the body. Whether visible or not, self inflicted or not.",
+      "properties": {
+        "type": { "type": "string", "enum": ["tattoo", "piercing", "scar", "birthmark", "brand", "stretch_mark", "freckles", "mole", "vitiligo", "burn", "surgical_mark", "other"] },
+        "location": { "type": "string", "description": "Body location, e.g. 'left forearm', 'right earlobe'." },
+        "description": { "type": "string" },
+        "size": { "type": "string", "enum": ["tiny", "small", "medium", "large", "extra_large"] },
+        "color": { "type": "string" },
+        "visibleWhenClothed": { "type": "boolean" },
+        "acquiredAt": { "type": "string", "format": "date", "description": "When acquired, if known/relevant." },
+        "meaning": { "type": "string", "description": "Personal significance, if any." },
+        "confidence": { "$ref": "#/$defs/confidenceAssessment" },
+        "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidencePointer" } }
+      },
+      "required": ["type"]
+    },
+    "abilityCondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A disability, medical condition, neurodivergence, or learning difference and its impact.",
+      "properties": {
+        "name": { "type": "string", "description": "e.g. 'paraplegia', 'dyslexia', 'ADHD', 'dyscalculia', 'blindness', 'hearing loss'." },
+        "category": { "type": "string", "enum": ["physical", "mobility", "sensory", "cognitive", "learning", "neurodivergence", "psychiatric", "chronic_illness", "speech", "developmental", "other"] },
+        "severity": { "type": "string", "enum": ["mild", "moderate", "severe", "profound", "varies", "unknown"] },
+        "congenital": { "type": "boolean", "description": "Present from birth (true) vs acquired (false)." },
+        "onset": { "type": "string", "description": "When it began, if acquired." },
+        "aidsUsed": { "type": "array", "items": { "type": "string" }, "description": "Wheelchair, hearing aid, screen reader, prosthetic, service animal, etc." },
+        "accommodations": { "type": "array", "items": { "type": "string" }, "description": "Support the person needs from the service/environment." },
+        "impactOnDailyLife": { "type": "string" },
+        "disclosed": { "type": "boolean", "description": "Whether the person has openly disclosed this." },
+        "status": { "type": "string", "enum": ["active", "inactive", "historical", "unknown"] },
+        "confidence": { "$ref": "#/$defs/confidenceAssessment" },
+        "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidencePointer" } },
+        "timeScope": { "$ref": "#/$defs/timeScope" }
+      },
+      "required": ["name"]
+    }
+  },
+
+  "properties": {
+
+    "id": {
+      "type": "string",
+      "description": "Stable unique identifier for this person node.",
+      "minLength": 1
+    },
+
+    "system": {
+      "type": "object",
+      "description": "Machine/graph metadata — how this node exists inside the service, not who the person is.",
+      "additionalProperties": false,
+      "properties": {
+        "status": { "type": "boolean", "description": "Active (true) / inactive (false)." },
+        "human": { "type": "boolean", "description": "Represents a biological human." },
+        "digital": { "type": "boolean", "description": "Represents a digital/synthetic agent." },
+        "role": { "type": "string", "description": "Role of this node within the service or mission." },
+        "trust": { "$ref": "#/$defs/unitScore", "description": "Trust the service places in this node (0..1)." },
+        "sourceEntityId": { "type": "string", "description": "Origin entity that produced this node." },
+        "missionId": { "type": "string", "description": "Associated mission/context id." },
+        "tags": { "$ref": "#/$defs/tags" },
+        "createdAt": { "$ref": "#/$defs/timestamp" },
+        "updatedAt": { "$ref": "#/$defs/timestamp" },
+        "asOf": { "$ref": "#/$defs/timestamp", "description": "Timestamp for the published node snapshot." },
+        "dataFreshnessWindow": { "type": "string", "description": "Default period in which fields are considered current unless they define a stricter window." },
+        "currentScope": { "type": "string", "description": "Definition of 'current' for this node, e.g. 'today', 'last_30_days', or a service-specific policy id." },
+        "stage": { "type": "string", "enum": ["staging", "published", "archived"], "description": "Publication state for updates." },
+        "version": { "type": "integer", "minimum": 0 },
+        "dataCompleteness": { "$ref": "#/$defs/unitScore", "description": "How fully this profile is populated (0..1)." }
+      }
+    },
+
+    "identity": {
+      "type": "object",
+      "description": "Names, demographics, and the 'me' the person presents to the world.",
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string", "description": "Honorific / prefix (Dr., Ms., Mx., etc.)." },
+        "name": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "firstName": { "type": "string" },
+            "middleName": { "type": "string" },
+            "middleNames": { "type": "array", "items": { "type": "string" } },
+            "lastName": { "type": "string" },
+            "maidenName": { "type": "string" },
+            "nickName": { "type": "string" },
+            "preferredName": { "type": "string" },
+            "fullName": { "type": "string" },
+            "suffix": { "type": "string", "description": "Jr., III, PhD, etc." },
+            "phoneticSpelling": { "type": "string" },
+            "pronouns": { "type": "string", "description": "e.g. 'she/her', 'they/them'." }
+          }
+        },
+        "birthDate": { "type": "string", "format": "date" },
+        "birthTime": { "type": "string", "description": "Local time of birth, HH:MM if known." },
+        "birthPlace": { "type": "string" },
+        "zodiacSign": { "type": "string" },
+        "age": { "type": "integer", "minimum": 0, "description": "Derived; store only if not computing from birthDate." },
+        "gender": { "type": "string" },
+        "sex": { "type": "string", "description": "Biological sex if distinct from gender identity." },
+        "sexualOrientation": { "type": "string" },
+        "race": { "type": "string" },
+        "ethnicity": { "type": "string" },
+        "nationality": { "type": "array", "items": { "type": "string" } },
+        "religion": { "type": "string" },
+        "religiosity": { "$ref": "#/$defs/scale5", "description": "How strongly religion is practiced/held." },
+        "maritalStatus": { "type": "string", "enum": ["single", "in_relationship", "engaged", "married", "domestic_partnership", "separated", "divorced", "widowed", "complicated", "unknown"] },
+        "profession": { "type": "string" },
+        "identityNames": {
+          "type": "array",
+          "description": "Evidence-backed name variants used for identity resolution.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string" },
+              "type": { "type": "string", "enum": ["primary", "legal", "preferred", "alias", "former", "phonetic", "unknown"] },
+              "confidence": { "$ref": "#/$defs/confidenceAssessment" },
+              "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidencePointer" } }
+            },
+            "required": ["name", "type"]
+          }
+        },
+        "identityLinkageStatus": {
+          "type": "object",
+          "description": "How sure the system is that records belong to this person, not a namesake or neighboring entity.",
+          "additionalProperties": false,
+          "properties": {
+            "status": { "type": "string", "enum": ["unverified", "low", "medium", "high", "merged", "disputed"] },
+            "confidence": { "$ref": "#/$defs/confidenceAssessment" },
+            "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidencePointer" } },
+            "lastReviewedAt": { "$ref": "#/$defs/timestamp" },
+            "mergeReviewState": { "type": "string", "enum": ["not_needed", "pending", "approved", "rejected", "split_required"] }
+          }
+        },
+        "self": {
+          "type": "object",
+          "description": "Self-concept & narrative identity — the 'me' the person inhabits.",
+          "additionalProperties": false,
+          "properties": {
+            "selfConcept": { "type": "string", "description": "'Who I am' in their own terms." },
+            "lifeStory": { "type": "string", "description": "Major turning points and their interpretation." },
+            "turningPoints": { "type": "array", "items": { "type": "string" } },
+            "socialRoles": { "$ref": "#/$defs/tags", "description": "parent, student, partner, citizen, worker, etc." },
+            "continuityNarrative": { "type": "string", "description": "How past-self, present-self, and future-self are linked." },
+            "personalAmbitions": { "type": "array", "items": { "description": "What goals are important to them.", "type": "string" } },
+            "timeHorizon": { "type": "string", "description": "How long they envision living, is the person future oriented, or dwelling on the past, or present in the present?" },
+            "personalOutlook": { "type": "string", "description": "How does the person view the world, society, their family, tribe, nation, etc." },
+            "personalValues": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    },
+
+    "physical": {
+      "type": "object",
+      "description": "Embodiment — the body the person lives in.",
+      "additionalProperties": false,
+      "properties": {
+        "height": { "type": "number", "description": "Height in cm." },
+        "weight": { "type": "number", "description": "Weight in kg." },
+        "bodyType": { "type": "string" },
+        "eyeColor": { "type": "string" },
+        "hairColor": { "type": "string" },
+        "hairStyle": { "type": "string" },
+        "skinTone": { "type": "string" },
+        "handedness": { "type": "string", "enum": ["left", "right", "ambidextrous", "unknown"] },
+        "bloodType": { "type": "string" },
+        "build": { "type": "string", "description": "Overall build (slim, athletic, heavyset, etc.)." },
+        "facialHair": { "type": "string" },
+        "glasses": { "type": "boolean" },
+        "voiceQuality": { "type": "string", "description": "Pitch, accent, timbre notes." },
+        "speechPatterns": { "type": "array", "items": { "type": "string" } },
+        "speechRate": { "type": "number", "description": "Words per minute." },
+        "fitnessLevel": { "$ref": "#/$defs/scale5" },
+        "energyLevel": { "$ref": "#/$defs/scale5", "description": "Typical baseline physical energy." },
+        "chronotype": { "type": "string", "enum": ["morning", "evening", "intermediate", "unknown"], "description": "Circadian preference." },
+
+        "bodyArt": {
+          "type": "array",
+          "description": "Tattoos, piercings, scars, birthmarks, and other body markings.",
+          "items": { "$ref": "#/$defs/bodyMarking" }
+        },
+        "distinguishingFeatures": { "type": "array", "items": { "type": "string" }, "description": "Free-text notable features (dimples, gap teeth, prosthetic, etc.) not captured elsewhere." },
+
+        "differences": {
+          "type": "object",
+          "description": "Ability profile — disabilities, neurodivergence, learning/remedial differences, and how the person functions. Distinct from transient chronic conditions.",
+          "additionalProperties": false,
+          "properties": {
+            "conditions": {
+              "type": "array",
+              "description": "Structured disabilities/differences, e.g. paraplegia, amputation, dyslexia, autism, ADHD.",
+              "items": { "$ref": "#/$defs/abilityCondition" }
+            },
+            "mobility": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "status": { "type": "string", "enum": ["unrestricted", "limited", "wheelchair_user", "paraplegic", "quadriplegic", "amputee", "uses_walking_aid", "bedbound", "unknown"] },
+                "aids": { "type": "array", "items": { "type": "string" }, "description": "Wheelchair, cane, walker, crutches, prosthetic limb, etc." },
+                "notes": { "type": "string" }
+              }
+            },
+            "neurodivergence": { "type": "array", "items": { "type": "string" }, "description": "Autism, ADHD, dyslexia, dyscalculia, Tourette's, etc." },
+            "learningDifferences": {
+              "type": "array",
+              "description": "Remedial / learning-support needs and strengths.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": { "type": "string", "description": "e.g. 'dyslexia', 'requires remedial math support'." },
+                  "supportLevel": { "type": "string", "enum": ["none", "light", "moderate", "intensive"] },
+                  "strategies": { "type": "array", "items": { "type": "string" }, "description": "What helps this person learn." }
+                },
+                "required": ["name"]
+              }
+            },
+            "assistiveTech": { "type": "array", "items": { "type": "string" }, "description": "Screen reader, captions, voice control, magnifier, hearing aid, etc." },
+            "supportNeeds": { "type": "array", "items": { "type": "string" }, "description": "General accommodations the service should honor." }
+          }
+        },
+
+        "chronicConditions": { "type": "array", "items": { "type": "string" } },
+        "allergies": { "type": "array", "items": { "type": "string" } },
+        "dietaryRestrictions": { "type": "array", "items": { "type": "string" } },
+        "sensoryProfile": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "vision": { "type": "string", "description": "e.g. 'blind', 'low vision', 'colorblind (deuteranopia)', 'corrected 20/20'." },
+            "hearing": { "type": "string", "description": "e.g. 'deaf', 'hard of hearing (left)', 'normal'." },
+            "sensitivities": { "type": "array", "items": { "type": "string" }, "description": "Light, sound, texture, smell sensitivities." }
+          }
+        }
+      }
+    },
+
+    "cognitive": {
+      "type": "object",
+      "description": "How the mind works.",
+      "additionalProperties": false,
+      "properties": {
+        "perceptionAttention": { "type": "string", "description": "What tends to be noticed vs ignored." },
+        "attentionSpan": { "$ref": "#/$defs/scale5" },
+        "memory": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "style": { "type": "string", "description": "What is remembered/forgotten and how it is stored/recalled." },
+            "workingMemory": { "$ref": "#/$defs/scale5" },
+            "longTermRecall": { "$ref": "#/$defs/scale5" }
+          }
+        },
+        "learning": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "speed": { "$ref": "#/$defs/scale5", "description": "How quickly new skills/beliefs form." },
+            "preferredModalities": { "type": "array", "items": { "type": "string", "enum": ["visual", "auditory", "reading_writing", "kinesthetic", "social", "solitary", "logical"] } },
+            "adaptability": { "$ref": "#/$defs/scale5" }
+          }
+        },
+        "reasoning": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "logicalCapacity": { "$ref": "#/$defs/scale5" },
+            "tradeoffMaking": { "type": "string" },
+            "abstractVsConcrete": { "type": "string" }
+          }
+        },
+        "language": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "comprehension": { "$ref": "#/$defs/scale5" },
+            "expression": { "$ref": "#/$defs/scale5" },
+            "innerSpeech": { "type": "string" },
+            "spokenLanguages": { "type": "array", "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "language": { "type": "string" },
+                "proficiency": { "type": "string", "enum": ["native", "fluent", "advanced", "intermediate", "beginner"] }
+              },
+              "required": ["language"]
+            } }
+          }
+        },
+        "decisionPatterns": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "style": { "type": "string", "description": "How tradeoffs are weighted." },
+            "riskTolerance": { "$ref": "#/$defs/scale5" },
+            "impulseControl": { "$ref": "#/$defs/scale5" },
+            "planning": { "$ref": "#/$defs/scale5" },
+            "calculatedVsImpulsive": { "type": "string" },
+            "strategicVsAdventurous": { "type": "string" },
+            "decisionAdverse": { "type" : "boolean"},
+            "speedVsDeliberation": { "type": "string" }
+          }
+        },
+        "imagination": { "type": "string", "description": "Ability to model futures and possibilities. Also how they deal with uncertainty. Ones ability to envision ambiguous objects and abstract concepts." },
+        "selfControl": { "$ref": "#/$defs/scale5", "description": "Self-regulation, self-motivation, self-discipline." },
+        "intelligences": {
+          "type": "array",
+          "description": "Domain-specific strengths.",
+          "items": { "$ref": "#/$defs/trait" }
+        }
+      }
+    },
+
+    "emotional": {
+      "type": "object",
+      "description": "Felt life.",
+      "additionalProperties": false,
+      "properties": {
+        "affectiveRange": { "type": "string", "description": "The spectrum of emotions experienced." },
+        "emotionalIntensity": { "$ref": "#/$defs/scale5" },
+        "emotionalRegulation": { "type": "string", "description": "How they calm, reframe, or escalate." },
+        "attachmentStyle": { "type": "string", "enum": ["secure", "anxious", "avoidant", "disorganized", "unknown"] },
+        "stressReactivity": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "threatSensitivity": { "$ref": "#/$defs/scale5" },
+            "recoveryRate": { "$ref": "#/$defs/scale5" },
+            "commonStressors": { "type": "array", "items": { "type": "string" } },
+            "copingStrategies": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "motivation": { "type": "string", "description": "Drive, determination, persistence." },
+        "selfEsteem": { "$ref": "#/$defs/scale5", "description": "Sense of self-worth / self-love." },
+        "baselineMood": { "type": "string" },
+        "emotionalIntelligence": { "$ref": "#/$defs/scale5" }
+      }
+    },
+
+    "personality": {
+      "type": "object",
+      "description": "Stable tendencies and temperament.",
+      "additionalProperties": false,
+      "properties": {
+        "bigFive": {
+          "type": "object",
+          "description": "OCEAN model, each 0..1.",
+          "additionalProperties": false,
+          "properties": {
+            "openness": { "$ref": "#/$defs/unitScore" },
+            "conscientiousness": { "$ref": "#/$defs/unitScore" },
+            "extraversion": { "$ref": "#/$defs/unitScore" },
+            "agreeableness": { "$ref": "#/$defs/unitScore" },
+            "neuroticism": { "$ref": "#/$defs/unitScore" }
+          }
+        },
+        "mbti": { "type": "string", "description": "Optional 4-letter type if the person uses this framework." },
+        "enneagram": { "type": "string" },
+        "temperament": { "type": "string" },
+        "traits": {
+          "type": "array",
+          "description": "Free-form personality traits (replaces the old personality1..19 slots).",
+          "items": { "$ref": "#/$defs/trait" }
+        },
+        "habitsAndDefaults": { "type": "array", "items": { "type": "string" }, "description": "What they typically do before they think." },
+        "consistencyAcrossContexts": { "type": "string", "description": "Whether they stay the same or shift by situation." }
+      }
+    },
+
+    "values": {
+      "type": "object",
+      "description": "What matters — values and meaning.",
+      "additionalProperties": false,
+      "properties": {
+        "coreValues": { "type": "array", "items": { "type": "string" }, "description": "truth, freedom, family, beauty, faith, fairness, etc." },
+        "moralOrientation": { "type": "string", "description": "How right/wrong and harm are judged." },
+        "moralFoundations": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Haidt-style foundations, each 0..1.",
+          "properties": {
+            "care": { "$ref": "#/$defs/unitScore" },
+            "fairness": { "$ref": "#/$defs/unitScore" },
+            "loyalty": { "$ref": "#/$defs/unitScore" },
+            "authority": { "$ref": "#/$defs/unitScore" },
+            "sanctity": { "$ref": "#/$defs/unitScore" },
+            "liberty": { "$ref": "#/$defs/unitScore" }
+          }
+        },
+        "purpose": { "type": "string", "description": "What gives life direction." },
+        "existentialCommitments": { "type": "array", "items": { "type": "string" } },
+        "beliefSystem": { "type": "string", "description": "How beliefs are formed, updated, and defended." },
+        "politicalLeaning": { "type": "string" },
+        "worldview": { "type": "string" }
+      }
+    },
+
+    "agencyCharacter": {
+      "type": "object",
+      "description": "How the person acts over time.",
+      "additionalProperties": false,
+      "properties": {
+        "motivators": { "type": "array", "items": { "type": "string" }, "description": "What energizes them." },
+        "drainers": { "type": "array", "items": { "type": "string" }, "description": "What drains them." },
+        "willpower": { "$ref": "#/$defs/scale5", "description": "Following long-term goals over short-term impulses." },
+        "responsibilityPractices": { "type": "string", "description": "Owning mistakes, making amends, planning ahead." },
+        "competenceTrajectory": { "type": "string", "enum": ["improving", "stable", "stagnating", "burning_out", "unknown"] },
+        "conscientiousnessInAction": { "type": "string" }
+      }
+    },
+
+    "sociality": {
+      "type": "object",
+      "description": "Relational life — people are relational.",
+      "additionalProperties": false,
+      "properties": {
+        "communicationStyle": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tone": { "type": "string" },
+            "clarity": { "$ref": "#/$defs/scale5" },
+            "conflictHandling": { "type": "string", "enum": ["avoidant", "accommodating", "compromising", "competing", "collaborating", "unknown"] },
+            "listeningStyle": { "type": "string" },
+            "directness": { "$ref": "#/$defs/scale5" },
+            "formality": { "$ref": "#/$defs/scale5" }
+          }
+        },
+        "empathy": { "$ref": "#/$defs/scale5", "description": "Perspective-taking / modeling others' inner states." },
+        "trustAndBoundaries": { "type": "string", "description": "How they decide whom to let in." },
+        "belonging": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "communityTies": { "type": "array", "items": { "type": "string" } },
+            "loyalty": { "$ref": "#/$defs/scale5" },
+            "networkSize": { "type": "string", "enum": ["small", "medium", "large", "unknown"] }
+          }
+        },
+        "culturalInfluences": { "type": "array", "items": { "type": "string" }, "description": "Language, rituals, norms inherited." },
+        "relationships": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "personId": { "type": "string" },
+              "name": { "type": "string" },
+              "relation": { "type": "string" },
+              "closeness": { "$ref": "#/$defs/scale5" }
+            }
+          }
+        }
+      }
+    },
+
+    "creativity": {
+      "type": "object",
+      "description": "Creativity & expression.",
+      "additionalProperties": false,
+      "properties": {
+        "aestheticSense": { "type": "string", "description": "What they find beautiful or expressive." },
+        "creativeProduction": { "type": "array", "items": { "type": "string" }, "description": "Music, art, writing, ideas made." },
+        "originality": { "$ref": "#/$defs/scale5", "description": "How novel their solutions/narratives tend to be." },
+        "creativeDomains": { "$ref": "#/$defs/tags" }
+      }
+    },
+
+    "growth": {
+      "type": "object",
+      "description": "Moral agency and growth — becoming.",
+      "additionalProperties": false,
+      "properties": {
+        "capacityForChange": { "$ref": "#/$defs/scale5", "description": "Ability to learn new patterns and revise identity." },
+        "virtues": { "type": "array", "items": { "type": "string" }, "description": "reliability, generosity, courage, restraint, etc." },
+        "reflectiveness": { "$ref": "#/$defs/scale5", "description": "Willingness/ability to examine oneself." },
+        "growthMindset": { "$ref": "#/$defs/scale5", "description": "How they approach learning and change." },
+        "currentGoals": { "type": "array", "items": { "type": "string" } },
+        "developmentAreas": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "background": {
+      "type": "object",
+      "description": "Life context that shapes but isn't the person themselves.",
+      "additionalProperties": false,
+      "properties": {
+        "education": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "institution": { "type": "string" },
+              "degree": { "type": "string" },
+              "field": { "type": "string" },
+              "year": { "type": "integer" }
+            }
+          }
+        },
+        "employment": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "employer": { "type": "string" },
+              "role": { "type": "string" },
+              "salaryWages": { "type": "string" },
+              "current": { "type": "boolean" },
+              "startYear": { "type": "integer" },
+              "endYear": { "type": "integer" }
+            }
+          }
+        },
+        "skills": { "type": "array", "items": { "$ref": "#/$defs/trait" } },
+        "hobbies": { "type": "array", "items": { "type": "string" } },
+        "interests": { "type": "array", "items": { "type": "string" } },
+        "socioeconomicStatus": { "type": "string" },
+        "livingSituation": { "type": "string" }
+      }
+    },
+
+    "contact": {
+      "type": "object",
+      "description": "Reachability and digital footprint.",
+      "additionalProperties": false,
+      "properties": {
+        "emails": { "type": "array", "items": { "type": "string", "format": "email" } },
+        "phones": { "type": "array", "items": { "type": "string" } },
+        "usernames": { "type": "array", "items": { "type": "string" } },
+        "addresses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "label": { "type": "string" },
+              "line1": { "type": "string" },
+              "line2": { "type": "string" },
+              "city": { "type": "string" },
+              "region": { "type": "string" },
+              "postalCode": { "type": "string" },
+              "country": { "type": "string" }
+            }
+          }
+        },
+        "timezone": { "type": "string" },
+        "locale": { "type": "string" },
+        "socialProfiles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "platform": { "type": "string" },
+              "handle": { "type": "string" },
+              "url": { "type": "string", "format": "uri" }
+            }
+          }
+        }
+      }
+    },
+
+    "optomoleProfile": {
+      "type": "object",
+      "description": "Everything Optomole needs to highly customize this person's experience.",
+      "additionalProperties": false,
+      "properties": {
+        "goals": { "type": "array", "items": { "type": "string" }, "description": "What they want and expect to receive from the Optomoles' services." },
+        "painPoints": { "type": "array", "items": { "type": "string" } },
+        "preferences": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "communicationChannel": { "type": "array", "items": { "type": "string", "enum": ["email", "sms", "push", "in_app", "voice", "none"] } },
+            "contactFrequency": { "type": "string", "enum": ["realtime", "daily", "weekly", "monthly", "minimal"] },
+            "tone": { "type": "string", "description": "How Optomoles' service should speak to them." },
+            "verbosity": { "type": "string", "enum": ["terse", "balanced", "detailed"] },
+            "uiDensity": { "type": "string", "enum": ["compact", "comfortable", "spacious"] },
+            "theme": { "type": "string", "enum": ["light", "dark", "system", "high_contrast"] },
+            "language": { "type": "string" },
+            "accessibilityNeeds": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "consent": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "dataCollection": { "type": "boolean" },
+            "personalization": { "type": "boolean" },
+            "marketing": { "type": "boolean" },
+            "thirdPartySharing": { "type": "boolean" },
+            "updatedAt": { "$ref": "#/$defs/timestamp" }
+          }
+        },
+        "segments": { "$ref": "#/$defs/tags", "description": "Cohorts/segments this person belongs to." },
+        "lifecycleStage": { "type": "string", "enum": ["prospect", "onboarding", "active", "at_risk", "churned", "reactivated"] },
+        "engagementScore": { "$ref": "#/$defs/unitScore" },
+        "behavioralSignals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "signal": { "type": "string" },
+              "value": {},
+              "observedAt": { "$ref": "#/$defs/timestamp" }
+            }
+          }
+        }
+      }
+    },
+
+    "evidenceGraph": {
+      "type": "object",
+      "description": "Evidence-first claim graph used to build, verify, de-duplicate, and update this Person Node.",
+      "additionalProperties": false,
+      "properties": {
+        "claims": { "type": "array", "items": { "$ref": "#/$defs/claim" } },
+        "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidencePointer" } },
+        "conflicts": { "type": "array", "items": { "$ref": "#/$defs/conflictRecord" } },
+        "resolvedFields": {
+          "type": "array",
+          "description": "Published field resolutions with an explicit winner, fallback, or dispute state.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "fieldPath": { "type": "string" },
+              "value": {},
+              "winningClaimId": { "type": "string" },
+              "confidence": { "$ref": "#/$defs/confidenceAssessment" },
+              "resolutionReason": { "type": "string" },
+              "currentStatus": { "$ref": "#/$defs/currentStatus" },
+              "personalizationBehavior": { "type": "string", "enum": ["use_value", "soft_personalize", "ranking_hint_only", "offer_choice", "use_generic_fallback", "ask_confirmation", "block_until_verified"] },
+              "publishedAt": { "$ref": "#/$defs/timestamp" }
+            },
+            "required": ["fieldPath", "currentStatus"]
+          }
+        },
+        "chronology": {
+          "type": "array",
+          "description": "Event-based timeline to avoid treating past facts as current status.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "eventId": { "type": "string" },
+              "eventType": { "type": "string" },
+              "label": { "type": "string" },
+              "timeScope": { "$ref": "#/$defs/timeScope" },
+              "claimIds": { "type": "array", "items": { "type": "string" } },
+              "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidencePointer" } },
+              "confidence": { "$ref": "#/$defs/confidenceAssessment" }
+            },
+            "required": ["eventId", "eventType"]
+          }
+        }
+      }
+    },
+
+    "currentState": {
+      "type": "object",
+      "description": "Fields optimized for current-status customization and service delivery.",
+      "additionalProperties": false,
+      "properties": {
+        "asOf": { "$ref": "#/$defs/timestamp" },
+        "freshnessPolicyId": { "type": "string" },
+        "preferences": { "type": "array", "items": { "$ref": "#/$defs/preferenceItem" } },
+        "capabilityProfile": { "type": "array", "items": { "$ref": "#/$defs/capabilityItem" } },
+        "accessRequirements": {
+          "type": "array",
+          "description": "Requirements needed for successful delivery, such as device type, bandwidth, language level, or accessibility support.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "requirementId": { "type": "string" },
+              "type": { "type": "string", "enum": ["device", "bandwidth", "language", "accessibility", "privacy", "policy", "other"] },
+              "value": {},
+              "hardness": { "type": "string", "enum": ["hard", "soft"] },
+              "confidence": { "$ref": "#/$defs/confidenceAssessment" },
+              "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidencePointer" } }
+            },
+            "required": ["requirementId", "type", "hardness"]
+          }
+        },
+        "currentStage": { "type": "string", "enum": ["prospect", "onboarding", "active", "paused", "transitioning", "at_risk", "churned", "reactivated", "unknown"] },
+        "goals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "goalId": { "type": "string" },
+              "goalStatement": { "type": "string" },
+              "timeframe": { "type": "string", "enum": ["short", "medium", "long", "unknown"] },
+              "priority": { "$ref": "#/$defs/scale5" },
+              "confidence": { "$ref": "#/$defs/confidenceAssessment" },
+              "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidencePointer" } },
+              "lastConfirmedAt": { "$ref": "#/$defs/timestamp" }
+            },
+            "required": ["goalId", "goalStatement"]
+          }
+        },
+        "activeIntents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "intentId": { "type": "string" },
+              "label": { "type": "string" },
+              "confidence": { "$ref": "#/$defs/confidenceAssessment" },
+              "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidencePointer" } },
+              "lastConfirmedAt": { "$ref": "#/$defs/timestamp" }
+            },
+            "required": ["intentId", "label"]
+          }
+        },
+        "criticalConstraints": {
+          "type": "array",
+          "description": "High-impact restrictions. If not recent and high-confidence, services should use generic safe options or request confirmation.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "constraintId": { "type": "string" },
+              "label": { "type": "string" },
+              "status": { "type": "string", "enum": ["active", "inactive", "historical", "unknown"] },
+              "policyId": { "type": "string" },
+              "confidence": { "$ref": "#/$defs/confidenceAssessment" },
+              "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidencePointer" } },
+              "lastConfirmedAt": { "$ref": "#/$defs/timestamp" },
+              "auditTrail": { "type": "array", "items": { "$ref": "#/$defs/auditEntry" } }
+            },
+            "required": ["constraintId", "label", "status"]
+          }
+        },
+        "contextTags": {
+          "type": "array",
+          "description": "Time-scoped relationship or situation context used for customization.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "tag": { "type": "string" },
+              "timeScope": { "$ref": "#/$defs/timeScope" },
+              "confidence": { "$ref": "#/$defs/confidenceAssessment" },
+              "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidencePointer" } }
+            },
+            "required": ["tag"]
+          }
+        },
+        "behavioralRecentSignals": {
+          "type": "array",
+          "description": "Recent behavioral signals for recommendation mechanics. These are evidence for trends, not absolute claims about intent.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "signalId": { "type": "string" },
+              "metric": { "type": "string" },
+              "value": {},
+              "window": { "type": "string" },
+              "evidenceSource": { "$ref": "#/$defs/evidencePointer" },
+              "confidenceLowReasoning": { "type": "string" }
+            },
+            "required": ["signalId", "metric"]
+          }
+        }
+      }
+    },
+
+    "governance": {
+      "type": "object",
+      "description": "Operational controls for confidence calibration, human review, de-duplication, publishing, and re-verification.",
+      "additionalProperties": false,
+      "properties": {
+        "confidencePolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "policyId": { "type": "string" },
+            "formula": { "type": "string", "description": "Example: confidence_score = evidenceStrength * freshnessFactor, capped by disputes and method risk." },
+            "tierThresholds": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "high": { "$ref": "#/$defs/confidence" },
+                "medium": { "$ref": "#/$defs/confidence" },
+                "low": { "$ref": "#/$defs/confidence" }
+              }
+            },
+            "criticalityThresholds": {
+              "type": "object",
+              "additionalProperties": { "$ref": "#/$defs/confidence" },
+              "description": "Minimum confidence by criticality label."
+            }
+          }
+        },
+        "reviewQueue": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "reviewId": { "type": "string" },
+              "reason": { "type": "string", "enum": ["high_impact", "low_confidence", "credential_sensitive", "identity_sensitive", "critical_constraint", "conflict", "merge_review", "scheduled_reverification"] },
+              "fieldPath": { "type": "string" },
+              "claimIds": { "type": "array", "items": { "type": "string" } },
+              "priority": { "$ref": "#/$defs/scale5" },
+              "status": { "type": "string", "enum": ["open", "in_review", "approved", "rejected", "needs_more_evidence", "closed"] },
+              "assignedTo": { "type": "string" },
+              "createdAt": { "$ref": "#/$defs/timestamp" },
+              "resolvedAt": { "$ref": "#/$defs/timestamp" }
+            },
+            "required": ["reviewId", "reason", "status"]
+          }
+        },
+        "deduplication": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "entityResolutionStatus": { "type": "string", "enum": ["not_run", "unique", "possible_duplicate", "merged", "split_required", "disputed"] },
+            "candidatePersonKeys": { "type": "array", "items": { "type": "string" } },
+            "mergeAuditTrail": { "type": "array", "items": { "$ref": "#/$defs/auditEntry" } },
+            "lastCheckedAt": { "$ref": "#/$defs/timestamp" }
+          }
+        },
+        "publication": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "stage": { "type": "string", "enum": ["staging", "published", "archived"] },
+            "publishedVersion": { "type": "integer", "minimum": 0 },
+            "publishedAt": { "$ref": "#/$defs/timestamp" },
+            "publishedBy": { "type": "string" }
+          }
+        },
+        "reverificationSchedule": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "fieldPath": { "type": "string" },
+              "interval": { "type": "string" },
+              "nextReviewAt": { "$ref": "#/$defs/timestamp" },
+              "criticality": { "$ref": "#/$defs/fieldCriticality" }
+            },
+            "required": ["fieldPath", "interval"]
+          }
+        },
+        "auditTrail": { "type": "array", "items": { "$ref": "#/$defs/auditEntry" } }
+      }
+    },
+
+    "provenance": {
+      "type": "object",
+      "description": "Meta about the data itself — for auditing how the profile was built.",
+      "additionalProperties": false,
+      "properties": {
+        "sources": { "type": "array", "items": { "type": "string" } },
+        "sourceRegistry": {
+          "type": "array",
+          "description": "Canonical source inventory used by evidence pointers.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sourceId": { "type": "string" },
+              "type": { "$ref": "#/$defs/sourceType" },
+              "name": { "type": "string" },
+              "owner": { "type": "string" },
+              "reliability": { "$ref": "#/$defs/unitScore" },
+              "provenanceNotes": { "type": "string" },
+              "createdAt": { "$ref": "#/$defs/timestamp" },
+              "lastVerifiedAt": { "$ref": "#/$defs/timestamp" }
+            },
+            "required": ["sourceId", "type"]
+          }
+        },
+        "lastEnrichedAt": { "$ref": "#/$defs/timestamp" },
+        "overallConfidence": { "$ref": "#/$defs/confidence" },
+        "calibration": {
+          "type": "object",
+          "description": "Periodic hindsight checks for whether high-confidence claims proved correct.",
+          "additionalProperties": false,
+          "properties": {
+            "lastCalibratedAt": { "$ref": "#/$defs/timestamp" },
+            "sampleSize": { "type": "integer", "minimum": 0 },
+            "highTierAccuracy": { "$ref": "#/$defs/unitScore" },
+            "mediumTierAccuracy": { "$ref": "#/$defs/unitScore" },
+            "lowTierAccuracy": { "$ref": "#/$defs/unitScore" },
+            "notes": { "type": "string" }
+          }
+        },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}

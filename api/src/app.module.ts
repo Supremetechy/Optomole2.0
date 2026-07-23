@@ -1,4 +1,9 @@
 import { Module } from '@nestjs/common';
+import { AccountsController } from './accounts/accounts.controller';
+import { AccountsService } from './accounts/accounts.service';
+import { AccountStore } from './accounts/accounts.store';
+import { PersonNodeAdapterService } from './person-node/person-node.adapter';
+import { AdminGuard } from './shared/admin.guard';
 import { ArtifactsController } from './artifacts/artifacts.controller';
 import { ArtifactsService } from './artifacts/artifacts.service';
 import { BuildsController } from './builds/builds.controller';
@@ -32,7 +37,7 @@ import { TranscriptionService } from './transcription/transcription.service';
 import { WorkersController } from './workers/workers.controller';
 
 @Module({
-  controllers: [HealthController, ExperienceController, EmailController, GdpController, BuildsController, WorkersController, ArtifactsController, TemplatesController, IrxController, TranscriptionController, CompilerController, PreprocessingController],
-  providers: [ExperienceService, EmailService, GdpService, BuildsService, AiGenerationService, QueueService, ObjectStorageService, ArtifactsService, TemplatesService, IrxService, TranscriptionService, ExperienceCompilerService, PreprocessingPipelineService, ContentSanitizationService, SemanticExtractionService, EmotionalIntelligenceService, GameplayNormalizationService, StoryboardService, KnowledgeGraphService],
+  controllers: [HealthController, ExperienceController, EmailController, GdpController, BuildsController, WorkersController, ArtifactsController, TemplatesController, IrxController, TranscriptionController, CompilerController, PreprocessingController, AccountsController],
+  providers: [ExperienceService, EmailService, GdpService, BuildsService, AiGenerationService, QueueService, ObjectStorageService, ArtifactsService, TemplatesService, IrxService, TranscriptionService, ExperienceCompilerService, PreprocessingPipelineService, ContentSanitizationService, SemanticExtractionService, EmotionalIntelligenceService, GameplayNormalizationService, StoryboardService, KnowledgeGraphService, AccountsService, AccountStore, PersonNodeAdapterService, AdminGuard],
 })
 export class AppModule {}

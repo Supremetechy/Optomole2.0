@@ -46,12 +46,55 @@ Four genres ship today:
   pass or landing), manage energy/coins, and weather hazard setbacks. Pixi board
   + token + die with a DOM roll control.
 
+## Optional build: Phaser engine
+
+The runtime above is the **PixiJS build** (default). There is now a second,
+optional **Phaser build** — the same Semantic Mapping Manifest, played through a
+[Phaser 4](https://phaser.io) `Phaser.Game` (WebGL renderer + arcade physics)
+instead of Pixi + Matter. Select it per experience:
+
+```
+GET /browser-engine/?manifest=./sample-phaser-arcade-manifest.json   → Phaser build (manifest opts in)
+GET /browser-engine/?manifest=<url>&engine=phaser                     → force the Phaser build for any manifest
+```
+
+A manifest opts in with a top-level `"engine": "phaser"`; the `?engine=phaser`
+query param forces it for testing. Anything else uses the Pixi build. Dispatch
+lives in `boot.js` (`selectEngine`) and lazy-imports the Phaser stack, so the
+default Pixi path never loads Phaser (and vice-versa) — each build only fetches
+its own renderer.
+
+What the Phaser build **reuses unchanged** (all genre-agnostic, no renderer
+dependency): the DOM `Hud`, the `StateStore`, `AudioManager` (WebAudio
+procedural fallback), and the `MappingEngine` / `QuestEngine` / `RpgEngine`. What
+it replaces: Phaser brings its own renderer, scene manager, input, and physics,
+so `OptomoleRuntime` / `SceneManager` / `InputController` have Phaser-native
+equivalents rather than being reused.
+
+```
+browser-engine/
+  vendor/phaser.min.js          vendored Phaser 4 UMD build (lazy-loaded)
+  runtime-phaser/
+    PhaserRuntime.js            owns Phaser.Game + shared services (twin of OptomoleRuntime)
+    boot-phaser.js              lazy-loads Phaser lib → PhaserRuntime + HUD → Phaser template
+  templates-phaser/
+    arcade-collect-avoid/       reference genre ported to Phaser
+      template-runtime.js       Boot → Wave 1..N (in-place) → Result(win/lose) → replay
+      waves.js                  pure classify/chunk logic (mirrors the Pixi entity-factory)
+      scenes/  BootScene ArenaScene ResultScene
+```
+
+Adding a Phaser genre mirrors the Pixi flow: a `templates-phaser/<genre>/`
+folder plus one line in the `PHASER_TEMPLATES` map in `boot-phaser.js`. Scenes
+are exported as `make<Scene>(Phaser)` factories so nothing touches the `Phaser`
+global at import time (it is injected just before the runtime boots).
+
 ## Architecture
 
 ```
 browser-engine/
   index.html            CDN libs + boot
-  boot.js               loads manifest → runtime → template
+  boot.js               loads manifest → runtime (Pixi | Phaser) → template
   runtime/
     OptomoleRuntime.js  PixiJS app + frame loop + service wiring
     SceneManager.js     scene stack with fade transitions (boot/room/dialogue/reward)

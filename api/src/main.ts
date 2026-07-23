@@ -52,6 +52,15 @@ async function bootstrap() {
         ],
         mediaSrc: ["'self'", 'data:'],
         workerSrc: ["'self'", 'blob:'],
+        // Helmet's defaults add `upgrade-insecure-requests`, which forces the
+        // browser to rewrite every http:// subresource to https://. When the
+        // gateway runs over plain HTTP (GATEWAY_HTTPS=false) that upgrade points
+        // boot.js / PixiJS / the manifest fetch at an https listener that isn't
+        // there, so the playable dies with ERR_SSL_PROTOCOL_ERROR — but only
+        // when the console is reached by a non-loopback host (a LAN IP), since
+        // Chrome exempts localhost from the upgrade. Drop the directive on HTTP
+        // and keep it when we actually serve TLS.
+        upgradeInsecureRequests: config.gatewayHttps ? [] : null,
       },
     },
   }));

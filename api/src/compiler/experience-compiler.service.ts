@@ -4,6 +4,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { classifyExperienceOutputType, EXPERIENCE_OUTPUT_TYPES } from '../shared/experience-output-types';
 import { id } from '../shared/ids';
 import { HUMAN_EXPERIENCES } from '../shared/human-experiences';
+import { plainText, shortLabel } from '../shared/text';
 import { ExperiencePackage, SourcePayload } from '../shared/types';
 import {
   ArchetypeId,
@@ -212,16 +213,33 @@ export class ExperienceCompilerService {
       id: String(quest.id || `quest-${index + 1}`),
       title: String(quest.title || quest.name || `Quest ${index + 1}`),
       summary: String(quest.summary || quest.description || quest.objective || 'Complete this objective.'),
-      objectives: this.array(quest.objectives).map((objective: any, objectiveIndex: number) => ({
-        id: String(objective.id || `objective-${index + 1}-${objectiveIndex + 1}`),
-        title: String(objective.title || objective.label || objective),
-        prompt: String(objective.prompt || objective.description || objective.title || objective),
-      })),
+      // The AI step may return objectives as `{title, prompt}` objects OR as bare
+      // strings. In the string case both fields used to collapse to the same raw
+      // excerpt, so every downstream label became a 200-char markdown blob. Keep
+      // the full text as the prompt and derive a short display title from it.
+      objectives: this.array(quest.objectives).map((objective: any, objectiveIndex: number) => {
+        const prompt = plainText(objective?.prompt ?? objective?.description ?? objective);
+        const declaredTitle = typeof objective === 'object' && objective
+          ? plainText(objective.title ?? objective.label)
+          : '';
+        const title = shortLabel(declaredTitle || prompt) || `Objective ${objectiveIndex + 1}`;
+        return {
+          id: String(objective?.id || `objective-${index + 1}-${objectiveIndex + 1}`),
+          title,
+          prompt: prompt || title,
+        };
+      }),
       reward: quest.reward || { xp: 100 + index * 25 },
-      evidence: this.array(quest.evidence || quest.evidenceCandidates).map((evidence: any) => ({
-        text: String(evidence.text || evidence.label || evidence),
-        correct: evidence.correct !== false,
-      })),
+      // `label` is the caption the runtime shows; `text` stays the full excerpt.
+      evidence: this.array(quest.evidence || quest.evidenceCandidates).map((evidence: any, evidenceIndex: number) => {
+        const text = plainText(evidence?.text ?? evidence?.label ?? evidence);
+        const declaredLabel = typeof evidence === 'object' && evidence ? plainText(evidence.label) : '';
+        return {
+          label: shortLabel(declaredLabel || text) || `Evidence ${evidenceIndex + 1}`,
+          text,
+          correct: evidence?.correct !== false,
+        };
+      }),
     }));
 
     return {
@@ -533,12 +551,13 @@ export class ExperienceCompilerService {
   }
 
   private fallbackQuests(source: SourcePayload) {
+    const text = plainText(source.text) || 'Review the source material.';
     return [{
       id: 'quest-1',
       title: source.title || 'Generated Mission',
-      summary: source.text || 'Complete the generated mission.',
+      summary: text,
       reward: { xp: 100 },
-      evidence: [{ text: source.text || 'Review the source material.', correct: true }],
+      evidence: [{ label: shortLabel(source.title || text) || 'Source material', text, correct: true }],
     }];
   }
 

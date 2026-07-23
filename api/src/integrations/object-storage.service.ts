@@ -55,6 +55,32 @@ export class ObjectStorageService {
     return object;
   }
 
+  /**
+   * Enumerate stored objects without reading their bodies. Keys are recovered by
+   * decoding the base64url filename and timestamps come from the file itself, so
+   * listing stays cheap even when individual manifests are tens of megabytes.
+   */
+  listObjectKeys(): Array<{ key: string; createdAt: string }> {
+    const root = path.resolve(process.cwd(), gatewayConfig().localObjectStorePath);
+    if (!fs.existsSync(root)) return [];
+    const entries: Array<{ key: string; createdAt: string }> = [];
+    for (const fileName of fs.readdirSync(root)) {
+      let key: string;
+      try {
+        key = Buffer.from(fileName, 'base64url').toString('utf8');
+      } catch (_) {
+        continue; // Not one of ours.
+      }
+      if (!key) continue;
+      try {
+        entries.push({ key, createdAt: fs.statSync(path.join(root, fileName)).mtime.toISOString() });
+      } catch (_) {
+        // File vanished between readdir and stat — skip it.
+      }
+    }
+    return entries;
+  }
+
   private localObjectPath(root: string, key: string): string {
     const safeKey = Buffer.from(key).toString('base64url');
     return path.resolve(process.cwd(), root, safeKey);

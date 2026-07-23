@@ -6,3 +6,4 @@
 export * from './Types.js';
 export * from './DTOs.js';
 export * from './Interfaces.js';
+export * from './person-node/person-node.mjs';
