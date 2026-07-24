@@ -17,7 +17,7 @@ export class BuildsService {
     private readonly templates: TemplatesService,
   ) {}
 
-  async createBuild(input: { package: ExperiencePackage; target: EngineTarget; publicBaseUrl?: string }): Promise<BuildJob> {
+  async createBuild(input: { package: ExperiencePackage; target: EngineTarget; publicBaseUrl?: string; engine?: string }): Promise<BuildJob> {
     if (!input.package) throw new BadRequestException('package is required.');
     const isLocalWebRuntime = input.target === 'browser' || input.target === 'mobile' || input.target === 'pixijs';
 
@@ -35,7 +35,7 @@ export class BuildsService {
     this.builds.set(build.id, build);
 
     if (isLocalWebRuntime) {
-      return this.completeBrowserBuild(build.id, input.package, input.target, input.publicBaseUrl);
+      return this.completeBrowserBuild(build.id, input.package, input.target, input.publicBaseUrl, input.engine);
     }
 
     // The worker consumes the mapping bindings, which are engine-neutral. Some
@@ -242,12 +242,16 @@ export class BuildsService {
     return this.templates.resolve({ package: pkg, target });
   }
 
-  private async completeBrowserBuild(jobId: string, pkg: ExperiencePackage, target: EngineTarget, publicBaseUrl?: string): Promise<BuildJob> {
+  private async completeBrowserBuild(jobId: string, pkg: ExperiencePackage, target: EngineTarget, publicBaseUrl?: string, engineChoice?: string): Promise<BuildJob> {
     const build = this.requireBuild(jobId);
     const resolved = this.resolveTemplate(pkg, target);
     const gatewayBaseUrl = this.normalizePublicBaseUrl(publicBaseUrl).replace(/\/$/, '');
+    // Rendering engine for the browser-engine runtime: 'pixi' (default) or
+    // 'phaser'. boot.js reads it from manifest.engine (and the ?engine= param).
+    const engine = this.normalizeEngine(engineChoice);
     const manifest = {
       ...resolved.mappingManifest,
+      engine,
       title: pkg.experience?.title || 'Optimole Experience',
       progression: pkg.progression || {},
       runtimeContract: pkg.runtimeContract || {},
@@ -269,6 +273,15 @@ export class BuildsService {
         genre: { id: resolved.template.id, title: resolved.template.name, family: resolved.template.genreFamily },
         briefing: this.firstQuestSummary(pkg) || 'Explore the generated Optimole experience.',
         roomSize: 6,
+        // Signal loop wiring: the playable runtime's SignalEmitter posts player
+        // observations to `${apiBase}/v1/persons/${personId}/signals`. personId
+        // defaults to 'anonymous' until the person-node compile path stamps a real
+        // one onto the package (step #3+). experienceId ties signals to this build.
+        apiBase: gatewayBaseUrl,
+        personId: (pkg.experience as any)?.personId || (pkg as any)?.personId || 'anonymous',
+        experienceId: build.experienceId,
+        // Loop #5: the World-Model hypothesis this experience was generated to test.
+        experiment: (pkg as any)?.experiment || null,
         domain: (pkg.progression as any)?.domain || null,
         xpReward: (pkg.progression as any)?.xpReward || null,
         experienceOutputType: (pkg.experience as any)?.outputType || (pkg.specification as any)?.experienceOutputType || null,
@@ -282,7 +295,7 @@ export class BuildsService {
       key: `${build.experienceId}/${build.id}/manifest.json`,
       publicBaseUrl: gatewayBaseUrl,
     });
-    const launchUrl = `${this.engineLaunchBase(gatewayBaseUrl)}?manifest=${encodeURIComponent(stored.url)}&template=${encodeURIComponent(String(manifest.templateId || ''))}`;
+    const launchUrl = `${this.engineLaunchBase(gatewayBaseUrl)}?manifest=${encodeURIComponent(stored.url)}&template=${encodeURIComponent(String(manifest.templateId || ''))}&engine=${encodeURIComponent(engine)}`;
     const artifact = this.createArtifact({
       jobId,
       experienceId: build.experienceId,
@@ -380,6 +393,15 @@ export class BuildsService {
    * (e.g. serve.py at https://localhost:8777), so link straight to it. Otherwise
    * fall back to the gateway-served engine at /v1/browser-engine.
    */
+  /**
+   * Normalize the requested browser rendering engine to what boot.js supports.
+   * Anything containing "phaser" -> 'phaser'; everything else (incl. empty) ->
+   * 'pixi', the default runtime. Keeps an unknown value from reaching the engine.
+   */
+  private normalizeEngine(engine?: string): 'pixi' | 'phaser' {
+    return String(engine || '').toLowerCase().includes('phaser') ? 'phaser' : 'pixi';
+  }
+
   private engineLaunchBase(gatewayBaseUrl: string): string {
     const configured = gatewayConfig().browserEngineUrl.trim();
     if (configured) return `${configured.replace(/\/+$/, '')}/`;

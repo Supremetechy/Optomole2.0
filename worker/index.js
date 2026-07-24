@@ -104,20 +104,78 @@ async function processJob(command, { ack, nack }) {
 }
 
 function fallbackCallbackUrl(command) {
-  if (!config.apiUrl) return "";
-  const base = config.apiUrl.replace(/\/$/, "");
+  const base = (config.apiUrl || config.gatewayUrl).replace(/\/$/, "");
+  if (!base) return "";
   return `${base}/v1/workers/${encodeURIComponent(command.target || "unreal")}/callback`;
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Memory-queue consumer: poll the gateway for the next queued build command and
+ * process it. Used when BUILD_QUEUE_MODE=memory (no broker). The gateway pops one
+ * command per call from its in-process queue; on an empty queue we back off by
+ * pollIntervalMs. HTTP pull already removes the job, so ack/nack are no-ops —
+ * terminal status is reported to the gateway via the callback either way.
+ */
+async function runMemoryQueueConsumer() {
+  const url = `${config.gatewayUrl}/v1/workers/next-build`;
+  console.log(`  queue:     MEMORY (polling ${url} every ${config.pollIntervalMs}ms)`);
+  console.log(`Waiting for build jobs from the gateway memory queue...`);
+
+  let stopping = false;
+  const shutdown = (sig) => {
+    console.log(`\n${sig} received — shutting down...`);
+    stopping = true;
+  };
+  process.on("SIGINT", () => shutdown("SIGINT"));
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+
+  let warnedUnreachable = false;
+  while (!stopping) {
+    let command = null;
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${config.callbackToken}` },
+      });
+      if (res.status === 401) {
+        console.error("Memory-queue pull unauthorized — WORKER_CALLBACK_TOKEN does not match the gateway.");
+      } else if (res.ok) {
+        warnedUnreachable = false;
+        const data = await res.json().catch(() => null);
+        command = data?.job || null;
+      }
+    } catch (err) {
+      if (!warnedUnreachable) {
+        console.warn(`Gateway not reachable at ${config.gatewayUrl} yet — will keep polling. (${err.message})`);
+        warnedUnreachable = true;
+      }
+    }
+
+    if (command) {
+      await processJob(command, { ack: () => {}, nack: () => {} });
+    } else {
+      await sleep(config.pollIntervalMs);
+    }
+  }
+  process.exit(0);
 }
 
 async function main() {
   console.log(`Optomole build worker "${config.workerId}" starting`);
-  console.log(`  queue:     ${config.queueName} @ ${config.rabbitmqUrl}`);
   console.log(`  workspace: ${config.workspaceRoot}`);
   const realUnreal = process.platform === "win32" && config.uePath && !config.simulate;
   console.log(`  unreal:    ${realUnreal ? config.uePath : "SIMULATION MODE"}`);
   console.log(`  unity:     ${config.unityPath && !config.simulateUnity ? `${config.unityPath} (${config.unityBuildTarget})` : "SIMULATION MODE"}`);
   console.log(`  blender:   ${config.blenderPath && !config.simulateBlender ? config.blenderPath : "SIMULATION MODE"}`);
 
+  if (config.queueMode === "memory") {
+    await runMemoryQueueConsumer();
+    return;
+  }
+
+  console.log(`  queue:     ${config.queueName} @ ${config.rabbitmqUrl}`);
   const conn = await amqp.connect(config.rabbitmqUrl);
   const ch = await conn.createChannel();
   await ch.assertQueue(config.queueName, { durable: true });

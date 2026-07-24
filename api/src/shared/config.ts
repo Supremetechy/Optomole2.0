@@ -20,6 +20,8 @@ export interface GatewayConfig {
   adminApiToken: string;
   accountStorePath: string;
   gameReferenceStorePath: string;
+  signalStorePath: string;
+  experimentStorePath: string;
   personNodeModulePath: string;
   personNodeSchemaPath: string;
   templateRegistryPath: string;
@@ -50,7 +52,11 @@ export function gatewayConfig(): GatewayConfig {
   const localScheme = gatewayHttps ? 'https' : 'http';
   return {
     port: Number(value('PORT', '8080')),
-    bodyLimit: value('API_BODY_LIMIT', '50mb'),
+    // Safety net for large ingests (multi-file uploads, base64 audio for
+    // transcription). The compiler now normalizes IRX server-side, so normal
+    // compile/launch bodies are small; this headroom only matters for raw
+    // source/asset uploads. Override with API_BODY_LIMIT if needed.
+    bodyLimit: value('API_BODY_LIMIT', '200mb'),
     nodeEnv: value('NODE_ENV', 'development'),
     corsOrigin: value('CORS_ORIGIN', '*'),
     aiGenerationUrl: value('AI_GENERATION_URL', 'http://ai-generation:8081'),
@@ -71,6 +77,15 @@ export function gatewayConfig(): GatewayConfig {
     // Imported GameDuplicator user games, persisted one JSON per game so the
     // "model off a favorite" catalog survives gateway restarts.
     gameReferenceStorePath: value('GAME_REFERENCE_STORE_PATH', '../.optomole-data/game-references'),
+    // Player-interaction signals emitted by the playable runtime (the return edge
+    // of the Person → Data → KG → World → Experience loop). One JSON log per
+    // person, mirroring accountStorePath. The World Model / Reflection layers
+    // (steps #3-#6) read this accumulating stream.
+    signalStorePath: value('SIGNAL_STORE_PATH', '../.optomole-data/signals'),
+    // Experiment ledger (loop #5): each World-Model-directed experience records the
+    // hypothesis it was built to test, so Reflection (#6) can later score it against
+    // the signals that experience produced.
+    experimentStorePath: value('EXPERIMENT_STORE_PATH', '../.optomole-data/experiments'),
     // The shared, framework-free Person Node contract both AdminConsole and the
     // api import. Resolved from the api's cwd, like templateRegistryPath.
     personNodeModulePath: value('PERSON_NODE_MODULE_PATH', '../shared/person-node/person-node.mjs'),

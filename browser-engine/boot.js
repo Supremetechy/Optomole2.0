@@ -9,6 +9,7 @@
  */
 import { OptomoleRuntime } from './runtime/OptomoleRuntime.js';
 import { mountHud } from './runtime/Hud.js';
+import { attachSignalEmitter } from './runtime/SignalEmitter.js';
 import { createKeyLockRuntime } from './templates/action-adventure-key-lock/template-runtime.js';
 import { createArcadeRuntime } from './templates/arcade-collect-avoid/template-runtime.js';
 import { createIdleRuntime } from './templates/idle-progress/template-runtime.js';
@@ -96,8 +97,12 @@ async function main() {
   const template = createTemplate(manifest, meta);
   await runtime.start(template);
 
+  // Return edge of the Experience Engine loop: emit player observation signals
+  // back to the gateway so the Data Node keeps growing as the person plays.
+  const signals = attachSignalEmitter(runtime, manifest, meta, 'pixi');
+
   // Debug handle for automated testing / dev-tools inspection. Harmless in prod.
-  window.__optomole = { runtime, template, services: runtime.services };
+  window.__optomole = { runtime, template, services: runtime.services, signals };
 
   document.body.classList.add('ready');
 }

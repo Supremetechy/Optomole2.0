@@ -1,5 +1,6 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ExperienceCompilerService } from '../compiler/experience-compiler.service';
+import { IrxService } from '../irx/irx.service';
 import { gatewayConfig } from '../shared/config';
 import { classifyExperienceOutputType } from '../shared/experience-output-types';
 import { ExperiencePackage, SourcePayload } from '../shared/types';
@@ -7,7 +8,10 @@ import { buildRuntimeContract, displayGenre, heuristicArchetype, RUNTIME_ARCHETY
 
 @Injectable()
 export class AiGenerationService {
-  constructor(private readonly compiler: ExperienceCompilerService) {}
+  constructor(
+    private readonly compiler: ExperienceCompilerService,
+    private readonly irx: IrxService,
+  ) {}
 
   async compileExperience(input: {
     source: SourcePayload;
@@ -17,17 +21,26 @@ export class AiGenerationService {
     // Fold "model off a favorite game" into options up front so both the AI
     // compiler and the deterministic local fallback are steered by it.
     const options = this.compiler.applyGameReference(input.options || {});
-    const enrichedInput = { ...input, options };
+    // Guarantee the compiler receives the full IRX (knowledgeGraph /
+    // gameplayNormalization / semanticExtraction). The extracted graph is the
+    // ONLY thing that produces content-derived bindings — without it the
+    // compiler emits a single generic quest and every build looks identical.
+    // The browser used to pre-compute and embed this IRX in source.metadata.irx,
+    // but that inflated the request body ~130x (a few hundred KB of text became
+    // tens of MB) and 413'd on real uploads, so the customization never arrived.
+    // Normalizing server-side from the raw source keeps the client payload tiny.
+    const source = this.ensureIrx(input.source, options);
+    const enrichedInput = { ...input, source, options };
 
     if (this.compiler.canCompile(options)) {
-      return this.compiler.compileWithAi(input.source, options);
+      return this.compiler.compileWithAi(source, options);
     }
 
     const generated = await this.tryPost(`${config.aiGenerationUrl}/v1/experiences/compile`, enrichedInput);
     if (generated) return generated as ExperiencePackage;
 
     if (config.legacyOptomoleApiUrl) {
-      const legacy = await this.tryPost(`${config.legacyOptomoleApiUrl}/api/experience/package`, input);
+      const legacy = await this.tryPost(`${config.legacyOptomoleApiUrl}/api/experience/package`, enrichedInput);
       if (legacy && typeof legacy === 'object' && 'package' in legacy) {
         return (legacy as { package: ExperiencePackage }).package;
       }
@@ -37,7 +50,30 @@ export class AiGenerationService {
       throw new ServiceUnavailableException('AI generation cluster is unavailable.');
     }
 
-    return this.localFallback(input.source, options);
+    return this.localFallback(source, options);
+  }
+
+  /**
+   * Ensure `source.metadata.irx` carries a real extracted graph. If the caller
+   * already supplied one (legacy browser path, or a pre-normalized person node),
+   * we trust it. Otherwise we run the same IrxService the `/irx/normalize` route
+   * uses, directly against the raw source, and return the enriched source it
+   * produces. Failures degrade gracefully to the original source (the compiler
+   * still emits a basic single-quest experience rather than erroring).
+   */
+  private ensureIrx(source: SourcePayload, options: Record<string, unknown>): SourcePayload {
+    const existing = (source?.metadata as Record<string, any> | undefined)?.irx;
+    const hasGraph =
+      existing && typeof existing === 'object' && (existing.knowledgeGraph || existing.gameplayNormalization);
+    if (hasGraph) return source;
+    if (!source || (!source.text && !source.title && !source.uri)) return source;
+
+    try {
+      const normalized = this.irx.normalize({ source, options });
+      return (normalized.source as SourcePayload) || source;
+    } catch (_) {
+      return source;
+    }
   }
 
   private async tryPost(url: string, body: unknown): Promise<unknown | null> {

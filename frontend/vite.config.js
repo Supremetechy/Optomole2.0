@@ -62,6 +62,19 @@ function serveGameDuplicator() {
   };
 }
 
+// The Workstation UI embeds the built game in an <iframe> as its main view. The
+// gateway serves the engine with `frame-ancestors 'self'` + `X-Frame-Options:
+// SAMEORIGIN`, which would block the console (:3000) from framing :8080. Proxying
+// the engine + its manifest objects through this dev server makes the iframe
+// same-origin, so both headers are satisfied with no backend/security change.
+// (The classic Console UI opens the game in a new tab and does not need this.)
+const ENGINE_PROXY = {
+  '/v1/browser-engine': { target: 'http://localhost:8080', changeOrigin: false },
+  '/v1/objects': { target: 'http://localhost:8080', changeOrigin: false },
+};
+
 export default defineConfig({
   plugins: [react(), serveGameDuplicator()],
+  server: { proxy: ENGINE_PROXY },
+  preview: { proxy: ENGINE_PROXY },
 });

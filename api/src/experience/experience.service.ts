@@ -16,6 +16,12 @@ export class ExperienceService {
     }
 
     const experiencePackage = await this.aiGeneration.compileExperience(body);
+    // Per-user identity: stamp the caller's personId onto the package so the build
+    // propagates it into manifest meta.personId, which is where the playable's
+    // SignalEmitter reads it — so signals from this game attribute to this person
+    // (not the shared 'anonymous' bucket). Empty/absent → stays anonymous.
+    const personId = body.options?.personId;
+    if (personId) (experiencePackage as Record<string, unknown>).personId = String(personId);
     return {
       ok: true,
       package: experiencePackage,
@@ -25,10 +31,12 @@ export class ExperienceService {
   async compileAndLaunch(body: { source: SourcePayload; options?: Record<string, unknown>; target?: EngineTarget }) {
     const compiled = await this.compile(body);
     const publicBaseUrl = String(body.options?.publicGatewayUrl || body.options?.publicBaseUrl || '');
+    const engine = String(body.options?.engine || (body as any).engine || '');
     const build = await this.builds.createBuild({
       package: compiled.package,
       target: body.target || 'browser',
       publicBaseUrl,
+      engine,
     });
 
     return {

@@ -11,6 +11,7 @@
  */
 import { PhaserRuntime } from './PhaserRuntime.js';
 import { mountHud } from '../runtime/Hud.js';
+import { attachSignalEmitter } from '../runtime/SignalEmitter.js';
 import { createPhaserArcadeRuntime } from '../templates-phaser/arcade-collect-avoid/template-runtime.js';
 
 /** Phaser-build template registry — mirrors the Pixi TEMPLATES map in boot.js. */
@@ -61,8 +62,11 @@ export async function bootPhaser(manifest, meta) {
   const template = createTemplate(manifest, meta);
   await runtime.start(template);
 
+  // Return edge of the loop (same emitter as the Pixi path; it's renderer-agnostic).
+  const signals = attachSignalEmitter(runtime, manifest, meta, 'phaser');
+
   // Debug handle, parallel to the Pixi path's window.__optomole.
-  window.__optomole = { engine: 'phaser', runtime, template, services: runtime.services };
+  window.__optomole = { engine: 'phaser', runtime, template, services: runtime.services, signals };
   document.body.classList.add('ready');
   return template;
 }

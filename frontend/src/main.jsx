@@ -875,19 +875,28 @@ function App() {
     }
   }
 
+  // The compiler now runs IRX normalization server-side, so compile/launch only
+  // need the raw source text. We deliberately strip the pre-computed `irx` and
+  // `preprocessingPipeline` out of the outgoing metadata: embedding them inflated
+  // the request body ~130x and tripped the gateway's body limit (HTTP 413) on
+  // real uploads, which silently produced no build and left only the static demo.
+  function rawSource() {
+    const { irx: _irx, preprocessingPipeline: _pipeline, ...leanMetadata } = payload.source.metadata || {};
+    return { ...payload.source, metadata: leanMetadata };
+  }
+
   async function runCompile() {
     setBusy('compile');
     setError('');
     try {
-      const normalized = await buildIrx();
       const data = await compileExperience({
-        source: normalized.source,
+        source: rawSource(),
         options: payload.options,
       });
       setCompiledPackage(data.package);
       setActiveView('map');
     } catch (caught) {
-      setError(caught.message);
+      setError(`Compile failed — the game cannot reflect your ingested content: ${caught.message}`);
     } finally {
       setBusy('');
     }
@@ -897,17 +906,21 @@ function App() {
     setBusy('launch');
     setError('');
     try {
-      const normalized = await buildIrx();
       const data = await launchExperience({
         ...payload,
-        source: normalized.source,
+        source: rawSource(),
       });
+      if (!data?.build || data.build.status === 'failed' || !data.build.launchUrl) {
+        throw new Error(data?.build?.error || 'The build did not produce a playable session.');
+      }
       setCompiledPackage(data.package);
       setActiveBuild(data.build);
       setActiveView('quest');
       await refreshSideData();
     } catch (caught) {
-      setError(caught.message);
+      // Make the failure explicit: without a successful build the only playable
+      // link is the static Demo sample, which never reflects the upload.
+      setError(`Launch failed — playing the Demo sample instead of your content: ${caught.message}`);
     } finally {
       setBusy('');
     }
@@ -1697,4 +1710,36 @@ function App() {
   );
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+/**
+ * UI selector. The classic Console is the default; the alternate Workstation UI
+ * is opt-in via `?ui=workstation` (persisted to localStorage so it sticks across
+ * reloads). `?ui=console` switches back. The Workstation bundle is lazy-loaded so
+ * the Console path never pays for its code or styles.
+ */
+const WorkstationApp = React.lazy(() => import('./workstation/WorkstationApp.jsx'));
+
+function resolveUiMode() {
+  try {
+    const param = new URL(window.location.href).searchParams.get('ui');
+    if (param === 'workstation' || param === 'console') {
+      window.localStorage.setItem('optomole.ui', param);
+      return param;
+    }
+    return window.localStorage.getItem('optomole.ui') || 'console';
+  } catch (_) {
+    return 'console';
+  }
+}
+
+function Root() {
+  if (resolveUiMode() === 'workstation') {
+    return (
+      <React.Suspense fallback={null}>
+        <WorkstationApp />
+      </React.Suspense>
+    );
+  }
+  return <App />;
+}
+
+createRoot(document.getElementById('root')).render(<Root />);

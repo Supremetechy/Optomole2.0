@@ -34,4 +34,14 @@ export class QueueService {
   listMemoryQueue(): BuildCommand[] {
     return [...this.memoryQueue];
   }
+
+  /**
+   * Pop the next queued command (FIFO), or null when empty. The in-memory queue
+   * lives inside the gateway process, so a separate worker can't read it
+   * directly — it pulls jobs through the gateway via WorkersController's
+   * next-build endpoint, which calls this.
+   */
+  dequeue(): BuildCommand | null {
+    return this.memoryQueue.shift() || null;
+  }
 }

@@ -76,6 +76,26 @@ export function connectEmailInbox(payload) {
   });
 }
 
+// --- Experience Engine loop (per-person identity model) --------------------
+
+/** The person's World Model: predictions, uncertainty set, next-experience directive, becoming. */
+export function getWorldModel(personId) {
+  return request(`/persons/${encodeURIComponent(personId)}/world-model`);
+}
+
+/** Ask the model for the next experience and build it (steered by its directive). */
+export function nextExperience(personId, payload) {
+  return request(`/persons/${encodeURIComponent(personId)}/next-experience`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+/** The person's experiment ledger (hypotheses + confirmed/refuted outcomes). */
+export function getPersonExperiments(personId) {
+  return request(`/persons/${encodeURIComponent(personId)}/experiments`);
+}
+
 export function launchExperience(payload) {
   return request('/experiences/launch', {
     method: 'POST',

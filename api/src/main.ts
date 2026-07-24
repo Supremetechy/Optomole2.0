@@ -32,6 +32,10 @@ async function bootstrap() {
     ...(httpsOptions ? { httpsOptions } : {}),
   });
 
+  // Raw binary body for worker artifact uploads (engine-build zips), registered
+  // BEFORE the JSON parser so that path receives a Buffer, not parsed JSON. The
+  // parser sets req._body, so the JSON parser below skips it.
+  app.use('/v1/workers/artifacts', express.raw({ type: () => true, limit: config.bodyLimit }));
   app.use(express.json({ limit: config.bodyLimit }));
   app.use(express.urlencoded({ limit: config.bodyLimit, extended: true }));
 

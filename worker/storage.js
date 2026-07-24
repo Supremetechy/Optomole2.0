@@ -31,7 +31,9 @@ export async function uploadArtifacts({ job, artifactPath, config, log }) {
   const storageKey = `${prefix}/game.zip`;
 
   if (!storage.endpoint) {
-    log(`[storage] MINIO_ENDPOINT not set — skipping upload (artifacts remain at ${artifactPath}).`);
+    const viaGateway = await uploadToGateway({ job, artifactPath, config, log });
+    if (viaGateway) return viaGateway;
+    log(`[storage] MINIO_ENDPOINT not set and no gateway fallback — skipping upload (artifacts remain at ${artifactPath}).`);
     return { uploaded: false, storageKey, downloadUrl: undefined, launchUrl: undefined };
   }
 
@@ -121,9 +123,76 @@ export async function uploadArtifacts({ job, artifactPath, config, log }) {
       metadataKey,
       preview,
     };
+  } catch (err) {
+    // Storage failed. Rather than fail an otherwise-successful build, try the
+    // gateway object store as a fallback (covers unreachable AND flaky/timing-out
+    // MinIO, e.g. a stale LAN endpoint that hangs the socket). If that works, the
+    // build is still downloadable. Only when the fallback also fails do we either
+    // degrade to skip-upload (plain connection error) or surface a genuine error.
+    log(`[storage] MinIO upload failed (${err.code || err.name || err.message}) — trying gateway fallback.`);
+    const viaGateway = await uploadToGateway({ job, artifactPath, config, log });
+    if (viaGateway) return viaGateway;
+    if (isConnectionError(err)) {
+      log(`[storage] MinIO unreachable and no gateway fallback — skipping upload; artifacts remain at ${artifactPath}.`);
+      return { uploaded: false, storageKey, downloadUrl: undefined, launchUrl: undefined };
+    }
+    throw err;
   } finally {
     client.destroy();
   }
+}
+
+/** Zip a directory tree into an in-memory Buffer (archiver, max compression). */
+function zipDirToBuffer(sourceDir) {
+  return new Promise((resolve, reject) => {
+    const archive = archiver("zip", { zlib: { level: 9 } });
+    const chunks = [];
+    archive.on("data", (c) => chunks.push(c));
+    archive.on("warning", (w) => { if (w.code !== "ENOENT") reject(w); });
+    archive.on("error", reject);
+    archive.on("end", () => resolve(Buffer.concat(chunks)));
+    archive.directory(sourceDir, false);
+    archive.finalize();
+  });
+}
+
+/**
+ * No-MinIO fallback: zip the build and push it to the gateway object store
+ * (POST /v1/workers/artifacts/<jobId>), returning a durable /v1/objects download
+ * URL. Returns null (caller degrades to skip-upload) when no gateway is
+ * configured or the upload fails, so a storage hiccup never fails a good build.
+ */
+async function uploadToGateway({ job, artifactPath, config, log }) {
+  const base = (config.gatewayUrl || "").replace(/\/$/, "");
+  if (!base) return null;
+  try {
+    const zip = await zipDirToBuffer(artifactPath);
+    const url = `${base}/v1/workers/artifacts/${encodeURIComponent(job.jobId)}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${config.callbackToken}`, "Content-Type": "application/zip" },
+      body: zip,
+    });
+    if (!res.ok) {
+      log(`[storage] gateway artifact upload failed (${res.status}) — leaving artifacts on local disk.`);
+      return null;
+    }
+    const data = await res.json().catch(() => ({}));
+    log(`[storage] uploaded game.zip to gateway (${formatBytes(zip.length)}) -> ${data.url}`);
+    return { uploaded: true, storageKey: data.key || `jobs/${job.jobId}/game.zip`, downloadUrl: data.url, launchUrl: undefined, bytes: zip.length };
+  } catch (e) {
+    log(`[storage] gateway artifact upload error (${e.message}) — leaving artifacts on local disk.`);
+    return null;
+  }
+}
+
+/** True for network-level failures where the store never answered (vs. a real 4xx/5xx). */
+function isConnectionError(err) {
+  const code = err?.code || err?.cause?.code || '';
+  const name = err?.name || '';
+  if (['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'ENOTFOUND', 'EHOSTUNREACH', 'EPIPE'].includes(code)) return true;
+  if (name === 'TimeoutError') return true;
+  return /socket hang up|timed? ?out|network|ECONNRESET/i.test(String(err?.message || ''));
 }
 
 // HeadBucket is the cheap existence check; only fall through to CreateBucket on

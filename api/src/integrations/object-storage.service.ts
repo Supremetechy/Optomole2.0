@@ -9,6 +9,8 @@ export interface StoredObject {
   body: string;
   contentType: string;
   createdAt: string;
+  /** How `body` is encoded. Binary artifacts (e.g. engine-build zips) are base64. */
+  encoding?: 'utf8' | 'base64';
 }
 
 @Injectable()
@@ -35,6 +37,31 @@ export class ObjectStorageService {
     this.objects.set(key, storedObject);
     this.writeLocalObject(config.localObjectStorePath, storedObject);
     return { key, url: `${publicBaseUrl}/v1/objects/${encodeURIComponent(key)}` };
+  }
+
+  /**
+   * Store a binary object (kept as base64 in the same JSON-file backend the text
+   * objects use). This is the no-MinIO fallback that lets the worker push a
+   * finished engine-build zip to the gateway so it's downloadable via
+   * /v1/objects. In s3/minio mode this returns the CDN URL without storing, same
+   * as putObject.
+   */
+  async putBinaryObject(input: { body: Buffer; contentType: string; key: string; publicBaseUrl?: string }): Promise<{ key: string; url: string }> {
+    const config = gatewayConfig();
+    const publicBaseUrl = (input.publicBaseUrl || config.publicGatewayUrl).replace(/\/$/, '');
+    if (config.objectStorageMode !== 'memory') {
+      return { key: input.key, url: `${config.cdnBaseUrl.replace(/\/$/, '')}/objects/${encodeURIComponent(input.key)}` };
+    }
+    const storedObject: StoredObject = {
+      key: input.key,
+      body: input.body.toString('base64'),
+      contentType: input.contentType,
+      encoding: 'base64',
+      createdAt: new Date().toISOString(),
+    };
+    this.objects.set(input.key, storedObject);
+    this.writeLocalObject(config.localObjectStorePath, storedObject);
+    return { key: input.key, url: `${publicBaseUrl}/v1/objects/${encodeURIComponent(input.key)}` };
   }
 
   getObject(key: string): StoredObject | null {

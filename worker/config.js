@@ -7,7 +7,18 @@ import path from "node:path";
 export function workerConfig() {
   const env = process.env;
   return {
-    // --- Queue (must match the gateway's BUILD_QUEUE_NAME) ---
+    // --- Queue ---
+    // Must match the gateway's BUILD_QUEUE_MODE. "memory" makes the worker pull
+    // jobs from the gateway over HTTP (POST /v1/workers/next-build) instead of
+    // RabbitMQ — the gateway's in-memory queue lives in-process, so this is the
+    // only way a separate worker can drain it. Defaults to memory to match the
+    // gateway default; set BUILD_QUEUE_MODE=rabbitmq for the broker path.
+    queueMode: (env.BUILD_QUEUE_MODE || "memory").toLowerCase(),
+    // Gateway base URL for memory-mode polling. API_URL in the shared .env may be
+    // a stale LAN address, so prefer explicit GATEWAY_URL/PUBLIC_GATEWAY_URL and
+    // fall back to localhost rather than API_URL.
+    gatewayUrl: (env.GATEWAY_URL || env.PUBLIC_GATEWAY_URL || "http://localhost:8080").replace(/\/$/, ""),
+    pollIntervalMs: Number(env.WORKER_POLL_INTERVAL_MS || "1500"),
     rabbitmqUrl: env.RABBITMQ_URL || "amqp://localhost:5672",
     queueName: env.BUILD_QUEUE_NAME || "optomole.build.jobs",
     prefetch: Number(env.WORKER_PREFETCH || "1"),

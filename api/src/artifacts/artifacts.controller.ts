@@ -22,8 +22,15 @@ export class ArtifactsController {
 
   @Get('objects/:key')
   object(@Param('key') key: string, @Res() response: Response) {
-    const object = this.artifacts.getObject(decodeURIComponent(key));
+    const decodedKey = decodeURIComponent(key);
+    const object = this.artifacts.getObject(decodedKey);
     if (!object) throw new NotFoundException('Object not found.');
-    response.type(object.contentType).send(object.body);
+    const body = object.encoding === 'base64' ? Buffer.from(object.body, 'base64') : object.body;
+    // Engine-build zips download as a file; text objects (manifests) render inline.
+    if (/zip|octet-stream/i.test(object.contentType)) {
+      const filename = decodedKey.split('/').pop() || 'artifact.zip';
+      response.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    }
+    response.type(object.contentType).send(body);
   }
 }

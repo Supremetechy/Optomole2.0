@@ -8,6 +8,7 @@ interface CreateBuildRequest {
   target?: EngineTarget;
   publicGatewayUrl?: string;
   publicBaseUrl?: string;
+  engine?: string;
 }
 
 @ApiTags('builds')
@@ -21,6 +22,7 @@ export class BuildsController {
       package: body.package,
       target: body.target || 'browser',
       publicBaseUrl: body.publicGatewayUrl || body.publicBaseUrl,
+      engine: body.engine,
     });
   }
 
