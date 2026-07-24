@@ -14,13 +14,16 @@ export class AiGenerationService {
     options?: Record<string, unknown>;
   }): Promise<ExperiencePackage> {
     const config = gatewayConfig();
-    const options = input.options || {};
+    // Fold "model off a favorite game" into options up front so both the AI
+    // compiler and the deterministic local fallback are steered by it.
+    const options = this.compiler.applyGameReference(input.options || {});
+    const enrichedInput = { ...input, options };
 
     if (this.compiler.canCompile(options)) {
       return this.compiler.compileWithAi(input.source, options);
     }
 
-    const generated = await this.tryPost(`${config.aiGenerationUrl}/v1/experiences/compile`, input);
+    const generated = await this.tryPost(`${config.aiGenerationUrl}/v1/experiences/compile`, enrichedInput);
     if (generated) return generated as ExperiencePackage;
 
     if (config.legacyOptomoleApiUrl) {
@@ -34,7 +37,7 @@ export class AiGenerationService {
       throw new ServiceUnavailableException('AI generation cluster is unavailable.');
     }
 
-    return this.localFallback(input.source, input.options);
+    return this.localFallback(input.source, options);
   }
 
   private async tryPost(url: string, body: unknown): Promise<unknown | null> {
@@ -88,6 +91,7 @@ export class AiGenerationService {
         id: experienceId,
         title,
         genre: displayGenre(preference, archetype),
+        modeledAfter: (options as any).gameReference || null,
         outputType: outputType.selected.id,
         outputExperience: outputType.selected.output,
         world: { planet: options.worldTitle || 'Knowledge Frontier' },

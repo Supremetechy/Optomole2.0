@@ -30,6 +30,17 @@ export function listTemplates() {
   return request('/templates');
 }
 
+export function listGameReferences() {
+  return request('/game-references');
+}
+
+export function importGameReferences(games) {
+  return request('/game-references/import', {
+    method: 'POST',
+    body: JSON.stringify({ games }),
+  });
+}
+
 export function compileExperience(payload) {
   return request('/experiences/compile', {
     method: 'POST',
@@ -74,6 +85,14 @@ export function launchExperience(payload) {
 
 export function listBuilds() {
   return request('/builds');
+}
+
+export function deleteBuild(id) {
+  return request(`/builds/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export function deleteAllBuilds() {
+  return request('/builds?confirm=all', { method: 'DELETE' });
 }
 
 export function getBuild(id) {

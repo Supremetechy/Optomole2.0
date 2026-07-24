@@ -978,3 +978,66 @@ pre {
     bottom: 12px;
   }
 }
+
+/* Build deletion + GameDuplicator import controls */
+.mini-list .build-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.mini-list .build-row .build-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.mini-list .build-row.active .build-select {
+  border-color: rgba(103, 232, 249, 0.55);
+}
+
+.mini-list .build-row .build-delete {
+  width: 38px;
+  flex: 0 0 38px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+  color: #fca5a5;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: 8px;
+  background: rgba(127, 29, 29, 0.28);
+  cursor: pointer;
+}
+
+.mini-list .build-row .build-delete:hover {
+  color: #fff;
+  background: rgba(220, 38, 38, 0.72);
+  border-color: rgba(248, 113, 113, 0.6);
+}
+
+.inline-action.danger {
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+.inline-action.danger:hover {
+  color: #fff;
+  background: rgba(220, 38, 38, 0.72);
+}
+
+.import-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.import-row .file-btn {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}

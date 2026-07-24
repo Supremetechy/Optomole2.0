@@ -1,0 +1,3701 @@
+<script>
+// Complete test function and final validation
+        function runGamePreviewTests() {
+            console.log('=== Running Game Preview Tests ===');
+            
+            const testResults = {
+                functions: true,
+                gameTypes: true,
+                settings: true,
+                cleanup: true,
+                canvas: true
+            };
+
+            try {
+                // Test 1: Validate all required functions exist
+                const requiredFunctions = [
+                    'startGamePreview', 'stopGamePreview', 'pauseGamePreview',
+                    'initializeSnakePreview', 'initializeTetrisPreview', 
+                    'initializePacmanPreview', 'initializeShooterPreview',
+                    'toggleGameSettings', 'safeStopGame', 'determineGameType'
+                ];
+                
+                requiredFunctions.forEach(funcName => {
+                    if (typeof window[funcName] !== 'function') {
+                        console.error(`Missing function: ${funcName}`);
+                        testResults.functions = false;
+                    }
+                });
+
+                // Test 2: Validate game type detection
+                const testGames = [
+                    { title: 'Snake Master', description: 'Growing snake game', category: 'action', expected: 'snake' },
+                    { title: 'Block Puzzle', description: 'Falling blocks tetris', category: 'puzzle', expected: 'tetris' },
+                    { title: 'Maze Runner', description: 'Pacman-like maze game', category: 'arcade', expected: 'pacman' },
+                    { title: 'Space Shooter', description: 'Shoot enemies in space', category: 'action', expected: 'shooter' }
+                ];
+
+                testGames.forEach(game => {
+                    const detected = determineGameType(game);
+                    if (detected !== game.expected) {
+                        console.warn(`Game type detection mismatch: ${game.title} detected as ${detected}, expected ${game.expected}`);
+                    }
+                });
+
+                // Test 3: Settings functionality
+                toggleGameSettings('test');
+                const settings = getGameSettings('test');
+                if (!settings || typeof settings !== 'object') {
+                    testResults.settings = false;
+                    console.error('Settings system not working properly');
+                }
+
+                console.log('Test Results:', testResults);
+                const allPassed = Object.values(testResults).every(result => result === true);
+                
+                if (allPassed) {
+                    console.log('✅ All tests passed! Game preview system is ready.');
+                    showNotification('Game preview system validated successfully!', 'success');
+                } else {
+                    console.warn('⚠️ Some tests failed. Check console for details.');
+                    showNotification('Some validation issues found. Check console.', 'warning');
+                }
+
+                return testResults;
+
+            } catch (error) {
+                console.error('Test execution failed:', error);
+                testResults.functions = false;
+                showNotification('Test execution failed. Check console for errors.', 'error');
+                return testResults;
+            }
+        }
+
+        // Comprehensive initialization and final setup
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                // Initialize core systems
+                updateCartUI();
+                updateUserUI();
+                updatePopularGamesSection();
+                
+                // Setup navigation events
+                const navButtons = [
+                    { id: 'functionalMarketplaceBtn', handler: openMarketplace },
+                    { id: 'marketplaceBtn', handler: openMarketplace },
+                    { id: 'developerDashboardBtn', handler: openDeveloperDashboard },
+                    { id: 'aiGeneratorBtn', handler: openAIGenerator },
+                    { id: 'myProjectsBtn', handler: openProjects },
+                    { id: 'loginBtn', handler: () => currentUser ? openProfileModal() : openLoginModal() }
+                ];
+
+                navButtons.forEach(({ id, handler }) => {
+                    const btn = document.getElementById(id);
+                    if (btn) {
+                        btn.addEventListener('click', handler);
+                    } else {
+                        console.warn(`Navigation button not found: ${id}`);
+                    }
+                });
+
+                // Initialize demo data if needed
+                if (users.length === 0) {
+                    const demoUsers = [
+                        {
+                            id: 1,
+                            username: "GameMaster",
+                            email: "demo@gamedup.com",
+                            password: "demo123",
+                            joinDate: new Date().toISOString(),
+                            ownedGames: [1, 2],
+                            ratings: { 1: 5, 2: 4 }
+                        },
+                        {
+                            id: 2,
+                            username: "PixelPro",
+                            email: "pixel@gamedup.com", 
+                            password: "pixel123",
+                            joinDate: new Date().toISOString(),
+                            ownedGames: [3],
+                            ratings: { 3: 5, 1: 4 }
+                        }
+                    ];
+                    
+                    users = demoUsers;
+                    localStorage.setItem('users', JSON.stringify(users));
+                    
+                    // Add demo ratings
+                    gameRatings = {
+                        1: {
+                            total: 9, count: 2,
+                            reviews: {
+                                1: { rating: 5, review: "Amazing cyberpunk atmosphere!", username: "GameMaster", date: new Date().toISOString() },
+                                2: { rating: 4, review: "Great gameplay mechanics!", username: "PixelPro", date: new Date().toISOString() }
+                            }
+                        },
+                        2: {
+                            total: 4, count: 1,
+                            reviews: {
+                                1: { rating: 4, review: "Love the puzzle mechanics!", username: "GameMaster", date: new Date().toISOString() }
+                            }
+                        },
+                        3: {
+                            total: 5, count: 1,
+                            reviews: {
+                                2: { rating: 5, review: "Best strategy game I've played!", username: "PixelPro", date: new Date().toISOString() }
+                            }
+                        }
+                    };
+                    
+                    localStorage.setItem('gameRatings', JSON.stringify(gameRatings));
+                    
+                    // Update game ratings
+                    marketplaceGames.forEach(game => {
+                        if (gameRatings[game.id]) {
+                            game.rating = gameRatings[game.id].total / gameRatings[game.id].count;
+                        }
+                    });
+                }
+
+                // Initialize audio context on first user interaction
+                document.addEventListener('click', initializeAudioContext, { once: true });
+                document.addEventListener('keydown', initializeAudioContext, { once: true });
+
+                // Add visibility change handler to pause games when tab is hidden
+                document.addEventListener('visibilitychange', function() {
+                    if (document.hidden) {
+                        Object.keys(gamePreviewStates).forEach(gameId => {
+                            if (gamePreviewStates[gameId] && gamePreviewStates[gameId].running) {
+                                gamePreviewStates[gameId].paused = true;
+                            }
+                        });
+                    }
+                });
+
+                // Run validation tests
+                setTimeout(() => {
+                    const testResults = runGamePreviewTests();
+                    window.gamePreviewTestResults = testResults;
+                }, 1000);
+
+                console.log('🎮 GameDupe Pro initialized successfully!');
+                console.log('📊 Available games with preview:', marketplaceGames.length);
+                console.log('🎯 Game preview system ready');
+                
+                showNotification('GameDupe Pro loaded successfully!', 'success');
+
+            } catch (error) {
+                console.error('Initialization error:', error);
+                showNotification('Initialization error occurred. Some features may not work.', 'error');
+            }
+        });
+
+        // Make test function globally available
+        window.runGamePreviewTests = runGamePreviewTests;
+        window.debugGamePreview = debugGamePreview;
+
+        // Export for debugging
+        window.gamePreviewAPI = {
+            states: gamePreviewStates,
+            settings: gameSettings,
+            startGame: startGamePreview,
+            stopGame: stopGamePreview,
+            pauseGame: pauseGamePreview,
+            runTests: runGamePreviewTests,
+            debug: debugGamePreview
+        };
+
+    </script>
+    <script>
+       // Enhanced Shooter Game Implementation
+        function initializeShooterPreview(canvas, ctx, gameId, scoreDisplay) {
+            const gameState = {
+                running: true,
+                paused: false,
+                score: 0,
+                lives: 3,
+                level: 1,
+                player: {
+                    x: canvas.width / 2 - 15,
+                    y: canvas.height - 50,
+                    width: 30,
+                    height: 20,
+                    speed: 6
+                // Fix missing functions and add proper error handling
+        function isValidPosition(piece, dx = 0, dy = 0) {
+            for (let y = 0; y < piece.shape.length; y++) {
+                for (let x = 0; x < piece.shape[y].length; x++) {
+                    if (piece.shape[y][x]) {
+                        const newX = piece.x + x + dx;
+                        const newY = piece.y + y + dy;
+                        if (newX < 0 || newX >= gameState.boardWidth || newY >= gameState.boardHeight || 
+                           (newY >= 0 && gameState.board[newY][newX])) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+
+        function rotatePiece(piece) {
+            // Rotate 90 degrees clockwise using the optimized matrix rotation
+            const rotated = piece.shape[0].map((_, i) =>
+                piece.shape.map(row => row[i]).reverse()
+            );
+            
+            // Try to place rotated piece, with wall kicks
+            const kicks = [
+                [0, 0],   // No offset
+                [-1, 0],  // Left
+                [1, 0],   // Right
+                [0, -1],  // Up
+                [-1, -1], // Up-left
+                [1, -1]   // Up-right
+            ];
+            
+            for (let [dx, dy] of kicks) {
+                if (isValidPosition({ ...piece, shape: rotated }, dx, dy)) {
+                    piece.shape = rotated;
+                    piece.x += dx;
+                    piece.y += dy;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function placePiece() {
+            for (let y = 0; y < gameState.currentPiece.shape.length; y++) {
+                for (let x = 0; x < gameState.currentPiece.shape[y].length; x++) {
+                    if (gameState.currentPiece.shape[y][x]) {
+                        const boardY = gameState.currentPiece.y + y;
+                        const boardX = gameState.currentPiece.x + x;
+                        if (boardY >= 0) {
+                            gameState.board[boardY][boardX] = gameState.currentPiece.color;
+                        }
+                    }
+                }
+            }
+            clearLines();
+            gameState.currentPiece = gameState.nextPiece;
+            gameState.nextPiece = createPiece();
+            
+            if (!isValidPosition(gameState.currentPiece)) {
+                gameOver();
+            }
+        }
+
+        function drawTetrisGame() {
+            if (!gameState.running) return;
+
+            // Background
+            ctx.fillStyle = '#0b1220';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const cellW = canvas.width / gameState.boardWidth;
+            const cellH = canvas.height / gameState.boardHeight;
+
+            // Draw board grid and cells
+            for (let r = 0; r < gameState.boardHeight; r++) {
+                for (let c = 0; c < gameState.boardWidth; c++) {
+                    const cell = gameState.board[r][c];
+                    if (cell) {
+                        ctx.fillStyle = cell;
+                        ctx.fillRect(c * cellW, r * cellH, cellW - 1, cellH - 1);
+                        
+                        // Add highlight for 3D effect
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                        ctx.fillRect(c * cellW, r * cellH, cellW - 1, 2);
+                    } else {
+                        ctx.strokeStyle = '#111827';
+                        ctx.strokeRect(c * cellW, r * cellH, cellW, cellH);
+                    }
+                }
+            }
+
+            // Draw ghost piece (preview of where current piece will land)
+            if (gameState.currentPiece) {
+                const ghostPiece = { ...gameState.currentPiece };
+                while (isValidPosition(ghostPiece, 0, 1)) {
+                    ghostPiece.y++;
+                }
+                
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                for (let r = 0; r < ghostPiece.shape.length; r++) {
+                    for (let c = 0; c < ghostPiece.shape[r].length; c++) {
+                        if (ghostPiece.shape[r][c]) {
+                            const bx = ghostPiece.x + c;
+                            const by = ghostPiece.y + r;
+                            if (by >= 0) {
+                                ctx.fillRect(bx * cellW, by * cellH, cellW - 1, cellH - 1);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Draw current piece
+            if (gameState.currentPiece) {
+                const p = gameState.currentPiece;
+                ctx.fillStyle = p.color;
+                for (let r = 0; r < p.shape.length; r++) {
+                    for (let c = 0; c < p.shape[r].length; c++) {
+                        if (p.shape[r][c]) {
+                            const bx = p.x + c;
+                            const by = p.y + r;
+                            if (by >= 0) {
+                                ctx.fillRect(bx * cellW, by * cellH, cellW - 1, cellH - 1);
+                                
+                                // Add highlight
+                                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                                ctx.fillRect(bx * cellW, by * cellH, cellW - 1, 2);
+                                ctx.fillStyle = p.color;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Draw next piece preview
+            if (gameState.nextPiece) {
+                const previewX = canvas.width - 80;
+                const previewY = 20;
+                const previewSize = 12;
+                
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(previewX - 5, previewY - 5, 70, 60);
+                
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '10px Arial';
+                ctx.fillText('NEXT', previewX, previewY - 8);
+                
+                ctx.fillStyle = gameState.nextPiece.color;
+                for (let r = 0; r < gameState.nextPiece.shape.length; r++) {
+                    for (let c = 0; c < gameState.nextPiece.shape[r].length; c++) {
+                        if (gameState.nextPiece.shape[r][c]) {
+                            ctx.fillRect(
+                                previewX + c * previewSize,
+                                previewY + r * previewSize,
+                                previewSize - 1,
+                                previewSize - 1
+                            );
+                        }
+                    }
+                }
+            }
+
+            // HUD
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(`Score: ${gameState.score}`, 8, 16);
+            ctx.fillText(`Lines: ${gameState.lines}`, 8, 32);
+            ctx.fillText(`Level: ${gameState.level}`, 8, 48);
+
+            // Show pause overlay
+            if (gameState.paused) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2);
+                ctx.textAlign = 'left';
+            }
+        },
+                bullets: [],
+                enemies: [],
+                enemyBullets: [],
+                powerUps: [],
+                particles: [],
+                stars: [],
+                enemySpawnTimer: 0,
+                enemySpawnRate: 90,
+                bulletSpeed: 8,
+                enemySpeed: 2,
+                keys: {},
+                lastShotTime: 0,
+                shotCooldown: 150
+            };
+
+            gamePreviewStates[gameId] = gameState;
+
+            // Create star field
+            for (let i = 0; i < 50; i++) {
+                gameState.stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    speed: Math.random() * 3 + 1,
+                    size: Math.random() * 2 + 1
+                });
+            }
+
+            function createEnemy() {
+                return {
+                    x: Math.random() * (canvas.width - 30),
+                    y: -30,
+                    width: 25,
+                    height: 20,
+                    speed: gameState.enemySpeed + Math.random() * 1.5,
+                    health: 1,
+                    shootTimer: Math.floor(Math.random() * 120) + 60,
+                    type: Math.random() > 0.9 ? 'fast' : 'normal'
+                };
+            }
+
+            function createBullet(x, y, velocityY, isPlayerBullet = true) {
+                return {
+                    x: x,
+                    y: y,
+                    width: 4,
+                    height: isPlayerBullet ? 8 : 6,
+                    velocityY: velocityY,
+                    isPlayerBullet: isPlayerBullet
+                };
+            }
+
+            function createPowerUp(x, y) {
+                const types = ['speed', 'multishot', 'shield', 'rapidfire'];
+                return {
+                    x: x,
+                    y: y,
+                    width: 15,
+                    height: 15,
+                    type: types[Math.floor(Math.random() * types.length)],
+                    velocityY: 2,
+                    life: 300
+                };
+            }
+
+            function createParticle(x, y, color, count = 5) {
+                for (let i = 0; i < count; i++) {
+                    gameState.particles.push({
+                        x: x,
+                        y: y,
+                        velocityX: (Math.random() - 0.5) * 10,
+                        velocityY: (Math.random() - 0.5) * 10,
+                        life: 20 + Math.random() * 20,
+                        maxLife: 40,
+                        color: color,
+                        size: Math.random() * 3 + 1
+                    }
+
+                    // Power-up collection
+                    for (let i = gameState.powerUps.length - 1; i >= 0; i--) {
+                        const powerUp = gameState.powerUps[i];
+                        
+                        if (powerUp.x < gameState.player.x + gameState.player.width &&
+                            powerUp.x + powerUp.width > gameState.player.x &&
+                            powerUp.y < gameState.player.y + gameState.player.height &&
+                            powerUp.y + powerUp.height > gameState.player.y) {
+                            
+                            gameState.powerUps.splice(i, 1);
+                            gameState.score += 50;
+                            playSound('score');
+                            
+                            // Apply power-up effect
+                            switch (powerUp.type) {
+                                case 'speed':
+                                    gameState.player.speed = Math.min(10, gameState.player.speed + 1);
+                                    showNotification('Speed Boost!', 'success');
+                                    break;
+                                case 'multishot':
+                                    showNotification('Multi-shot!', 'success');
+                                    break;
+                                case 'shield':
+                                    gameState.lives = Math.min(5, gameState.lives + 1);
+                                    showNotification('Extra Life!', 'success');
+                                    break;
+                                case 'rapidfire':
+                                    gameState.shotCooldown = Math.max(50, gameState.shotCooldown - 20);
+                                    showNotification('Rapid Fire!', 'success');
+                                    break;
+                            }
+                        }
+                    }
+
+                    // Level progression
+                    if (gameState.score > gameState.level * 1000) {
+                        gameState.level++;
+                        gameState.enemySpeed += 0.3;
+                        showNotification(`Level ${gameState.level}!`, 'info');
+                        playSound('lineClear');
+                    }
+
+                    // Update score display
+                    if (scoreDisplay) {
+                        scoreDisplay.textContent = `Score: ${gameState.score} | Lives: ${gameState.lives} | Level: ${gameState.level}`;
+                    }
+                }
+
+                drawShooterGame();
+                gameState.animationId = requestAnimationFrame(updateShooterGame);
+            }
+
+            function gameOver() {
+                gameState.running = false;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Game Over!', canvas.width / 2, canvas.height / 2 - 20);
+                ctx.fillText(`Final Score: ${gameState.score}`, canvas.width / 2, canvas.height / 2 + 10);
+                ctx.fillText(`Level Reached: ${gameState.level}`, canvas.width / 2, canvas.height / 2 + 40);
+                ctx.font = '14px Arial';
+                ctx.fillText('Click Stop and Play again to restart', canvas.width / 2, canvas.height / 2 + 70);
+                ctx.textAlign = 'left';
+            }
+
+            // Enhanced keyboard handling
+            window.currentGameKeyHandler = (e) => {
+                if (!gameState.running) return;
+                
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'a', 'd', 'w', 's'].includes(e.key)) {
+                    e.preventDefault();
+                }
+
+                gameState.keys[e.key] = true;
+
+                // Manual shooting for single shots
+                if (e.key === ' ' && !gameState.paused && Date.now() - gameState.lastShotTime > gameState.shotCooldown) {
+                    gameState.bullets.push(createBullet(
+                        gameState.player.x + gameState.player.width/2 - 2, 
+                        gameState.player.y, 
+                        -gameState.bulletSpeed, 
+                        true
+                    ));
+                    gameState.lastShotTime = Date.now();
+                    playSound('move');
+                }
+            };
+
+            const keyUpHandler = (e) => {
+                gameState.keys[e.key] = false;
+            };
+
+            document.addEventListener('keydown', window.currentGameKeyHandler);
+            document.addEventListener('keyup', keyUpHandler);
+            
+            gameState.keyUpHandler = keyUpHandler;
+
+            if (scoreDisplay) {
+                scoreDisplay.textContent = `Score: 0 | Lives: 3 | Level: 1`;
+            }
+
+            drawShooterGame();
+            updateShooterGame();
+        }
+
+        // Enhanced Chess Preview (Simple Version)
+        function initializeChessPreview(canvas, ctx, gameId, scoreDisplay) {
+            const gameState = {
+                running: true,
+                paused: false,
+                message: "Chess demo - Click pieces to see moves",
+                board: createSimpleChessBoard(),
+                selectedSquare: null,
+                currentPlayer: 'white',
+                squareSize: Math.min(canvas.width, canvas.height) / 8
+            };
+
+            gamePreviewStates[gameId] = gameState;
+
+            function createSimpleChessBoard() {
+                const board = Array(8).fill(null).map(() => Array(8).fill(null));
+                
+                // Simple piece setup
+                const pieces = {
+                    'white': { king: '♔', queen: '♕', rook: '♖', bishop: '♗', knight: '♘', pawn: '♙' },
+                    'black': { king: '♚', queen: '♛', rook: '♜', bishop: '♝', knight: '♞', pawn: '♟' }
+                };
+                
+                // Place some pieces for demo
+                board[0] = [
+                    {type: 'rook', color: 'black', symbol: pieces.black.rook},
+                    {type: 'knight', color: 'black', symbol: pieces.black.knight},
+                    {type: 'bishop', color: 'black', symbol: pieces.black.bishop},
+                    {type: 'queen', color: 'black', symbol: pieces.black.queen},
+                    {type: 'king', color: 'black', symbol: pieces.black.king},
+                    {type: 'bishop', color: 'black', symbol: pieces.black.bishop},
+                    {type: 'knight', color: 'black', symbol: pieces.black.knight},
+                    {type: 'rook', color: 'black', symbol: pieces.black.rook}
+                ];
+                
+                // Black pawns
+                for (let i = 0; i < 8; i++) {
+                    board[1][i] = {type: 'pawn', color: 'black', symbol: pieces.black.pawn};
+                }
+                
+                // White pawns
+                for (let i = 0; i < 8; i++) {
+                    board[6][i] = {type: 'pawn', color: 'white', symbol: pieces.white.pawn};
+                }
+                
+                // White pieces
+                board[7] = [
+                    {type: 'rook', color: 'white', symbol: pieces.white.rook},
+                    {type: 'knight', color: 'white', symbol: pieces.white.knight},
+                    {type: 'bishop', color: 'white', symbol: pieces.white.bishop},
+                    {type: 'queen', color: 'white', symbol: pieces.white.queen},
+                    {type: 'king', color: 'white', symbol: pieces.white.king},
+                    {type: 'bishop', color: 'white', symbol: pieces.white.bishop},
+                    {type: 'knight', color: 'white', symbol: pieces.white.knight},
+                    {type: 'rook', color: 'white', symbol: pieces.white.rook}
+                ];
+                
+                return board;
+            }
+
+            function drawChessGame() {
+                if (!gameState.running) return;
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw chessboard
+                for (let row = 0; row < 8; row++) {
+                    for (let col = 0; col < 8; col++) {
+                        const isLight = (row + col) % 2 === 0;
+                        ctx.fillStyle = isLight ? '#F0D9B5' : '#B58863';
+                        
+                        if (gameState.selectedSquare && 
+                            gameState.selectedSquare.row === row && 
+                            gameState.selectedSquare.col === col) {
+                            ctx.fillStyle = '#FFD700';
+                        }
+                        
+                        ctx.fillRect(col * gameState.squareSize, row * gameState.squareSize, 
+                                   gameState.squareSize, gameState.squareSize);
+                        
+                        // Draw piece
+                        const piece = gameState.board[row][col];
+                        if (piece) {
+                            ctx.font = `${gameState.squareSize * 0.7}px serif`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillStyle = '#000000';
+                            ctx.fillText(piece.symbol, 
+                                       col * gameState.squareSize + gameState.squareSize/2,
+                                       row * gameState.squareSize + gameState.squareSize/2);
+                            ctx.textAlign = 'left';
+                            ctx.textBaseline = 'alphabetic';
+                        }
+                    }
+                }
+                
+                // Draw current player indicator
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
+                ctx.fillStyle = '#000000';
+                ctx.font = '16px Arial';
+                ctx.fillText(`${gameState.currentPlayer.toUpperCase()}'s turn - ${gameState.message}`, 10, canvas.height - 10);
+            }
+
+            function handleChessClick(event) {
+                if (!gameState.running || gameState.paused) return;
+                
+                const rect = canvas.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+                
+                const col = Math.floor(x / gameState.squareSize);
+                const row = Math.floor(y / gameState.squareSize);
+                
+                if (row < 0 || row >= 8 || col < 0 || col >= 8) return;
+                
+                const piece = gameState.board[row][col];
+                
+                if (gameState.selectedSquare) {
+                    // Try to move
+                    if (gameState.selectedSquare.row !== row || gameState.selectedSquare.col !== col) {
+                        const selectedPiece = gameState.board[gameState.selectedSquare.row][gameState.selectedSquare.col];
+                        if (selectedPiece && selectedPiece.color === gameState.currentPlayer) {
+                            // Simple move (no validation for demo)
+                            gameState.board[row][col] = selectedPiece;
+                            gameState.board[gameState.selectedSquare.row][gameState.selectedSquare.col] = null;
+                            gameState.currentPlayer = gameState.currentPlayer === 'white' ? 'black' : 'white';
+                            gameState.message = "Move made!";
+                            playSound('move');
+                        }
+                    }
+                    gameState.selectedSquare = null;
+                } else if (piece && piece.color === gameState.currentPlayer) {
+                    // Select piece
+                    gameState.selectedSquare = { row, col };
+                    gameState.message = `Selected ${piece.type}`;
+                    playSound('move');
+                }
+                
+                drawChessGame();
+            }
+
+            canvas.addEventListener('click', handleChessClick);
+            gameState.clickHandler = handleChessClick;
+
+            window.currentGameKeyHandler = (e) => {
+                // Chess doesn't use keyboard input in this demo
+            };
+
+            document.addEventListener('keydown', window.currentGameKeyHandler);
+
+            if (scoreDisplay) {
+                scoreDisplay.textContent = `Chess Demo - Click pieces to move`;
+            }
+
+            drawChessGame();
+        }
+
+        // Enhanced modal cleanup
+        function closeGameModal(event) {
+            if (event && event.target !== event.currentTarget) return;
+            
+            // Stop all running game previews
+            Object.keys(gamePreviewStates).forEach(gameId => {
+                safeStopGame(gameId);
+                
+                // Clean up chess click handlers
+                const canvas = document.getElementById(`gamePreviewCanvas-${gameId}`);
+                if (canvas && gamePreviewStates[gameId] && gamePreviewStates[gameId].clickHandler) {
+                    canvas.removeEventListener('click', gamePreviewStates[gameId].clickHandler);
+                }
+            });
+            
+            // Remove any lingering event listeners
+            if (window.currentGameKeyHandler) {
+                document.removeEventListener('keydown', window.currentGameKeyHandler);
+                window.currentGameKeyHandler = null;
+            }
+            
+            document.getElementById('gameModal').classList.add('hidden');
+        });
+                }
+            }
+
+            function drawShooterGame() {
+                if (!gameState.running) return;
+
+                // Space background
+                ctx.fillStyle = '#000011';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Draw moving stars
+                ctx.fillStyle = '#FFFFFF';
+                gameState.stars.forEach(star => {
+                    ctx.globalAlpha = 0.8;
+                    ctx.fillRect(star.x, star.y, star.size, star.size);
+                    ctx.globalAlpha = 1;
+                });
+
+                // Draw player ship
+                ctx.fillStyle = '#00AAFF';
+                ctx.fillRect(gameState.player.x, gameState.player.y, gameState.player.width, gameState.player.height);
+                
+                // Player ship details
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(gameState.player.x + 12, gameState.player.y - 5, 6, 5); // Cockpit
+                ctx.fillStyle = '#FF4444';
+                ctx.fillRect(gameState.player.x + 5, gameState.player.y + 5, 3, 3); // Left engine
+                ctx.fillRect(gameState.player.x + 22, gameState.player.y + 5, 3, 3); // Right engine
+
+                // Draw player bullets
+                ctx.fillStyle = '#00FF00';
+                gameState.bullets.forEach(bullet => {
+                    ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+                    // Bullet trail effect
+                    ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
+                    ctx.fillRect(bullet.x, bullet.y + bullet.height, bullet.width, bullet.height);
+                    ctx.fillStyle = '#00FF00';
+                });
+
+                // Draw enemy bullets
+                ctx.fillStyle = '#FF4444';
+                gameState.enemyBullets.forEach(bullet => {
+                    ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+                });
+
+                // Draw enemies
+                gameState.enemies.forEach(enemy => {
+                    if (enemy.type === 'fast') {
+                        ctx.fillStyle = '#FF8800';
+                    } else {
+                        ctx.fillStyle = '#FF4444';
+                    }
+                    
+                    ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+                    
+                    // Enemy details
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(enemy.x + 2, enemy.y + 2, 3, 3);
+                    ctx.fillRect(enemy.x + enemy.width - 5, enemy.y + 2, 3, 3);
+                });
+
+                // Draw power-ups
+                gameState.powerUps.forEach(powerUp => {
+                    const colors = { 
+                        speed: '#00FF00', 
+                        multishot: '#FF8800', 
+                        shield: '#00FFFF',
+                        rapidfire: '#FF00FF'
+                    };
+                    ctx.fillStyle = colors[powerUp.type];
+                    
+                    const pulse = Math.sin(Date.now() * 0.01) * 0.3 + 0.7;
+                    ctx.globalAlpha = pulse;
+                    ctx.fillRect(powerUp.x, powerUp.y, powerUp.width, powerUp.height);
+                    ctx.globalAlpha = 1;
+                });
+
+                // Draw particles
+                gameState.particles.forEach(particle => {
+                    ctx.fillStyle = particle.color;
+                    ctx.globalAlpha = particle.life / particle.maxLife;
+                    ctx.fillRect(particle.x, particle.y, particle.size, particle.size);
+                    ctx.globalAlpha = 1;
+                });
+
+                // Show pause overlay
+                if (gameState.paused) {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.font = '24px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2);
+                    ctx.textAlign = 'left';
+                }
+            }
+
+            function updateShooterGame() {
+                if (!gameState.running) return;
+
+                if (!gameState.paused) {
+                    // Handle continuous key presses
+                    if (gameState.keys['ArrowLeft'] || gameState.keys['a']) {
+                        gameState.player.x = Math.max(0, gameState.player.x - gameState.player.speed);
+                    }
+                    if (gameState.keys['ArrowRight'] || gameState.keys['d']) {
+                        gameState.player.x = Math.min(canvas.width - gameState.player.width, gameState.player.x + gameState.player.speed);
+                    }
+                    if (gameState.keys['ArrowUp'] || gameState.keys['w']) {
+                        gameState.player.y = Math.max(0, gameState.player.y - gameState.player.speed);
+                    }
+                    if (gameState.keys['ArrowDown'] || gameState.keys['s']) {
+                        gameState.player.y = Math.min(canvas.height - gameState.player.height, gameState.player.y + gameState.player.speed);
+                    }
+
+                    // Auto-fire when space is held
+                    if (gameState.keys[' '] && Date.now() - gameState.lastShotTime > gameState.shotCooldown) {
+                        gameState.bullets.push(createBullet(
+                            gameState.player.x + gameState.player.width/2 - 2, 
+                            gameState.player.y, 
+                            -gameState.bulletSpeed, 
+                            true
+                        ));
+                        gameState.lastShotTime = Date.now();
+                        playSound('move');
+                    }
+
+                    // Update stars
+                    gameState.stars.forEach(star => {
+                        star.y += star.speed;
+                        if (star.y > canvas.height) {
+                            star.y = -5;
+                            star.x = Math.random() * canvas.width;
+                        }
+                    });
+
+                    // Spawn enemies
+                    gameState.enemySpawnTimer++;
+                    if (gameState.enemySpawnTimer >= gameState.enemySpawnRate) {
+                        gameState.enemies.push(createEnemy());
+                        gameState.enemySpawnTimer = 0;
+                        gameState.enemySpawnRate = Math.max(30, gameState.enemySpawnRate - 0.5);
+                    }
+
+                    // Update bullets
+                    gameState.bullets = gameState.bullets.filter(bullet => {
+                        bullet.y += bullet.velocityY;
+                        return bullet.y > -bullet.height && bullet.y < canvas.height + bullet.height;
+                    });
+
+                    gameState.enemyBullets = gameState.enemyBullets.filter(bullet => {
+                        bullet.y += bullet.velocityY;
+                        return bullet.y > -bullet.height && bullet.y < canvas.height + bullet.height;
+                    });
+
+                    // Update enemies
+                    gameState.enemies.forEach(enemy => {
+                        enemy.y += enemy.speed;
+                        
+                        // Enemy shooting
+                        enemy.shootTimer--;
+                        if (enemy.shootTimer <= 0 && enemy.y > 50 && enemy.y < canvas.height - 100) {
+                            gameState.enemyBullets.push(createBullet(
+                                enemy.x + enemy.width/2, 
+                                enemy.y + enemy.height, 
+                                4, 
+                                false
+                            ));
+                            enemy.shootTimer = Math.floor(Math.random() * 120) + 60;
+                        }
+                    });
+
+                    // Remove off-screen enemies
+                    gameState.enemies = gameState.enemies.filter(enemy => enemy.y < canvas.height + 50);
+
+                    // Update power-ups
+                    gameState.powerUps.forEach(powerUp => {
+                        powerUp.y += powerUp.velocityY;
+                        powerUp.life--;
+                    });
+                    gameState.powerUps = gameState.powerUps.filter(powerUp => 
+                        powerUp.y < canvas.height && powerUp.life > 0);
+
+                    // Update particles
+                    gameState.particles = gameState.particles.filter(particle => {
+                        particle.x += particle.velocityX;
+                        particle.y += particle.velocityY;
+                        particle.life--;
+                        particle.velocityX *= 0.98;
+                        particle.velocityY *= 0.98;
+                        return particle.life > 0;
+                    });
+
+                    // Collision detection - player bullets vs enemies
+                    for (let i = gameState.bullets.length - 1; i >= 0; i--) {
+                        for (let j = gameState.enemies.length - 1; j >= 0; j--) {
+                            const bullet = gameState.bullets[i];
+                            const enemy = gameState.enemies[j];
+                            
+                            if (bullet && enemy &&
+                                bullet.x < enemy.x + enemy.width &&
+                                bullet.x + bullet.width > enemy.x &&
+                                bullet.y < enemy.y + enemy.height &&
+                                bullet.y + bullet.height > enemy.y) {
+                                
+                                // Hit!
+                                gameState.bullets.splice(i, 1);
+                                
+                                enemy.health--;
+                                if (enemy.health <= 0) {
+                                    gameState.score += enemy.type === 'fast' ? 150 : 100;
+                                    
+                                    // Create explosion
+                                    createParticle(enemy.x + enemy.width/2, enemy.y + enemy.height/2, '#FF8800', 8);
+                                    
+                                    // Chance to drop power-up
+                                    if (Math.random() < 0.1) {
+                                        gameState.powerUps.push(createPowerUp(enemy.x, enemy.y));
+                                    }
+                                    
+                                    gameState.enemies.splice(j, 1);
+                                    playSound('score');
+                                }
+                                break;
+                            }
+                        }
+                    }
+
+                    // Collision detection - enemy bullets vs player
+                    for (let i = gameState.enemyBullets.length - 1; i >= 0; i--) {
+                        const bullet = gameState.enemyBullets[i];
+                        
+                        if (bullet.x < gameState.player.x + gameState.player.width &&
+                            bullet.x + bullet.width > gameState.player.x &&
+                            bullet.y < gameState.player.y + gameState.player.height &&
+                            bullet.y + bullet.height > gameState.player.y) {
+                            
+                            gameState.enemyBullets.splice(i, 1);
+                            gameState.lives--;
+                            
+                            // Create damage effect
+                            createParticle(gameState.player.x + gameState.player.width/2, 
+                                         gameState.player.y + gameState.player.height/2, '#FF0000', 6);
+                            
+                            playSound('gameOver');
+                            
+                            if (gameState.lives <= 0) {
+                                gameOver();
+                                return;
+                            }
+                        }
+                                                <!-- Game Preview Canvas -->
+                            <div class="mb-6">
+                                <div class="flex justify-between items-center mb-3">
+                                    <h3 class="text-xl font-bold text-white">Play Demo</h3>
+                                    <div class="flex gap-2">
+                                        <button id="settingsGameBtn-${game.id}" onclick="toggleGameSettings(${game.id})" class="bg-gray-600 hover:bg-gray-500 text-white px-3 py-2 rounded-lg transition text-sm">
+                                            <i class="fas fa-cog mr-1"></i>Settings
+                                        </button>
+                                        <button id="playGameBtn-${game.id}" onclick="startGamePreview(${game.id})" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition">
+                                            <i class="fas fa-play mr-1"></i>Play
+                                        </button>
+                                        <button id="pauseGameBtn-${game.id}" onclick="pauseGamePreview(${game.id})" class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg transition hidden">
+                                            <i class="fas fa-pause mr-1"></i>Pause
+                                        </button>
+                                        <button id="stopGameBtn-${game.id}" onclick="stopGamePreview(${game.id})" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition hidden">
+                                            <i class="fas fa-stop mr-1"></i>Stop
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Game Settings Panel -->
+                                <div id="gameSettings-${game.id}" class="bg-gray-700 rounded-lg p-4 mb-4 hidden">
+                                    <h4 class="text-white font-bold mb-3">Game Settings</h4>
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-gray-300 text-sm mb-1">Difficulty</label>
+                                            <select id="difficulty-${game.id}" class="w-full bg-gray-600 border border-gray-500 rounded px-3 py-1 text-white text-sm">
+                                                <option value="easy">Easy</option>
+                                                <option value="medium" selected>Medium</option>
+                                                <option value="hard">Hard</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-gray-300 text-sm mb-1">Sound</label>
+                                            <select id="sound-${game.id}" class="w-full bg-gray-600 border border-gray-500 rounded px-3 py-1 text-white text-sm">
+                                                <option value="on" selected>On</option>
+                                                <option value="off">Off</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-gray-300 text-sm mb-1">Game Speed</label>
+                                            <input type="range" id="speed-${game.id}" min="1" max="5" value="3" class="w-full">
+                                            <div class="text-xs text-gray-400 flex justify-between">
+                                                <span>Slow</span>
+                                                <span>Fast</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="block text-gray-300 text-sm mb-1">Controls</label>
+                                            <div class="text-xs text-gray-400">Arrow Keys</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-gray-800 rounded-lg p-4">
+                                    <canvas id="gamePreviewCanvas-${game.id}" class="w-full bg-gray-900 rounded border" width="600" height="400" style="max-width: 100%; height: auto;"></canvas>
+                                    <div id="gameInstructions-${game.id}" class="mt-3 text-center text-gray-400 text-sm">
+                                        Click Play to start the demo
+                                    </div>
+                                    <div id="gameScore-${game.id}" class="mt-2 text-center text-white font-bold hidden">
+                                        Score: 0
+                                    </div>
+                                </div>
+                            </div>        // Enhanced Snake Preview Game Implementation
+        function initializeSnakePreview(canvas, ctx, gameId, scoreDisplay) {
+            const gameState = {
+                running: true,
+                paused: false,
+                score: 0,
+                snake: [{ x: 10, y: 10 }],
+                direction: { x: 1, y: 0 },
+                nextDirection: { x: 1, y: 0 }, // Add next direction buffer
+                food: { x: 15, y: 15 },
+                gridSize: 20,
+                gameSpeed: 200,
+                cols: Math.floor(canvas.width / 20),
+                rows: Math.floor(canvas.height / 20),
+                lastMoveTime: 0
+            };
+
+            // Ensure food doesn't spawn on snake
+            function spawnFood() {
+                let attempts = 0;
+                do {
+                    gameState.food = {
+                        x: Math.floor(Math.random() * gameState.cols),
+                        y: Math.floor(Math.random() * gameState.rows)
+                    };
+                    attempts++;
+                } while (attempts < 100 && gameState.snake.some(segment => 
+                    segment.x === gameState.food.x && segment.y === gameState.food.y));
+            }
+
+            spawnFood(); // Initial food spawn
+            gamePreviewStates[gameId] = gameState;
+
+            function drawSnakeGame() {
+                if (!gameState.running) return;
+
+                // Clear canvas with background
+                ctx.fillStyle = '#1F2937';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Draw grid lines (subtle)
+                ctx.strokeStyle = '#374151';
+                ctx.lineWidth = 0.5;
+                for (let x = 0; x <= canvas.width; x += gameState.gridSize) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, canvas.height);
+                    ctx.stroke();
+                }
+                for (let y = 0; y <= canvas.height; y += gameState.gridSize) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(canvas.width, y);
+                    ctx.stroke();
+                }
+
+                // Draw snake with gradient effect
+                gameState.snake.forEach((segment, index) => {
+                    const intensity = 1 - (index / gameState.snake.length) * 0.5;
+                    ctx.fillStyle = index === 0 ? '#10B981' : `rgba(16, 185, 129, ${intensity})`;
+                    ctx.fillRect(
+                        segment.x * gameState.gridSize + 1, 
+                        segment.y * gameState.gridSize + 1, 
+                        gameState.gridSize - 2, 
+                        gameState.gridSize - 2
+                    );
+                    
+                    // Draw eyes on head
+                    if (index === 0) {
+                        ctx.fillStyle = '#FFFFFF';
+                        const eyeSize = 3;
+                        const eyeOffset = 4;
+                        if (gameState.direction.x !== 0) {
+                            ctx.fillRect(segment.x * gameState.gridSize + eyeOffset, segment.y * gameState.gridSize + 4, eyeSize, eyeSize);
+                            ctx.fillRect(segment.x * gameState.gridSize + eyeOffset, segment.y * gameState.gridSize + 12, eyeSize, eyeSize);
+                        } else {
+                            ctx.fillRect(segment.x * gameState.gridSize + 4, segment.y * gameState.gridSize + eyeOffset, eyeSize, eyeSize);
+                            ctx.fillRect(segment.x * gameState.gridSize + 12, segment.y * gameState.gridSize + eyeOffset, eyeSize, eyeSize);
+                        }
+                    }
+                });
+
+                // Draw food with pulsing effect
+                const pulseSize = Math.sin(Date.now() * 0.01) * 2 + gameState.gridSize - 4;
+                ctx.fillStyle = '#EF4444';
+                ctx.fillRect(
+                    gameState.food.x * gameState.gridSize + (gameState.gridSize - pulseSize) / 2, 
+                    gameState.food.y * gameState.gridSize + (gameState.gridSize - pulseSize) / 2, 
+                    pulseSize, 
+                    pulseSize
+                );
+
+                // Draw border
+                ctx.strokeStyle = '#374151';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+                // Show pause overlay
+                if (gameState.paused) {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.font = '24px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2);
+                    ctx.textAlign = 'left';
+                }
+            }
+
+            function updateSnakeGame() {
+                if (!gameState.running) return;
+
+                const currentTime = Date.now();
+                if (currentTime - gameState.lastMoveTime < gameState.gameSpeed) {
+                    drawSnakeGame();
+                    gameState.animationId = requestAnimationFrame(updateSnakeGame);
+                    return;
+                }
+
+                if (gameState.paused) {
+                    drawSnakeGame();
+                    gameState.animationId = requestAnimationFrame(updateSnakeGame);
+                    return;
+                }
+
+                gameState.lastMoveTime = currentTime;
+
+                // Update direction from buffer
+                gameState.direction = { ...gameState.nextDirection };
+
+                // Move snake
+                const head = { 
+                    x: gameState.snake[0].x + gameState.direction.x, 
+                    y: gameState.snake[0].y + gameState.direction.y 
+                };
+
+                // Check walls
+                if (head.x < 0 || head.x >= gameState.cols || 
+                    head.y < 0 || head.y >= gameState.rows) {
+                    gameOver();
+                    return;
+                }
+
+                // Check self collision
+                if (gameState.snake.some(segment => segment.x === head.x && segment.y === head.y)) {
+                    gameOver();
+                    return;
+                }
+
+                gameState.snake.unshift(head);
+
+                // Check food collision
+                if (head.x === gameState.food.x && head.y === gameState.food.y) {
+                    gameState.score += 10;
+                    if (scoreDisplay) {
+                        scoreDisplay.textContent = `Score: ${gameState.score} | Length: ${gameState.snake.length}`;
+                    }
+                    spawnFood();
+                    
+                    // Increase speed slightly
+                    gameState.gameSpeed = Math.max(100, gameState.gameSpeed - 2);
+                    
+                    playSound('score');
+                } else {
+                    gameState.snake.pop();
+                }
+
+                drawSnakeGame();
+                gameState.animationId = requestAnimationFrame(updateSnakeGame);
+            }
+
+            function gameOver() {
+                gameState.running = false;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Game Over!', canvas.width / 2, canvas.height / 2 - 20);
+                ctx.fillText(`Final Score: ${gameState.score}`, canvas.width / 2, canvas.height / 2 + 10);
+                ctx.fillText(`Snake Length: ${gameState.snake.length}`, canvas.width / 2, canvas.height / 2 + 40);
+                ctx.font = '14px Arial';
+                ctx.fillText('Click Stop and Play again to restart', canvas.width / 2, canvas.height / 2 + 70);
+                ctx.textAlign = 'left';
+                playSound('gameOver');
+            }
+
+            // Enhanced keyboard handling with direction buffering
+            window.currentGameKeyHandler = (e) => {
+                if (!gameState.running) return;
+                
+                // Prevent default to stop page scrolling
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                    e.preventDefault();
+                }
+
+                if (gameState.paused) return;
+
+                const currentDir = gameState.direction;
+                switch(e.key) {
+                    case 'ArrowUp': 
+                        if (currentDir.y === 0) gameState.nextDirection = { x: 0, y: -1 }; 
+                        break;
+                    case 'ArrowDown': 
+                        if (currentDir.y === 0) gameState.nextDirection = { x: 0, y: 1 }; 
+                        break;
+                    case 'ArrowLeft': 
+                        if (currentDir.x === 0) gameState.nextDirection = { x: -1, y: 0 }; 
+                        break;
+                    case 'ArrowRight': 
+                        if (currentDir.x === 0) gameState.nextDirection = { x: 1, y: 0 }; 
+                        break;
+                }
+                playSound('move');
+            };
+
+            document.addEventListener('keydown', window.currentGameKeyHandler);
+            
+            // Initialize score display
+            if (scoreDisplay) {
+                scoreDisplay.textContent = `Score: 0 | Length: 1`;
+            }
+            
+            drawSnakeGame();
+            updateSnakeGame();
+        }
+
+        // Enhanced Tetris Preview Game Implementation (Optimized from backup)
+        function initializeTetrisPreview(canvas, ctx, gameId, scoreDisplay) {
+            const gameState = {
+                running: true,
+                paused: false,
+                score: 0,
+                lines: 0,
+                level: 1,
+                boardWidth: Math.floor(canvas.width / 20),
+                boardHeight: Math.floor(canvas.height / 20),
+                board: [],
+                currentPiece: null,
+                nextPiece: null,
+                dropTime: 500,
+                lastDropTime: 0,
+                softDrop: false
+            };
+
+            // Initialize board
+            gameState.board = Array(gameState.boardHeight).fill().map(() => Array(gameState.boardWidth).fill(0));
+
+            const pieces = [
+                { shape: [[1,1,1,1]], color: '#00FFFF', name: 'I' }, // I-piece
+                { shape: [[1,1],[1,1]], color: '#FFFF00', name: 'O' }, // O-piece
+                { shape: [[0,1,0],[1,1,1]], color: '#800080', name: 'T' }, // T-piece
+                { shape: [[0,1,1],[1,1,0]], color: '#00FF00', name: 'S' }, // S-piece
+                { shape: [[1,1,0],[0,1,1]], color: '#FF0000', name: 'Z' }, // Z-piece
+                { shape: [[1,0,0],[1,1,1]], color: '#FFA500', name: 'L' }, // L-piece
+                { shape: [[0,0,1],[1,1,1]], color: '#0000FF', name: 'J' }  // J-piece
+            ];
+
+            gamePreviewStates[gameId] = gameState;
+
+            // Optimized matrix rotation from backup
+            function rotateMatrix(matrix, dir) {
+                // transpose
+                for (let y = 0; y < matrix.length; ++y) {
+                    for (let x = 0; x < y; ++x) {
+                        [matrix[x][y], matrix[y][x]] = [matrix[y][x], matrix[x][y]];
+                    }
+                }
+                // reverse rows for clockwise, reverse whole array for counter-clockwise
+                if (dir > 0) {
+                    matrix.forEach(row => row.reverse());
+                } else {
+                    matrix.reverse();
+                }
+                return matrix;
+            }
+
+            function createPiece() {
+                const template = pieces[Math.floor(Math.random() * pieces.length)];
+                return {
+                    shape: template.shape.map(r => r.slice()), // Deep copy
+                    color: template.color,
+                    name: template.name,
+                    x: Math.floor(gameState.boardWidth / 2) - Math.ceil(template.shape[0].length / 2),
+                    y: 0
+                };
+            }
+
+            function validPosition(x, y, shape) {
+                for (let r = 0; r < shape.length; r++) {
+                    for (let c = 0; c < shape[r].length; c++) {
+                        if (shape[r][c]) {
+                            const bx = x + c;
+                            const by = y + r;
+                            if (bx < 0 || bx >= gameState.boardWidth || by >= gameState.boardHeight) return false;
+                            if (by >= 0 && gameState.board[by][bx]) return false;
+                        }
+                    }
+                }
+                return true;
+            }
+
+            function lockPiece() {
+                const p = gameState.currentPiece;
+                for (let r = 0; r < p.shape.length; r++) {
+                    for (let c = 0; c < p.shape[r].length; c++) {
+                        if (p.shape[r][c]) {
+                            const bx = p.x + c;
+                            const by = p.y + r;
+                            if (by >= 0 && by < gameState.boardHeight && bx >= 0 && bx < gameState.boardWidth) {
+                                gameState.board[by][bx] = p.color;
+                            }
+                        }
+                    }
+                }
+                clearLines();
+                gameState.currentPiece = gameState.nextPiece || createPiece();
+                gameState.nextPiece = createPiece();
+                
+                // Check spawn collision -> game over
+                if (!validPosition(gameState.currentPiece.x, gameState.currentPiece.y, gameState.currentPiece.shape)) {
+                    gameOver();
+                }
+            }
+
+        // Fix: Missing clearLines function completion and gameLoop issues
+        function clearLines() {
+                const linesToClear = [];
+                for (let y = gameState.boardHeight - 1; y >= 0; y--) {
+                    if (gameState.board[y].every(cell => cell !== 0)) {
+                        linesToClear.push(y);
+                    }
+                }
+                
+                if (linesToClear.length > 0) {
+                    gameState.clearingLines = linesToClear;
+                    gameState.clearingAnimation = 0;
+                    
+                    // Animate line clearing
+                    const animateClearing = () => {
+                        gameState.clearingAnimation++;
+                        if (gameState.clearingAnimation < 20) {
+                            drawTetrisGame();
+                            requestAnimationFrame(animateClearing);
+                        } else {
+                            // Actually clear the lines
+                            linesToClear.sort((a, b) => b - a); // Clear from bottom up
+                            linesToClear.forEach(lineY => {
+                                gameState.board.splice(lineY, 1);
+                                gameState.board.unshift(Array(gameState.boardWidth).fill(0));
+                            });
+                            
+                            gameState.clearingLines = [];
+                            gameState.lines += linesToClear.length;
+                            
+                            // Scoring system
+                            const points = [0, 40, 100, 300, 1200]; // Points for 0,1,2,3,4 lines
+                            gameState.score += points[linesToClear.length] * (gameState.level + 1);
+                            
+                            gameState.level = Math.floor(gameState.lines / 10) + 1;
+                            gameState.dropTime = Math.max(50, 500 - (gameState.level - 1) * 50);
+                            
+                            if (scoreDisplay) {
+                                scoreDisplay.textContent = `Score: ${gameState.score} | Lines: ${gameState.lines} | Level: ${gameState.level}`;
+                            }
+                            
+                            playSound('lineClear');
+                            
+                            // Show combo notification
+                            if (linesToClear.length === 4) {
+                                showNotification('TETRIS! +' + (1200 * (gameState.level + 1)) + ' points!', 'success');
+                            } else if (linesToClear.length > 1) {
+                                showNotification(`${linesToClear.length} LINES! +${points[linesToClear.length] * (gameState.level + 1)} points!`, 'success');
+                            }
+                        }
+                    };
+                    
+                    animateClearing();
+                }
+            }
+
+            function gameLoop() {
+                if (!gameState.running) return;
+
+                const currentTime = Date.now();
+                const dropInterval = gameState.softDrop ? Math.max(50, gameState.dropTime / 10) : gameState.dropTime;
+                
+                if (!gameState.paused && currentTime - gameState.lastDropTime > dropInterval) {
+                    gameState.lastDropTime = currentTime;
+                    
+                    if (gameState.currentPiece && isValidPosition(gameState.currentPiece, 0, 1)) {
+                        gameState.currentPiece.y++;
+                        if (gameState.softDrop) {
+                            gameState.score += 1; // Bonus points for soft drop
+                        }
+                    } else if (gameState.currentPiece) {
+                        placePiece();
+                    }
+                }
+                
+                if (gameState.clearingLines.length === 0) {
+                    drawTetrisGame();
+                }
+                
+                gameState.animationId = requestAnimationFrame(gameLoop);
+            }
+
+            function gameOver() {
+                gameState.running = false;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '20px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Game Over!', canvas.width / 2, canvas.height / 2 - 30);
+                ctx.fillText(`Score: ${gameState.score}`, canvas.width / 2, canvas.height / 2);
+                ctx.fillText(`Lines: ${gameState.lines}`, canvas.width / 2, canvas.height / 2 + 25);
+                ctx.fillText(`Level: ${gameState.level}`, canvas.width / 2, canvas.height / 2 + 50);
+                ctx.font = '14px Arial';
+                ctx.fillText('Click Stop and Play again to restart', canvas.width / 2, canvas.height / 2 + 80);
+                ctx.textAlign = 'left';
+                playSound('gameOver');
+            }
+
+            // Enhanced keyboard handling
+            window.currentGameKeyHandler = (e) => {
+                if (!gameState.running || !gameState.currentPiece) return;
+                
+                // Prevent default to stop page scrolling
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+                    e.preventDefault();
+                }
+
+                if (gameState.paused) return;
+
+                switch(e.key) {
+                    case 'ArrowLeft':
+                        if (isValidPosition(gameState.currentPiece, -1, 0)) {
+                            gameState.currentPiece.x--;
+                            playSound('move');
+                        }
+                        break;
+                    case 'ArrowRight':
+                        if (isValidPosition(gameState.currentPiece, 1, 0)) {
+                            gameState.currentPiece.x++;
+                            playSound('move');
+                        }
+                        break;
+                    case 'ArrowDown':
+                        gameState.softDrop = true;
+                        break;
+                    case 'ArrowUp':
+                    case ' ':
+                        if (rotatePiece(gameState.currentPiece)) {
+                            playSound('move');
+                        }
+                        break;
+                }
+            };
+
+            // Handle key release for soft drop
+            const keyUpHandler = (e) => {
+                if (e.key === 'ArrowDown') {
+                    gameState.softDrop = false;
+                }
+            };
+
+            document.addEventListener('keydown', window.currentGameKeyHandler);
+            document.addEventListener('keyup', keyUpHandler);
+            
+            // Store keyup handler for cleanup
+            gameState.keyUpHandler = keyUpHandler;
+
+            // Initialize pieces
+            gameState.currentPiece = createPiece();
+            gameState.nextPiece = createPiece();
+            
+            // Initialize score display
+            if (scoreDisplay) {
+                scoreDisplay.textContent = `Score: 0 | Lines: 0 | Level: 1`;
+            }
+            
+            drawTetrisGame();
+            gameLoop();
+        }lear.push(y);
+                    }
+                }
+                
+                if (linesToClear.length > 0) {
+                    gameState.clearingLines = linesToClear;
+                    gameState.clearingAnimation = 0;
+                    
+                    // Animate line clearing
+                    const animateClearing = () => {
+                        gameState.clearingAnimation++;
+                        if (gameState.clearingAnimation < 20) {
+                            drawTetrisGame();
+                            requestAnimationFrame(animateClearing);
+                        } else {
+                            // Actually clear the lines
+                            linesToClear.sort((a, b) => b - a); // Clear from bottom up
+                            linesToClear.forEach(lineY => {
+                                gameState.board.splice(lineY, 1);
+                                gameState.board.unshift(Array(gameState.boardWidth).fill(0));
+                            });
+                            
+                            gameState.clearingLines = [];
+                            gameState.lines += linesToClear.length;
+                            
+                            // Scoring system
+                            const points = [0, 40, 100, 300, 1200]; // Points for 0,1,2,3,4 lines
+                            gameState.score += points[linesToClear.length] * (gameState.level + 1);
+                            
+                            gameState.level = Math.floor(gameState.lines / 10) + 1;
+                            gameState.dropTime = Math.max(50, 500 - (gameState.level - 1) * 50);
+                            
+                            if (scoreDisplay) {
+                                scoreDisplay.textContent = `Score: ${gameState.score} | Lines: ${gameState.lines} | Level: ${gameState.level}`;
+                            }
+                            
+                            playSound('lineClear');
+                            
+                            // Show combo notification
+                            if (linesToClear.length === 4) {
+                                showNotification('TETRIS! +' + (1200 * (gameState.level + 1)) + ' points!', 'success');
+                            } else if (linesToClear.length > 1) {
+                                showNotification(`${linesToClear.length} LINES! +${points[linesToClear.length] * (gameState.level + 1)} points!`, 'success');
+                            }
+                        }
+                    };
+                    
+                    animateClearing();
+                }
+            }
+
+            function drawTetrisGame() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawBoard();
+                drawPiece(gameState.currentPiece);
+                drawNextPiece(gameState.nextPiece);
+            }
+
+            function gameLoop() {
+                if (!gameState.running) return;
+
+                const currentTime = Date.now();
+                const dropInterval = gameState.softDrop ? Math.max(50, gameState.dropTime / 10) : gameState.dropTime;
+                
+                if (!gameState.paused && currentTime - gameState.lastDropTime > dropInterval) {
+                    gameState.lastDropTime = currentTime;
+                    
+                    if (gameState.currentPiece && isValidPosition(gameState.currentPiece, 0, 1)) {
+                        gameState.currentPiece.y++;
+                        if (gameState.softDrop) {
+                            gameState.score += 1; // Bonus points for soft drop
+                        }
+                    } else if (gameState.currentPiece) {
+                        placePiece();
+                    }
+                }
+                
+                if (gameState.clearingLines.length === 0) {
+                    drawTetrisGame();
+                }
+                
+                gameState.animationId = requestAnimationFrame(gameLoop);
+            }
+
+            function gameOver() {
+                gameState.running = false;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '20px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Game Over!', canvas.width / 2, canvas.height / 2 - 30);
+                ctx.fillText(`Score: ${gameState.score}`, canvas.width / 2, canvas.height / 2);
+                ctx.fillText(`Lines: ${gameState.lines}`, canvas.width / 2, canvas.height / 2 + 25);
+                ctx.fillText(`Level: ${gameState.level}`, canvas.width / 2, canvas.height / 2 + 50);
+                ctx.font = '14px Arial';
+                ctx.fillText('Click Stop and Play again to restart', canvas.width / 2, canvas.height / 2 + 80);
+                ctx.textAlign = 'left';
+                playSound('gameOver');
+            }
+
+            // Enhanced keyboard handling
+            window.currentGameKeyHandler = (e) => {
+                if (!gameState.running || !gameState.currentPiece) return;
+                
+                // Prevent default to stop page scrolling
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+                    e.preventDefault();
+                }
+
+                if (gameState.paused) return;
+
+                switch(e.key) {
+                    case 'ArrowLeft':
+                        if (isValidPosition(gameState.currentPiece, -1, 0)) {
+                            gameState.currentPiece.x--;
+                            playSound('move');
+                        }
+                        break;
+                    case 'ArrowRight':
+                        if (isValidPosition(gameState.currentPiece, 1, 0)) {
+                            gameState.currentPiece.x++;
+                            playSound('move');
+                        }
+                        break;
+                    case 'ArrowDown':
+                        gameState.softDrop = true;
+                        break;
+                    case 'ArrowUp':
+                    case ' ':
+                        if (rotatePiece(gameState.currentPiece)) {
+                            playSound('move');
+                        }
+                        break;
+                }
+            };
+            
+            // Handle key release
+            const keyUpHandler = (e) => {
+                if (e.key === 'ArrowDown') {
+                    gameState.softDrop = false;
+                }
+            };
+
+            // Handle key release for soft drop
+            const keyUpHandler = (e) => {
+                if (e.key === 'ArrowDown') {
+                    gameState.softDrop = false;
+                }
+            };
+
+            document.addEventListener('keydown', window.currentGameKeyHandler);
+            document.addEventListener('keyup', keyUpHandler);
+            
+            // Store keyup handler for cleanup
+            gameState.keyUpHandler = keyUpHandler;
+
+            // Initialize pieces
+            gameState.currentPiece = createPiece();
+            gameState.nextPiece = createPiece();
+            
+            // Initialize score display
+            if (scoreDisplay) {
+                scoreDisplay.textContent = `Score: 0 | Lines: 0 | Level: 1`;
+            }
+            
+            drawTetrisGame();
+            gameLoop();
+        }    for (let x = 0; x < gameState.boardWidth; x++) {
+                        if (gameState.board[y][x]) {
+                            ctx.fillStyle = gameState.board[y][x];
+                            ctx.fillRect(
+                                x * gameState.gridSize, 
+                                y * gameState.gridSize, 
+                                gameState.gridSize - 1, 
+                                gameState.gridSize - 1
+                            );
+                        }
+                    }
+                }
+
+                // Draw current piece
+                if (gameState.currentPiece) {
+                    ctx.fillStyle = gameState.currentPiece.color;
+                    for (let y = 0; y < gameState.currentPiece.shape.length; y++) {
+                        for (let x = 0; x < gameState.currentPiece.shape[y].length; x++) {
+                            if (gameState.currentPiece.shape[y][x]) {
+                                ctx.fillRect(
+                                    (gameState.currentPiece.x + x) * gameState.gridSize,
+                                    (gameState.currentPiece.y + y) * gameState.gridSize,
+                                    gameState.gridSize - 1,
+                                    gameState.gridSize - 1
+                                );
+                            }
+                        }
+                    }
+                }
+
+                // Draw border
+                ctx.strokeStyle = '#374151';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(0, 0, canvas.width, canvas.height);
+            }
+
+            function isValidPosition(piece, dx = 0, dy = 0) {
+                for (let y = 0; y < piece.shape.length; y++) {
+                    for (let x = 0; x < piece.shape[y].length; x++) {
+                        if (piece.shape[y][x]) {
+                            const newX = piece.x + x + dx;
+                            const newY = piece.y + y + dy;
+                            if (newX < 0 || newX >= gameState.boardWidth || newY >= gameState.boardHeight || 
+                               (newY >= 0 && gameState.board[newY][newX])) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+                return true;
+            }
+
+            function placePiece() {
+                for (let y = 0; y < gameState.currentPiece.shape.length; y++) {
+                    for (let x = 0; x < gameState.currentPiece.shape[y].length; x++) {
+                        if (gameState.currentPiece.shape[y][x]) {
+                            gameState.board[gameState.currentPiece.y + y][gameState.currentPiece.x + x] = gameState.currentPiece.color;
+                        }
+                    }
+                }
+                clearLines();
+                gameState.currentPiece = createPiece();
+                if (!isValidPosition(gameState.currentPiece)) {
+                    gameOver();
+                }
+            }
+
+            function clearLines() {
+                let linesCleared = 0;
+                for (let y = gameState.boardHeight - 1; y >= 0; y--) {
+                    if (gameState.board[y].every(cell => cell !== 0)) {
+                        gameState.board.splice(y, 1);
+                        gameState.board.unshift(Array(gameState.boardWidth).fill(0));
+                        linesCleared++;
+                        y++; // Check the same line again
+                    }
+                }
+                if (linesCleared > 0) {
+                    gameState.lines += linesCleared;
+                    gameState.score += linesCleared * 100 * gameState.level;
+                    gameState.level = Math.floor(gameState.lines / 10) + 1;
+                    gameState.dropTime = Math.max(50, 500 - (gameState.level - 1) * 50);
+                    scoreDisplay.textContent = `Score: ${gameState.score} | Lines: ${gameState.lines} | Level: ${gameState.level}`;
+                    playSound('lineClear');
+                }
+            }
+
+            function gameLoop() {
+                if (!gameState.running || gameState.paused) return;
+                
+                if (gameState.currentPiece && isValidPosition(gameState.currentPiece, 0, 1)) {
+                    gameState.currentPiece.y++;
+                } else if (gameState.currentPiece) {
+                    placePiece();
+                }
+                
+                drawTetrisGame();
+                gameState.intervalId = setTimeout(gameLoop, gameState.dropTime);
+            }
+
+            function gameOver() {
+                gameState.running = false;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '20px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Game Over!', canvas.width / 2, canvas.height / 2);
+                ctx.fillText(`Score: ${gameState.score}`, canvas.width / 2, canvas.height / 2 + 25);
+                ctx.font = '14px Arial';
+                ctx.fillText('Click Stop and Play again to restart', canvas.width / 2, canvas.height / 2 + 50);
+                ctx.textAlign = 'left';
+            }
+
+            window.currentGameKeyHandler = (e) => {
+                if (!gameState.running || gameState.paused || !gameState.currentPiece) return;
+                switch(e.key) {
+                    case 'ArrowLeft':
+                        if (isValidPosition(gameState.currentPiece, -1, 0)) gameState.currentPiece.x--;
+                        break;
+                    case 'ArrowRight':
+                        if (isValidPosition(gameState.currentPiece, 1, 0)) gameState.currentPiece.x++;
+                        break;
+                    case 'ArrowDown':
+                        if (isValidPosition(gameState.currentPiece, 0, 1)) gameState.currentPiece.y++;
+                        break;
+                    case 'ArrowUp':
+                        // Rotate piece
+                        const rotated = gameState.currentPiece.shape[0].map((_, i) =>
+                            gameState.currentPiece.shape.map(row => row[i]).reverse()
+                        );
+                        const oldShape = gameState.currentPiece.shape;
+                        gameState.currentPiece.shape = rotated;
+                        if (!isValidPosition(gameState.currentPiece)) {
+                            gameState.currentPiece.shape = oldShape;
+                        }
+                        break;
+                }
+                playSound('move');
+            };
+
+            document.addEventListener('keydown', window.currentGameKeyHandler);
+            gameState.currentPiece = createPiece();
+            drawTetrisGame();
+            gameLoop();
+        }
+
+        // Pacman Preview Game Implementation
+        function initializePacmanPreview(canvas, ctx, gameId, scoreDisplay) {
+            const gameState = {
+                running: true,
+                paused: false,
+                score: 0,
+                lives: 3,
+                cellSize: 15,
+                cols: Math.floor(canvas.width / 15),
+                rows: Math.floor(canvas.height / 15),
+                player: { x: 1, y: 1, direction: { x: 0, y: 0 }, nextDirection: { x: 0, y: 0 } },
+                ghosts: [],
+                maze: [],
+                dots: [],
+                powerPellets: [],
+                powerMode: false,
+                powerModeTimer: 0
+            };
+
+            gamePreviewStates[gameId] = gameState;
+
+            // Create simple maze
+            gameState.maze = Array(gameState.rows).fill().map(() => Array(gameState.cols).fill(0));
+            for (let y = 0; y < gameState.rows; y++) {
+                for (let x = 0; x < gameState.cols; x++) {
+                    if (x === 0 || x === gameState.cols - 1 || y === 0 || y === gameState.rows - 1) {
+                        gameState.maze[y][x] = 1;
+                    } else if (x % 4 === 0 && y % 4 === 0 && Math.random() > 0.7) {
+                        gameState.maze[y][x] = 1;
+                    }
+                }
+            }
+
+            // Create dots
+            for (let y = 1; y < gameState.rows - 1; y++) {
+                for (let x = 1; x < gameState.cols - 1; x++) {
+                    if (gameState.maze[y][x] === 0 && !(x === 1 && y === 1)) {
+                        if (Math.random() > 0.3) {
+                            gameState.dots.push({ x, y });
+                        }
+                    }
+                }
+            }
+
+            // Create ghosts
+            const centerX = Math.floor(gameState.cols / 2);
+            const centerY = Math.floor(gameState.rows / 2);
+            gameState.ghosts = [
+                { x: centerX, y: centerY, direction: { x: 1, y: 0 }, color: '#FF0000' },
+                { x: centerX + 1, y: centerY, direction: { x: -1, y: 0 }, color: '#FFB6FF' }
+            ];
+
+            function canMoveTo(x, y) {
+                return x >= 0 && x < gameState.cols && y >= 0 && y < gameState.rows && gameState.maze[y][x] === 0;
+            }
+
+            function drawPacmanGame() {
+                if (!gameState.running) return;
+
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Draw maze
+                ctx.fillStyle = '#0000FF';
+                for (let y = 0; y < gameState.rows; y++) {
+                    for (let x = 0; x < gameState.cols; x++) {
+                        if (gameState.maze[y][x] === 1) {
+                            ctx.fillRect(x * gameState.cellSize, y * gameState.cellSize, gameState.cellSize, gameState.cellSize);
+                        }
+                    }
+                }
+
+                // Draw dots
+                ctx.fillStyle = '#FFFF00';
+                gameState.dots.forEach(dot => {
+                    ctx.beginPath();
+                    ctx.arc(
+                        dot.x * gameState.cellSize + gameState.cellSize/2,
+                        dot.y * gameState.cellSize + gameState.cellSize/2,
+                        2, 0, Math.PI * 2
+                    );
+                    ctx.fill();
+                });
+
+                // Draw player
+                ctx.fillStyle = '#FFFF00';
+                ctx.beginPath();
+                ctx.arc(
+                    gameState.player.x * gameState.cellSize + gameState.cellSize/2,
+                    gameState.player.y * gameState.cellSize + gameState.cellSize/2,
+                    gameState.cellSize/2 - 2, 0, Math.PI * 2
+                );
+                ctx.fill();
+
+                // Draw ghosts
+                gameState.ghosts.forEach(ghost => {
+                    ctx.fillStyle = gameState.powerMode ? '#0000FF' : ghost.color;
+                    ctx.fillRect(
+                        ghost.x * gameState.cellSize + 2,
+                        ghost.y * gameState.cellSize + 2,
+                        gameState.cellSize - 4,
+                        gameState.cellSize - 4
+                    );
+                });
+            }
+
+            function updatePacmanGame() {
+                if (!gameState.running || gameState.paused) return;
+
+                // Update player
+                if (canMoveTo(gameState.player.x + gameState.player.nextDirection.x, gameState.player.y + gameState.player.nextDirection.y)) {
+                    gameState.player.direction = { ...gameState.player.nextDirection };
+                }
+
+                if (canMoveTo(gameState.player.x + gameState.player.direction.x, gameState.player.y + gameState.player.direction.y)) {
+                    gameState.player.x += gameState.player.direction.x;
+                    gameState.player.y += gameState.player.direction.y;
+                }
+
+                // Check dot collection
+                const dotIndex = gameState.dots.findIndex(dot => dot.x === gameState.player.x && dot.y === gameState.player.y);
+                if (dotIndex !== -1) {
+                    gameState.dots.splice(dotIndex, 1);
+                    gameState.score += 10;
+                    scoreDisplay.textContent = `Score: ${gameState.score} | Lives: ${gameState.lives}`;
+                    playSound('score');
+                }
+
+                // Update ghosts
+                gameState.ghosts.forEach(ghost => {
+                    if (Math.random() < 0.1) {
+                        const directions = [{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }];
+                        const validDirections = directions.filter(dir => canMoveTo(ghost.x + dir.x, ghost.y + dir.y));
+                        if (validDirections.length > 0) {
+                            ghost.direction = validDirections[Math.floor(Math.random() * validDirections.length)];
+                        }
+                    }
+
+                    if (canMoveTo(ghost.x + ghost.direction.x, ghost.y + ghost.direction.y)) {
+                        ghost.x += ghost.direction.x;
+                        ghost.y += ghost.direction.y;
+                    }
+                });
+
+                // Check ghost collisions
+                gameState.ghosts.forEach(ghost => {
+                    if (ghost.x === gameState.player.x && ghost.y === gameState.player.y) {
+                        if (gameState.powerMode) {
+                            gameState.score += 200;
+                            ghost.x = Math.floor(gameState.cols/2);
+                            ghost.y = Math.floor(gameState.rows/2);
+                        } else {
+                            gameState.lives--;
+                            gameState.player.x = 1;
+                            gameState.player.y = 1;
+                            if (gameState.lives <= 0) {
+                                gameOver();
+                                return;
+                            }
+                        }
+                    }
+                });
+
+                // Win condition
+                if (gameState.dots.length === 0) {
+                    gameState.score += 1000;
+                    scoreDisplay.textContent = `Score: ${gameState.score} | LEVEL COMPLETE!`;
+                    setTimeout(() => gameOver(), 2000);
+                }
+
+                drawPacmanGame();
+                gameState.intervalId = setTimeout(updatePacmanGame, 200);
+            }
+
+            function gameOver() {
+                gameState.running = false;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '20px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(gameState.lives <= 0 ? 'Game Over!' : 'Level Complete!', canvas.width / 2, canvas.height / 2);
+                ctx.fillText(`Final Score: ${gameState.score}`, canvas.width / 2, canvas.height / 2 + 25);
+                ctx.textAlign = 'left';
+            }
+
+            window.currentGameKeyHandler = (e) => {
+                if (!gameState.running || gameState.paused) return;
+                switch(e.key) {
+                    case 'ArrowUp': gameState.player.nextDirection = { x: 0, y: -1 }; break;
+                    case 'ArrowDown': gameState.player.nextDirection = { x: 0, y: 1 }; break;
+                    case 'ArrowLeft': gameState.player.nextDirection = { x: -1, y: 0 }; break;
+                    case 'ArrowRight': gameState.player.nextDirection = { x: 1, y: 0 }; break;
+                }
+                playSound('move');
+            };
+
+            document.addEventListener('keydown', window.currentGameKeyHandler);
+            drawPacmanGame();
+            updatePacmanGame();
+        }
+
+        // Default Preview Game (Simple Movement Demo)
+        function initializeDefaultPreview(canvas, ctx, gameId, scoreDisplay) {
+            const gameState = {
+                running: true,
+                paused: false,
+                score: 0,
+                player: { x: canvas.width / 2 - 15, y: canvas.height / 2 - 15, width: 30, height: 30 },
+                targets: [],
+                particles: []
+            };
+
+            gamePreviewStates[gameId] = gameState;
+
+            // Create targets
+            for (let i = 0; i < 5; i++) {
+                gameState.targets.push({
+                    x: Math.random() * (canvas.width - 20),
+                    y: Math.random() * (canvas.height - 20),
+                    width: 20,
+                    height: 20,
+                    collected: false
+                });
+            }
+
+            function drawDefaultGame() {
+                if (!gameState.running) return;
+
+                // Clear canvas
+                ctx.fillStyle = '#1F2937';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Draw targets
+                ctx.fillStyle = '#10B981';
+                gameState.targets.forEach(target => {
+                    if (!target.collected) {
+                        ctx.fillRect(target.x, target.y, target.width, target.height);
+                    }
+                });
+
+                // Draw player
+                ctx.fillStyle = '#3B82F6';
+                ctx.fillRect(gameState.player.x, gameState.player.y, gameState.player.width, gameState.player.height);
+
+                // Draw particles
+                ctx.fillStyle = '#FBBF24';
+                gameState.particles.forEach(particle => {
+                    ctx.globalAlpha = particle.life / particle.maxLife;
+                    ctx.fillRect(particle.x, particle.y, 3, 3);
+                    ctx.globalAlpha = 1;
+                });
+            }
+
+            function updateDefaultGame() {
+                if (!gameState.running || gameState.paused) return;
+
+                // Update particles
+                gameState.particles = gameState.particles.filter(particle => {
+                    particle.x += particle.vx;
+                    particle.y += particle.vy;
+                    particle.life--;
+                    return particle.life > 0;
+                });
+
+                // Check target collection
+                gameState.targets.forEach(target => {
+                    if (!target.collected &&
+                        gameState.player.x < target.x + target.width &&
+                        gameState.player.x + gameState.player.width > target.x &&
+                        gameState.player.y < target.y + target.height &&
+                        gameState.player.y + gameState.player.height > target.y) {
+                        
+                        target.collected = true;
+                        gameState.score += 100;
+                        scoreDisplay.textContent = `Score: ${gameState.score}`;
+                        
+                        // Create particles
+                        for (let i = 0; i < 8; i++) {
+                            gameState.particles.push({
+                                x: target.x + target.width/2,
+                                y: target.y + target.height/2,
+                                vx: (Math.random() - 0.5) * 8,
+                                vy: (Math.random() - 0.5) * 8,
+                                life: 30,
+                                maxLife: 30
+                            });
+                        }
+                        
+                        playSound('score');
+                    }
+                });
+
+                // Check win condition
+                if (gameState.targets.every(target => target.collected)) {
+                    setTimeout(() => {
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        ctx.fillStyle = '#FFFFFF';
+                        ctx.font = '24px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('All Targets Collected!', canvas.width / 2, canvas.height / 2);
+                        ctx.fillText(`Final Score: ${gameState.score}`, canvas.width / 2, canvas.height / 2 + 30);
+                        ctx.textAlign = 'left';
+                        gameState.running = false;
+                    }, 1000);
+                }
+
+                drawDefaultGame();
+                gameState.animationId = requestAnimationFrame(updateDefaultGame);
+            }
+
+            window.currentGameKeyHandler = (e) => {
+                if (!gameState.running || gameState.paused) return;
+                const speed = 5;
+                switch(e.key) {
+                    case 'ArrowUp':
+                        gameState.player.y = Math.max(0, gameState.player.y - speed);
+                        break;
+                    case 'ArrowDown':
+                        gameState.player.y = Math.min(canvas.height - gameState.player.height, gameState.player.y + speed);
+                        break;
+                    case 'ArrowLeft':
+                        gameState.player.x = Math.max(0, gameState.player.x - speed);
+                        break;
+                    case 'ArrowRight':
+                        gameState.player.x = Math.min(canvas.width - gameState.player.width, gameState.player.x + speed);
+                        break;
+                }
+                playSound('move');
+            };
+
+            document.addEventListener('keydown', window.currentGameKeyHandler);
+            drawDefaultGame();
+            updateDefaultGame();
+        }
+
+        // Chess, Platformer, and Shooter previews (simplified versions)
+        function initializeChessPreview(canvas, ctx, gameId, scoreDisplay) {
+            initializeDefaultPreview(canvas, ctx, gameId, scoreDisplay); // Use default for now
+        }
+
+        function initializePlatformerPreview(canvas, ctx, gameId, scoreDisplay) {
+            initializeDefaultPreview(canvas, ctx, gameId, scoreDisplay); // Use default for now
+        }
+
+        function initializeShooterPreview(canvas, ctx, gameId, scoreDisplay) {
+            initializeDefaultPreview(canvas, ctx, gameId, scoreDisplay); // Use default for now
+        }        function showGameDetails(gameId) {
+            const game = marketplaceGames.find(g => g.id === gameId);
+            if (!game) return;
+
+            const modal = document.getElementById('gameModal');
+            const content = document.getElementById('gameModalContent');
+            
+            content.innerHTML = `
+                <div class="relative">
+                    <button onclick="closeGameModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white z-10">
+                        <i class="fas fa-times text-2xl"></i>
+                    </button>
+                    
+                    <div class="relative">
+                        <img src="${game.image}" alt="${game.title}" class="w-full h-48 object-cover">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
+                        <div class="absolute bottom-4 left-6">
+                            <h1 class="text-2xl font-bold text-white mb-1">${game.title}</h1>
+                            <p class="text-gray-200">By ${game.developer}</p>
+                        </div>
+                    </div>
+
+                    <div class="p-6">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                            <div class="bg-gray-700 rounded-lg p-3 text-center">
+                                <div class="text-yellow-400 font-bold">${game.rating}</div>
+                                <div class="text-gray-400 text-sm">Rating</div>
+                            </div>
+                            <div class="bg-gray-700 rounded-lg p-3 text-center">
+                                <div class="text-purple-400 font-bold">${game.downloads?.toLocaleString() || '0'}</div>
+                                <div class="text-gray-400 text-sm">Downloads</div>
+                            </div>
+                            <div class="bg-gray-700 rounded-lg p-3 text-center">
+                                <div class="text-blue-400 font-bold">${game.fileSize || 'N/A'}</div>
+                                <div class="text-gray-400 text-sm">Size</div>
+                            </div>
+                            <div class="bg-gray-700 rounded-lg p-3 text-center">
+                                <div class="text-green-400 font-bold">${game.price === 0 ? 'Free' : '$' + game.price}</div>
+                                <div class="text-gray-400 text-sm">Price</div>
+                            </div>
+                        </div>
+
+                        <div class="mb-6">
+                            <h3 class="text-xl font-bold text-white mb-3">Description</h3>
+                            <p class="text-gray-300 leading-relaxed">${game.description}</p>
+                        </div>
+
+                        <!-- Game Preview Canvas -->
+                        <div class="mb-6">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="text-xl font-bold text-white">Play Demo</h3>
+                                <div class="flex gap-2">
+                                    <button id="playGameBtn-${game.id}" onclick="startGamePreview(${game.id})" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition">
+                                        <i class="fas fa-play mr-1"></i>Play
+                                    </button>
+                                    <button id="pauseGameBtn-${game.id}" onclick="pauseGamePreview(${game.id})" class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg transition hidden">
+                                        <i class="fas fa-pause mr-1"></i>Pause
+                                    </button>
+                                    <button id="stopGameBtn-${game.id}" onclick="stopGamePreview(${game.id})" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition hidden">
+                                        <i class="fas fa-stop mr-1"></i>Stop
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="bg-gray-800 rounded-lg p-4">
+                                <canvas id="gamePreviewCanvas-${game.id}" class="w-full bg-gray-900 rounded border" width="600" height="400" style="max-width: 100%; height: auto;"></canvas>
+                                <div id="gameInstructions-${game.id}" class="mt-3 text-center text-gray-400 text-sm">
+                                    Click Play to start the demo
+                                </div>
+                                <div id="gameScore-${game.id}" class="mt-2 text-center text-white font-bold hidden">
+                                    Score: 0
+                                </div>
+                            </div>
+                        </div>
+
+                        ${renderGameReviews(game.id)}
+
+                        <div class="flex gap-4 pt-4 border-t border-gray-700">
+                            <button onclick="toggleFavorite(${game.id})" class="flex items-center px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition">
+                                <i class="fas fa-heart mr-2 ${favorites.includes(game.id) ? 'text-red-400' : ''}"></i>
+                                ${favorites.includes(game.id) ? 'Remove from Favorites' : 'Add to Favorites'}
+                            </button>
+                            <button onclick="openRateGameModal(${game.id})" class="flex items-center px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition">
+                                <i class="fas fa-star mr-2"></i>Rate Game
+                            </button>
+                            ${game.price === 0 ? 
+                                `<button onclick="downloadGame(${game.id}); closeGameModal();" class="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition">
+                                    <i class="fas fa-download mr-2"></i>Download Free
+                                </button>` :
+                                `<button onclick="addToCart(${game.id})" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-medium transition">
+                                    <i class="fas fa-shopping-cart mr-2"></i>Add to Cart - $${game.price}
+                                </button>`
+                            }
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeGameModal() {
+            const modal = document.getElementById('gameModal');
+            modal.classList.add('hidden');
+        }
+
+          // Enhanced Platformer Preview Game Implementation
+        function initializePlatformerPreview(canvas, ctx, gameId, scoreDisplay) {
+            const gameState = {
+                running: true,
+                paused: false,
+                score: 0,
+                level: 1,
+                lives: 3,
+                player: {
+                    x: 50,
+                    y: canvas.height - 100,
+                    width: 20,
+                    height: 30,
+                    velocityX: 0,
+                    velocityY: 0,
+                    onGround: false,
+                    speed: 5,
+                    jumpPower: 12,
+                    facingRight: true
+                },
+                platforms: [],
+                enemies: [],
+                coins: [],
+                particles: [],
+                gravity: 0.5,
+                gameCamera: { x: 0, y: 0 },
+                keys: {},
+                lastUpdateTime: 0
+            };
+
+            gamePreviewStates[gameId] = gameState;
+
+            function createPlatforms() {
+                return [
+                    // Ground platforms
+                    { x: 0, y: canvas.height - 20, width: 200, height: 20, type: 'ground' },
+                    { x: 250, y: canvas.height - 20, width: 150, height: 20, type: 'ground' },
+                    { x: 450, y: canvas.height - 20, width: 200, height: 20, type: 'ground' },
+                    
+                    // Floating platforms
+                    { x: 150, y: canvas.height - 120, width: 100, height: 15, type: 'platform' },
+                    { x: 350, y: canvas.height - 180, width: 80, height: 15, type: 'platform' },
+                    { x: 500, y: canvas.height - 250, width: 120, height: 15, type: 'platform' },
+                    { x: 200, y: canvas.height - 300, width: 100, height: 15, type: 'platform' },
+                    
+                    // Higher platforms
+                    { x: 400, y: canvas.height - 350, width: 150, height: 15, type: 'platform' },
+                    { x: 100, y: canvas.height - 400, width: 80, height: 15, type: 'platform' },
+                    
+                    // Moving platforms (simplified - static for now)
+                    { x: 600, y: canvas.height - 200, width: 80, height: 15, type: 'moving' }
+                ];
+            }
+
+            function createEnemies() {
+                return [
+                    { x: 300, y: canvas.height - 50, width: 15, height: 15, velocityX: -1, direction: -1, health: 1, type: 'walker' },
+                    { x: 500, y: canvas.height - 50, width: 15, height: 15, velocityX: 1, direction: 1, health: 1, type: 'walker' },
+                    { x: 180, y: canvas.height - 140, width: 15, height: 15, velocityX: -1, direction: -1, health: 1, type: 'walker' },
+                    { x: 450, y: canvas.height - 270, width: 15, height: 15, velocityX: 1, direction: 1, health: 1, type: 'walker' }
+                ];
+            }
+
+            function createCoins() {
+                return [
+                    { x: 175, y: canvas.height - 140, width: 10, height: 10, collected: false, value: 100 },
+                    { x: 375, y: canvas.height - 200, width: 10, height: 10, collected: false, value: 100 },
+                    { x: 550, y: canvas.height - 270, width: 10, height: 10, collected: false, value: 100 },
+                    { x: 230, y: canvas.height - 320, width: 10, height: 10, collected: false, value: 100 },
+                    { x: 475, y: canvas.height - 370, width: 10, height: 10, collected: false, value: 100 },
+                    { x: 130, y: canvas.height - 420, width: 10, height: 10, collected: false, value: 100 },
+                    // Bonus coins
+                    { x: 320, y: canvas.height - 180, width: 10, height: 10, collected: false, value: 200 },
+                    { x: 220, y: canvas.height - 300, width: 10, height: 10, collected: false, value: 200 }
+                ];
+            }
+
+            function createParticle(x, y, color, velocityX = 0, velocityY = 0) {
+                return {
+                    x: x,
+                    y: y,
+                    velocityX: velocityX + (Math.random() - 0.5) * 4,
+                    velocityY: velocityY + (Math.random() - 0.5) * 4,
+                    life: 30 + Math.random() * 20,
+                    maxLife: 50,
+                    color: color,
+                    size: Math.random() * 3 + 1
+                };
+            }
+
+            // Initialize game objects
+            gameState.platforms = createPlatforms();
+            gameState.enemies = createEnemies();
+            gameState.coins = createCoins();
+
+            function drawPlatformerGame() {
+                if (!gameState.running) return;
+
+                // Sky blue gradient background
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradient.addColorStop(0, '#87CEEB');
+                gradient.addColorStop(1, '#E0F6FF');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Simple clouds
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                for (let i = 0; i < 3; i++) {
+                    const cloudX = (i * 200 + 50 - gameState.gameCamera.x * 0.1) % (canvas.width + 100);
+                    const cloudY = 50 + i * 30;
+                    ctx.beginPath();
+                    ctx.arc(cloudX, cloudY, 20, 0, Math.PI * 2);
+                    ctx.arc(cloudX + 25, cloudY, 25, 0, Math.PI * 2);
+                    ctx.arc(cloudX + 50, cloudY, 20, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Calculate camera offset
+                gameState.gameCamera.x = Math.max(0, gameState.player.x - canvas.width / 2);
+                
+                // Draw platforms
+                gameState.platforms.forEach(platform => {
+                    switch(platform.type) {
+                        case 'ground':
+                            ctx.fillStyle = '#8B4513';
+                            break;
+                        case 'platform':
+                            ctx.fillStyle = '#228B22';
+                            break;
+                        case 'moving':
+                            ctx.fillStyle = '#4169E1';
+                            break;
+                        default:
+                            ctx.fillStyle = '#654321';
+                    }
+                    
+                    ctx.fillRect(
+                        platform.x - gameState.gameCamera.x,
+                        platform.y,
+                        platform.width,
+                        platform.height
+                    );
+                    
+                    // Add platform details
+                    if (platform.type === 'ground') {
+                        ctx.fillStyle = '#90EE90';
+                        ctx.fillRect(
+                            platform.x - gameState.gameCamera.x,
+                            platform.y - 2,
+                            platform.width,
+                            2
+                        );
+                    }
+                });
+                
+                // Draw coins with sparkle effect
+                gameState.coins.forEach(coin => {
+                    if (!coin.collected) {
+                        const coinX = coin.x - gameState.gameCamera.x + coin.width/2;
+                        const coinY = coin.y + coin.height/2;
+                        
+                        // Sparkle animation
+                        const sparkle = Math.sin(Date.now() * 0.01) * 0.3 + 0.7;
+                        ctx.globalAlpha = sparkle;
+                        
+                        // Coin body
+                        ctx.fillStyle = '#FFD700';
+                        ctx.beginPath();
+                        ctx.arc(coinX, coinY, coin.width/2, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // Coin highlight
+                        ctx.fillStyle = '#FFFF99';
+                        ctx.beginPath();
+                        ctx.arc(coinX - 2, coinY - 2, coin.width/4, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        ctx.globalAlpha = 1;
+                        
+                        // Value indicator for bonus coins
+                        if (coin.value > 100) {
+                            ctx.fillStyle = '#FF6347';
+                            ctx.font = '8px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.fillText('★', coinX, coinY + 2);
+                            ctx.textAlign = 'left';
+                        }
+                    }
+                });
+                
+                // Draw enemies with simple AI visualization
+                gameState.enemies.forEach(enemy => {
+                    ctx.fillStyle = '#FF4444';
+                    ctx.fillRect(
+                        enemy.x - gameState.gameCamera.x,
+                        enemy.y,
+                        enemy.width,
+                        enemy.height
+                    );
+                    
+                    // Enemy eyes
+                    ctx.fillStyle = '#FFFFFF';
+                    const eyeSize = 2;
+                    ctx.fillRect(
+                        enemy.x - gameState.gameCamera.x + 2,
+                        enemy.y + 2,
+                        eyeSize,
+                        eyeSize
+                    );
+                    ctx.fillRect(
+                        enemy.x - gameState.gameCamera.x + enemy.width - 4,
+                        enemy.y + 2,
+                        eyeSize,
+                        eyeSize
+                    );
+                    
+                    // Direction indicator
+                    ctx.fillStyle = '#FF0000';
+                    const arrowX = enemy.x - gameState.gameCamera.x + (enemy.direction > 0 ? enemy.width : 0);
+                    ctx.fillRect(arrowX, enemy.y + enemy.height/2, enemy.direction * 3, 1);
+                });
+                
+                // Draw player with animation
+                const playerX = gameState.player.x - gameState.gameCamera.x;
+                const playerY = gameState.player.y;
+                
+                // Player body
+                ctx.fillStyle = '#0066FF';
+                ctx.fillRect(playerX, playerY, gameState.player.width, gameState.player.height);
+                
+                // Player face
+                ctx.fillStyle = '#FFE4B5';
+                ctx.fillRect(playerX + 2, playerY + 2, gameState.player.width - 4, gameState.player.height/3);
+                
+                // Player eyes
+                ctx.fillStyle = '#000000';
+                const eyeOffset = gameState.player.facingRight ? 2 : 0;
+                ctx.fillRect(playerX + 4 + eyeOffset, playerY + 4, 2, 2);
+                ctx.fillRect(playerX + 8 + eyeOffset, playerY + 4, 2, 2);
+                
+                // Movement animation (simple leg movement)
+                if (Math.abs(gameState.player.velocityX) > 0.1) {
+                    const legOffset = Math.sin(Date.now() * 0.02) * 2;
+                    ctx.fillStyle = '#0066FF';
+                    ctx.fillRect(playerX + 2, playerY + gameState.player.height, 4, 5 + legOffset);
+                    ctx.fillRect(playerX + gameState.player.width - 6, playerY + gameState.player.height, 4, 5 - legOffset);
+                }
+                
+                // Draw particles
+                gameState.particles.forEach(particle => {
+                    ctx.fillStyle = particle.color;
+                    ctx.globalAlpha = particle.life / particle.maxLife;
+                    ctx.fillRect(
+                        particle.x - gameState.gameCamera.x,
+                        particle.y,
+                        particle.size,
+                        particle.size
+                    );
+                    ctx.globalAlpha = 1;
+                });
+                
+                // Draw UI
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, canvas.width, 50);
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '16px Arial';
+                ctx.fillText(`Score: ${gameState.score}`, 10, 20);
+                ctx.fillText(`Lives: ${gameState.lives}`, 10, 35);
+                ctx.fillText(`Level: ${gameState.level}`, 150, 20);
+
+                // Show pause overlay
+                if (gameState.paused) {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.font = '24px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2);
+                    ctx.textAlign = 'left';
+                }
+            }
+
+            function updatePlatformerGame(currentTime) {
+                if (!gameState.running) return;
+
+                if (gameState.paused) {
+                    drawPlatformerGame();
+                    gameState.animationId = requestAnimationFrame(updatePlatformerGame);
+                    return;
+                }
+
+                // Handle continuous key presses
+                if (gameState.keys['ArrowLeft'] || gameState.keys['a']) {
+                    gameState.player.velocityX = -gameState.player.speed;
+                    gameState.player.facingRight = false;
+                }
+                if (gameState.keys['ArrowRight'] || gameState.keys['d']) {
+                    gameState.player.velocityX = gameState.player.speed;
+                    gameState.player.facingRight = true;
+                }
+                
+                // Apply gravity
+                gameState.player.velocityY += gameState.gravity;
+                
+                // Update player position
+                gameState.player.x += gameState.player.velocityX;
+                gameState.player.y += gameState.player.velocityY;
+                
+                // Platform collision detection
+                gameState.player.onGround = false;
+                gameState.platforms.forEach(platform => {
+                    if (gameState.player.x < platform.x + platform.width &&
+                        gameState.player.x + gameState.player.width > platform.x &&
+                        gameState.player.y < platform.y + platform.height &&
+                        gameState.player.y + gameState.player.height > platform.y) {
+                        
+                        // Landing on top of platform
+                        if (gameState.player.velocityY > 0 && gameState.player.y < platform.y) {
+                            gameState.player.y = platform.y - gameState.player.height;
+                            gameState.player.velocityY = 0;
+                            gameState.player.onGround = true;
+                        }
+                        // Hitting platform from below
+                        else if (gameState.player.velocityY < 0 && gameState.player.y > platform.y) {
+                            gameState.player.y = platform.y + platform.height;
+                            gameState.player.velocityY = 0;
+                        }
+                        // Side collisions
+                        else if (gameState.player.velocityX > 0) {
+                            gameState.player.x = platform.x - gameState.player.width;
+                            gameState.player.velocityX = 0;
+                        }
+                        else if (gameState.player.velocityX < 0) {
+                            gameState.player.x = platform.x + platform.width;
+                            gameState.player.velocityX = 0;
+                        }
+                    }
+                });
+                
+                // Update enemies
+                gameState.enemies.forEach(enemy => {
+                    enemy.x += enemy.velocityX;
+                    
+                    // Simple AI: reverse direction at platform edges or walls
+                    const platform = gameState.platforms.find(p => 
+                        enemy.x >= p.x - 20 && enemy.x <= p.x + p.width + 20 && 
+                        Math.abs(enemy.y + enemy.height - p.y) < 10
+                    );
+                    
+                    if (platform) {
+                        if (enemy.x <= platform.x + 5 || enemy.x >= platform.x + platform.width - enemy.width - 5) {
+                            enemy.velocityX *= -1;
+                            enemy.direction *= -1;
+                        }
+                    }
+                    
+                    // Keep enemies on platforms
+                    if (!platform) {
+                        enemy.velocityX *= -1;
+                        enemy.direction *= -1;
+                    }
+                });
+                
+                // Coin collection
+                gameState.coins.forEach(coin => {
+                    if (!coin.collected &&
+                        gameState.player.x < coin.x + coin.width &&
+                        gameState.player.x + gameState.player.width > coin.x &&
+                        gameState.player.y < coin.y + coin.height &&
+                        gameState.player.y + gameState.player.height > coin.y) {
+                        
+                        coin.collected = true;
+                        gameState.score += coin.value;
+                        
+                        // Create coin collection particles
+                        for (let i = 0; i < 5; i++) {
+                            gameState.particles.push(createParticle(
+                                coin.x + coin.width/2,
+                                coin.y + coin.height/2,
+                                '#FFD700',
+                                0, -2
+                            ));
+                        }
+                        
+                        playSound('score');
+                    }
+                });
+                
+                // Enemy collision
+                gameState.enemies.forEach((enemy, index) => {
+                    if (gameState.player.x < enemy.x + enemy.width &&
+                        gameState.player.x + gameState.player.width > enemy.x &&
+                        gameState.player.y < enemy.y + enemy.height &&
+                        gameState.player.y + gameState.player.height > enemy.y) {
+                        
+                        // Check if player is jumping on enemy
+                        if (gameState.player.velocityY > 0 && gameState.player.y < enemy.y) {
+                            // Destroy enemy
+                            gameState.enemies.splice(index, 1);
+                            gameState.score += 200;
+                            gameState.player.velocityY = -8; // Bounce
+                            
+                            // Create destruction particles
+                            for (let i = 0; i < 8; i++) {
+                                gameState.particles.push(createParticle(
+                                    enemy.x + enemy.width/2,
+                                    enemy.y + enemy.height/2,
+                                    '#FF4444'
+                                ));
+                            }
+                            
+                            playSound('score');
+                        } else {
+                            // Player takes damage
+                            gameState.lives--;
+                            gameState.player.x = 50;
+                            gameState.player.y = canvas.height - 100;
+                            gameState.player.velocityX = 0;
+                            gameState.player.velocityY = 0;
+                            
+                            // Create damage particles
+                            for (let i = 0; i < 6; i++) {
+                                gameState.particles.push(createParticle(
+                                    gameState.player.x + gameState.player.width/2,
+                                    gameState.player.y + gameState.player.height/2,
+                                    '#FF0000'
+                                ));
+                            }
+                            
+                            playSound('gameOver');
+                            
+                            if (gameState.lives <= 0) {
+                                gameOver();
+                                return;
+                            }
+                        }
+                    }
+                });
+                
+                // Update particles
+                gameState.particles = gameState.particles.filter(particle => {
+                    particle.x += particle.velocityX;
+                    particle.y += particle.velocityY;
+                    particle.velocityX *= 0.98;
+                    particle.velocityY += 0.1; // Gravity
+                    particle.life--;
+                    return particle.life > 0;
+                });
+                
+                // Check if player falls off screen
+                if (gameState.player.y > canvas.height + 50) {
+                    gameState.lives--;
+                    gameState.player.x = 50;
+                    gameState.player.y = canvas.height - 100;
+                    gameState.player.velocityX = 0;
+                    gameState.player.velocityY = 0;
+                    
+                    if (gameState.lives <= 0) {
+                        gameOver();
+                        return;
+                    }
+                }
+                
+                // Check level completion (all coins collected)
+                if (gameState.coins.every(coin => coin.collected)) {
+                    gameState.level++;
+                    gameState.coins = createCoins();
+                    gameState.enemies = createEnemies();
+                    gameState.player.x = 50;
+                    gameState.player.y = canvas.height - 100;
+                    gameState.player.velocityX = 0;
+                    gameState.player.velocityY = 0;
+                    showNotification(`Level ${gameState.level}!`, 'success');
+                    playSound('lineClear');
+                }
+                
+                // Apply friction
+                gameState.player.velocityX *= 0.8;
+                
+                // Update score display
+                if (scoreDisplay) {
+                    const totalCoins = gameState.coins.length;
+                    const collectedCoins = gameState.coins.filter(c => c.collected).length;
+                    scoreDisplay.textContent = `Score: ${gameState.score} | Lives: ${gameState.lives} | Coins: ${collectedCoins}/${totalCoins}`;
+                }
+                
+                drawPlatformerGame();
+                gameState.animationId = requestAnimationFrame(updatePlatformerGame);
+            }
+
+            function gameOver() {
+                gameState.running = false;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Game Over!', canvas.width / 2, canvas.height / 2 - 20);
+                ctx.fillText(`Final Score: ${gameState.score}`, canvas.width / 2, canvas.height / 2 + 10);
+                ctx.fillText(`Level Reached: ${gameState.level}`, canvas.width / 2, canvas.height / 2 + 40);
+                ctx.font = '14px Arial';
+                ctx.fillText('Click Stop and Play again to restart', canvas.width / 2, canvas.height / 2 + 70);
+                ctx.textAlign = 'left';
+            }
+
+            // Enhanced keyboard handling
+            window.currentGameKeyHandler = (e) => {
+                if (!gameState.running) return;
+
+                // Prevent default scrolling
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'w', 'a', 's', 'd'].includes(e.key)) {
+                    e.preventDefault();
+                }
+
+                gameState.keys[e.key] = true;
+
+                // Jump handling
+                if ((e.key === 'ArrowUp' || e.key === ' ' || e.key === 'w') && gameState.player.onGround) {
+                    gameState.player.velocityY = -gameState.player.jumpPower;
+                    playSound('move');
+                }
+            };
+
+            const keyUpHandler = (e) => {
+                gameState.keys[e.key] = false;
+            };
+
+            document.addEventListener('keydown', window.currentGameKeyHandler);
+            document.addEventListener('keyup', keyUpHandler);
+            gameState.keyUpHandler = keyUpHandler;
+
+            if (scoreDisplay) {
+                scoreDisplay.textContent = `Score: 0 | Lives: 3 | Coins: 0/${gameState.coins.length}`;
+            }
+
+            drawPlatformerGame();
+            updatePlatformerGame();
+        }
+
+        // Simple stubs for unimplemented types - now removed since all games are implemented
+        function initializeDefaultPreview(canvas, ctx, gameId, scoreDisplay) {
+            const gameState = {
+                running: true,
+                paused: false,
+                score: 0,
+                player: { x: 50, y: 50 },
+                keys: {}
+            };
+
+            gamePreviewStates[gameId] = gameState;
+
+            function drawDefaultGame() {
+                // Clear canvas with gradient background
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradient.addColorStop(0, '#1F2937');
+                gradient.addColorStop(1, '#374151');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw player as a blue square
+                ctx.fillStyle = '#3B82F6';
+                ctx.fillRect(gameState.player.x, gameState.player.y, 20, 20);
+                
+                // Draw some decorative elements
+                ctx.fillStyle = '#8B5CF6';
+                for (let i = 0; i < 5; i++) {
+                    ctx.fillRect(i * 100 + 80, canvas.height - 40, 20, 20);
+                }
+                
+                // Game info
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '16px Arial';
+                ctx.fillText('Demo Game - Use arrow keys to move', 10, 25);
+                ctx.fillText(`Score: ${gameState.score}`, 10, 45);
+                ctx.fillText('This is a basic movement demo', 10, canvas.height - 20);
+
+                // Show pause overlay
+                if (gameState.paused) {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.font = '24px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2);
+                    ctx.textAlign = 'left';
+                }
+            }
+
+            function updateDefaultGame() {
+                if (!gameState.running) return;
+
+                if (!gameState.paused) {
+                    // Handle movement
+                    if (gameState.keys['ArrowLeft']) {
+                        gameState.player.x = Math.max(0, gameState.player.x - 3);
+                        gameState.score++;
+                    }
+                    if (gameState.keys['ArrowRight']) {
+                        gameState.player.x = Math.min(canvas.width - 20, gameState.player.x + 3);
+                        gameState.score++;
+                    }
+                    if (gameState.keys['ArrowUp']) {
+                        gameState.player.y = Math.max(0, gameState.player.y - 3);
+                        gameState.score++;
+                    }
+                    if (gameState.keys['ArrowDown']) {
+                        gameState.player.y = Math.min(canvas.height - 20, gameState.player.y + 3);
+                        gameState.score++;
+                    }
+
+                    // Update score display
+                    if (scoreDisplay) {
+                        scoreDisplay.textContent = `Score: ${gameState.score} | Movement Demo`;
+                    }
+                }
+
+                drawDefaultGame();
+                gameState.animationId = requestAnimationFrame(updateDefaultGame);
+            }
+
+            window.currentGameKeyHandler = (e) => {
+                if (!gameState.running) return;
+                
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                    e.preventDefault();
+                }
+                
+                gameState.keys[e.key] = true;
+                playSound('move');
+            };
+
+            const keyUpHandler = (e) => {
+                gameState.keys[e.key] = false;
+            };
+
+            document.addEventListener('keydown', window.currentGameKeyHandler);
+            document.addEventListener('keyup', keyUpHandler);
+            gameState.keyUpHandler = keyUpHandler;
+
+            if (scoreDisplay) {
+                scoreDisplay.textContent = 'Score: 0 | Movement Demo';
+            }
+
+            drawDefaultGame();
+            updateDefaultGame();
+        }        // Enhanced Chess Preview Game Implementation
+        function initializeChessPreview(canvas, ctx, gameId, scoreDisplay) {
+            const gameState = {
+                running: true,
+                paused: false,
+                currentPlayer: 'white',
+                selectedSquare: null,
+                selectedPiece: null,
+                gameBoard: createChessBoard(),
+                squareSize: Math.min(canvas.width, canvas.height) / 8,
+                moveHistory: [],
+                gameStatus: 'playing',
+                whiteKingPos: { row: 7, col: 4 },
+                blackKingPos: { row: 0, col: 4 }
+            };
+
+            gamePreviewStates[gameId] = gameState;
+
+            function createChessBoard() {
+                const board = Array(8).fill(null).map(() => Array(8).fill(null));
+                
+                // Place pieces
+                const pieces = {
+                    'r': 'rook', 'n': 'knight', 'b': 'bishop', 'q': 'queen', 
+                    'k': 'king', 'p': 'pawn'
+                };
+                
+                // Black pieces (top)
+                const blackSetup = ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'];
+                for (let i = 0; i < 8; i++) {
+                    board[0][i] = { type: pieces[blackSetup[i]], color: 'black' };
+                    board[1][i] = { type: 'pawn', color: 'black' };
+                }
+                
+                // White pieces (bottom)
+                const whiteSetup = ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'];
+                for (let i = 0; i < 8; i++) {
+                    board[7][i] = { type: pieces[whiteSetup[i]], color: 'white' };
+                    board[6][i] = { type: 'pawn', color: 'white' };
+                }
+                
+                return board;
+            }
+
+            function drawChessBoard() {
+                if (!gameState.running) return;
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw board squares
+                for (let row = 0; row < 8; row++) {
+                    for (let col = 0; col < 8; col++) {
+                        const isLight = (row + col) % 2 === 0;
+                        ctx.fillStyle = isLight ? '#F0D9B5' : '#B58863';
+                        
+                        // Highlight selected square
+                        if (gameState.selectedSquare && gameState.selectedSquare.row === row && gameState.selectedSquare.col === col) {
+                            ctx.fillStyle = '#FFD700';
+                        }
+                        
+                        ctx.fillRect(col * gameState.squareSize, row * gameState.squareSize, gameState.squareSize, gameState.squareSize);
+                        
+                        // Draw piece
+                        const piece = gameState.gameBoard[row][col];
+                        if (piece) {
+                            drawChessPiece(ctx, piece, col * gameState.squareSize, row * gameState.squareSize, gameState.squareSize);
+                        }
+                    }
+                }
+                
+                // Draw game info
+                ctx.fillStyle = '#000000';
+                ctx.font = '14px Arial';
+                ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillText(`${gameState.currentPlayer.toUpperCase()}'s turn - ${gameState.gameStatus}`, 10, canvas.height - 10);
+
+                // Show pause overlay
+                if (gameState.paused) {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.font = '24px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2);
+                    ctx.textAlign = 'left';
+                }
+            }
+
+            function drawChessPiece(ctx, piece, x, y, size) {
+                // Use simple geometric shapes instead of Unicode symbols for better compatibility
+                ctx.fillStyle = piece.color === 'white' ? '#FFFFFF' : '#000000';
+                ctx.strokeStyle = piece.color === 'white' ? '#000000' : '#FFFFFF';
+                ctx.lineWidth = 2;
+                
+                const centerX = x + size/2;
+                const centerY = y + size/2;
+                const pieceSize = size * 0.6;
+                
+                switch(piece.type) {
+                    case 'king':
+                        // Draw crown shape
+                        ctx.fillRect(centerX - pieceSize/3, centerY - pieceSize/4, pieceSize * 2/3, pieceSize/2);
+                        ctx.strokeRect(centerX - pieceSize/3, centerY - pieceSize/4, pieceSize * 2/3, pieceSize/2);
+                        // Crown points
+                        for (let i = 0; i < 3; i++) {
+                            const px = centerX - pieceSize/4 + (i * pieceSize/4);
+                            ctx.fillRect(px - 2, centerY - pieceSize/2, 4, pieceSize/4);
+                        }
+                        break;
+                    case 'queen':
+                        // Draw tall shape with multiple points
+                        ctx.fillRect(centerX - pieceSize/4, centerY - pieceSize/3, pieceSize/2, pieceSize * 2/3);
+                        ctx.strokeRect(centerX - pieceSize/4, centerY - pieceSize/3, pieceSize/2, pieceSize * 2/3);
+                        // Multiple crown points
+                        for (let i = 0; i < 5; i++) {
+                            const px = centerX - pieceSize/3 + (i * pieceSize/6);
+                            const height = i % 2 === 0 ? pieceSize/3 : pieceSize/4;
+                            ctx.fillRect(px - 1, centerY - pieceSize/2, 2, height);
+                        }
+                        break;
+                    case 'rook':
+                        // Draw castle battlement
+                        ctx.fillRect(centerX - pieceSize/3, centerY - pieceSize/4, pieceSize * 2/3, pieceSize/2);
+                        ctx.strokeRect(centerX - pieceSize/3, centerY - pieceSize/4, pieceSize * 2/3, pieceSize/2);
+                        // Battlements
+                        for (let i = 0; i < 3; i++) {
+                            const px = centerX - pieceSize/4 + (i * pieceSize/4);
+                            ctx.clearRect(px - 2, centerY - pieceSize/2, 4, pieceSize/6);
+                        }
+                        break;
+                    case 'bishop':
+                        // Draw pointed hat shape
+                        ctx.beginPath();
+                        ctx.moveTo(centerX, centerY - pieceSize/2);
+                        ctx.lineTo(centerX - pieceSize/4, centerY + pieceSize/4);
+                        ctx.lineTo(centerX + pieceSize/4, centerY + pieceSize/4);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.stroke();
+                        // Small circle at top
+                        ctx.beginPath();
+                        ctx.arc(centerX, centerY - pieceSize/3, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                        break;
+                    case 'knight':
+                        // Draw horse head shape
+                        ctx.beginPath();
+                        ctx.moveTo(centerX - pieceSize/4, centerY + pieceSize/4);
+                        ctx.lineTo(centerX - pieceSize/6, centerY - pieceSize/4);
+                        ctx.lineTo(centerX + pieceSize/6, centerY - pieceSize/6);
+                        ctx.lineTo(centerX + pieceSize/4, centerY);
+                        ctx.lineTo(centerX + pieceSize/6, centerY + pieceSize/4);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.stroke();
+                        break;
+                    case 'pawn':
+                        // Draw simple circle on base
+                        ctx.beginPath();
+                        ctx.arc(centerX, centerY - pieceSize/6, pieceSize/4, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.stroke();
+                        ctx.fillRect(centerX - pieceSize/4, centerY + pieceSize/6, pieceSize/2, pieceSize/8);
+                        ctx.strokeRect(centerX - pieceSize/4, centerY + pieceSize/6, pieceSize/2, pieceSize/8);
+                        break;
+                }
+                
+                // Add piece type label for clarity
+                ctx.fillStyle = piece.color === 'white' ? '#000000' : '#FFFFFF';
+                ctx.font = '8px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(piece.type.charAt(0).toUpperCase(), centerX, y + size - 3);
+                ctx.textAlign = 'left';
+            }
+
+            function isValidMove(fromRow, fromCol, toRow, toCol) {
+                const piece = gameState.gameBoard[fromRow][fromCol];
+                const targetPiece = gameState.gameBoard[toRow][toCol];
+                
+                if (!piece || piece.color !== gameState.currentPlayer) return false;
+                if (targetPiece && targetPiece.color === piece.color) return false;
+                
+                const rowDiff = toRow - fromRow;
+                const colDiff = toCol - fromCol;
+                const absRowDiff = Math.abs(rowDiff);
+                const absColDiff = Math.abs(colDiff);
+                
+                switch (piece.type) {
+                    case 'pawn':
+                        const direction = piece.color === 'white' ? -1 : 1;
+                        if (colDiff === 0) {
+                            if (rowDiff === direction && !targetPiece) return true;
+                            if (rowDiff === 2 * direction && !targetPiece && 
+                                ((piece.color === 'white' && fromRow === 6) || 
+                                 (piece.color === 'black' && fromRow === 1))) return true;
+                        } else if (absColDiff === 1 && rowDiff === direction && targetPiece) {
+                            return true;
+                        }
+                        return false;
+                        
+                    case 'rook':
+                        return (rowDiff === 0 || colDiff === 0) && isPathClear(fromRow, fromCol, toRow, toCol);
+                        
+                    case 'bishop':
+                        return absRowDiff === absColDiff && isPathClear(fromRow, fromCol, toRow, toCol);
+                        
+                    case 'queen':
+                        return (rowDiff === 0 || colDiff === 0 || absRowDiff === absColDiff) && 
+                               isPathClear(fromRow, fromCol, toRow, toCol);
+                        
+                    case 'king':
+                        return absRowDiff <= 1 && absColDiff <= 1;
+                        
+                    case 'knight':
+                        return (absRowDiff === 2 && absColDiff === 1) || (absRowDiff === 1 && absColDiff === 2);
+                }
+                
+                return false;
+            }
+
+            function isPathClear(fromRow, fromCol, toRow, toCol) {
+                const rowStep = toRow > fromRow ? 1 : toRow < fromRow ? -1 : 0;
+                const colStep = toCol > fromCol ? 1 : toCol < fromCol ? -1 : 0;
+                
+                let currentRow = fromRow + rowStep;
+                let currentCol = fromCol + colStep;
+                
+                while (currentRow !== toRow || currentCol !== toCol) {
+                    if (gameState.gameBoard[currentRow][currentCol]) return false;
+                    currentRow += rowStep;
+                    currentCol += colStep;
+                }
+                
+                return true;
+            }
+
+            function makeMove(fromRow, fromCol, toRow, toCol) {
+                const piece = gameState.gameBoard[fromRow][fromCol];
+                const capturedPiece = gameState.gameBoard[toRow][toCol];
+                
+                gameState.moveHistory.push({
+                    from: { row: fromRow, col: fromCol },
+                    to: { row: toRow, col: toCol },
+                    piece: piece,
+                    captured: capturedPiece
+                });
+                
+                gameState.gameBoard[toRow][toCol] = piece;
+                gameState.gameBoard[fromRow][fromCol] = null;
+                
+                // Update king positions
+                if (piece.type === 'king') {
+                    if (piece.color === 'white') {
+                        gameState.whiteKingPos = { row: toRow, col: toCol };
+                    } else {
+                        gameState.blackKingPos = { row: toRow, col: toCol };
+                    }
+                }
+                
+                gameState.currentPlayer = gameState.currentPlayer === 'white' ? 'black' : 'white';
+                
+                if (capturedPiece) {
+                    playSound('score');
+                } else {
+                    playSound('move');
+                }
+                
+                if (scoreDisplay) {
+                    scoreDisplay.textContent = `Move ${gameState.moveHistory.length} | ${gameState.currentPlayer}'s turn`;
+                }
+            }
+
+            // Handle mouse clicks
+            function handleChessClick(event) {
+                if (!gameState.running || gameState.paused) return;
+                
+                const rect = canvas.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+                
+                const col = Math.floor(x / gameState.squareSize);
+                const row = Math.floor(y / gameState.squareSize);
+                
+                if (row < 0 || row >= 8 || col < 0 || col >= 8) return;
+                
+                if (gameState.selectedSquare) {
+                    if (isValidMove(gameState.selectedSquare.row, gameState.selectedSquare.col, row, col)) {
+                        makeMove(gameState.selectedSquare.row, gameState.selectedSquare.col, row, col);
+                    }
+                    gameState.selectedSquare = null;
+                    gameState.selectedPiece = null;
+                } else {
+                    const piece = gameState.gameBoard[row][col];
+                    if (piece && piece.color === gameState.currentPlayer) {
+                        gameState.selectedSquare = { row, col };
+                        gameState.selectedPiece = piece;
+                    }
+                }
+                
+                drawChessBoard();
+            }
+
+            // Event handlers
+            window.currentGameKeyHandler = (e) => {
+                // Chess uses mouse input primarily
+            };
+
+            const clickHandler = handleChessClick;
+            canvas.addEventListener('click', clickHandler);
+            gameState.clickHandler = clickHandler;
+
+            document.addEventListener('keydown', window.currentGameKeyHandler);
+
+            if (scoreDisplay) {
+                scoreDisplay.textContent = `Move 0 | White's turn`;
+            }
+
+            drawChessBoard();
+        }
+
+        // Enhanced Pacman Preview Game Implementation
+        function initializePacmanPreview(canvas, ctx, gameId, scoreDisplay) {
+            const gameState = {
+                running: true,
+                paused: false,
+                score: 0,
+                lives: 3,
+                level: 1,
+                cellSize: 20,
+                cols: Math.floor(canvas.width / 20),
+                rows: Math.floor(canvas.height / 20),
+                player: {
+                    x: 1,
+                    y: 1,
+                    direction: { x: 0, y: 0 },
+                    nextDirection: { x: 0, y: 0 },
+                    mouthOpen: true,
+                    mouthTimer: 0
+                },
+                ghosts: [],
+                maze: [],
+                dots: [],
+                powerPellets: [],
+                powerMode: false,
+                powerModeTimer: 0,
+                lastMoveTime: 0,
+                moveSpeed: 150
+            };
+
+            gamePreviewStates[gameId] = gameState;
+
+            function createMaze() {
+                const maze = Array(gameState.rows).fill(null).map(() => Array(gameState.cols).fill(0));
+                
+                // Create border walls
+                for (let y = 0; y < gameState.rows; y++) {
+                    for (let x = 0; x < gameState.cols; x++) {
+                        if (x === 0 || x === gameState.cols - 1 || y === 0 || y === gameState.rows - 1) {
+                            maze[y][x] = 1;
+                        }
+                        // Create internal maze pattern
+                        else if (x % 4 === 0 && y % 4 === 0 && Math.random() > 0.4) {
+                            maze[y][x] = 1;
+                            if (x + 1 < gameState.cols - 1) maze[y][x + 1] = 1;
+                            if (y + 1 < gameState.rows - 1) maze[y + 1][x] = 1;
+                        }
+                    }
+                }
+                
+                // Ensure player starting area is clear
+                maze[1][1] = 0;
+                maze[1][2] = 0;
+                maze[2][1] = 0;
+                
+                return maze;
+            }
+
+            function createDots() {
+                const dots = [];
+                for (let y = 1; y < gameState.rows - 1; y++) {
+                    for (let x = 1; x < gameState.cols - 1; x++) {
+                        if (gameState.maze[y][x] === 0 && !(x === 1 && y === 1)) {
+                            dots.push({ x, y });
+                        }
+                    }
+                }
+                return dots;
+            }
+
+            function createPowerPellets() {
+                const pellets = [];
+                const corners = [
+                    { x: 2, y: 2 },
+                    { x: gameState.cols - 3, y: 2 },
+                    { x: 2, y: gameState.rows - 3 },
+                    { x: gameState.cols - 3, y: gameState.rows - 3 }
+                ];
+                
+                corners.forEach(corner => {
+                    if (corner.x > 0 && corner.x < gameState.cols && 
+                        corner.y > 0 && corner.y < gameState.rows &&
+                        gameState.maze[corner.y][corner.x] === 0) {
+                        pellets.push(corner);
+                    }
+                });
+                
+                return pellets;
+            }
+
+            function createGhosts() {
+                const centerX = Math.floor(gameState.cols / 2);
+                const centerY = Math.floor(gameState.rows / 2);
+                
+                return [
+                    { x: centerX, y: centerY, direction: { x: 1, y: 0 }, color: '#FF0000', mode: 'chase' },
+                    { x: centerX, y: centerY, direction: { x: -1, y: 0 }, color: '#FFB6FF', mode: 'scatter' },
+                    { x: centerX, y: centerY, direction: { x: 0, y: 1 }, color: '#00FFFF', mode: 'chase' },
+                    { x: centerX, y: centerY, direction: { x: 0, y: -1 }, color: '#FFB852', mode: 'scatter' }
+                ];
+            }
+
+            // Initialize game objects
+            gameState.maze = createMaze();
+            gameState.dots = createDots();
+            gameState.powerPellets = createPowerPellets();
+            gameState.ghosts = createGhosts();
+
+            function drawPacmanGame() {
+                if (!gameState.running) return;
+
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw maze
+                ctx.fillStyle = '#0000FF';
+                for (let y = 0; y < gameState.rows; y++) {
+                    for (let x = 0; x < gameState.cols; x++) {
+                        if (gameState.maze[y][x] === 1) {
+                            ctx.fillRect(x * gameState.cellSize, y * gameState.cellSize, 
+                                       gameState.cellSize, gameState.cellSize);
+                        }
+                    }
+                }
+                
+                // Draw dots
+                ctx.fillStyle = '#FFFF00';
+                gameState.dots.forEach(dot => {
+                    ctx.beginPath();
+                    ctx.arc(
+                        dot.x * gameState.cellSize + gameState.cellSize/2, 
+                        dot.y * gameState.cellSize + gameState.cellSize/2, 
+                        2, 0, Math.PI * 2
+                    );
+                    ctx.fill();
+                });
+                
+                // Draw power pellets
+                ctx.fillStyle = '#FFFFFF';
+                gameState.powerPellets.forEach(pellet => {
+                    const pulseSize = Math.sin(Date.now() * 0.01) * 2 + 6;
+                    ctx.beginPath();
+                    ctx.arc(
+                        pellet.x * gameState.cellSize + gameState.cellSize/2, 
+                        pellet.y * gameState.cellSize + gameState.cellSize/2, 
+                        pulseSize, 0, Math.PI * 2
+                    );
+                    ctx.fill();
+                });
+                
+                // Draw player (Pacman)
+                ctx.fillStyle = '#FFFF00';
+                const px = gameState.player.x * gameState.cellSize + gameState.cellSize/2;
+                const py = gameState.player.y * gameState.cellSize + gameState.cellSize/2;
+                const radius = gameState.cellSize/2 - 2;
+                
+                if (gameState.player.mouthOpen) {
+                    // Draw Pacman with mouth
+                    const angle = Math.atan2(gameState.player.direction.y, gameState.player.direction.x);
+                    ctx.beginPath();
+                    ctx.arc(px, py, radius, angle + 0.2, angle - 0.2);
+                    ctx.lineTo(px, py);
+                    ctx.fill();
+                } else {
+                    // Draw closed circle
+                    ctx.beginPath();
+                    ctx.arc(px, py, radius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Draw ghosts
+                gameState.ghosts.forEach(ghost => {
+                    ctx.fillStyle = gameState.powerMode ? '#0000FF' : ghost.color;
+                    const gx = ghost.x * gameState.cellSize + 2;
+                    const gy = ghost.y * gameState.cellSize + 2;
+                    const gsize = gameState.cellSize - 4;
+                    
+                    // Ghost body
+                    ctx.fillRect(gx, gy, gsize, gsize);
+                    
+                    // Ghost eyes
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(gx + 4, gy + 4, 3, 3);
+                    ctx.fillRect(gx + gsize - 7, gy + 4, 3, 3);
+                    
+                    // Eye pupils
+                    ctx.fillStyle = '#000000';
+                    ctx.fillRect(gx + 5, gy + 5, 1, 1);
+                    ctx.fillRect(gx + gsize - 6, gy + 5, 1, 1);
+                });
+                
+                // Draw UI
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '14px Arial';
+                ctx.fillText(`Score: ${gameState.score}`, 5, 15);
+                ctx.fillText(`Lives: ${gameState.lives}`, 5, 30);
+                ctx.fillText(`Level: ${gameState.level}`, 5, 45);
+
+                // Show pause overlay
+                if (gameState.paused) {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.font = '24px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2);
+                    ctx.textAlign = 'left';
+                }
+            }
+
+            function canMoveTo(x, y) {
+                return x >= 0 && x < gameState.cols && y >= 0 && y < gameState.rows && 
+                       gameState.maze[y][x] === 0;
+            }
+
+            function updatePacmanGame() {
+                if (!gameState.running) return;
+
+                const currentTime = Date.now();
+                
+                if (gameState.paused) {
+                    drawPacmanGame();
+                    gameState.animationId = requestAnimationFrame(updatePacmanGame);
+                    return;
+                }
+
+                // Animate mouth
+                gameState.player.mouthTimer++;
+                if (gameState.player.mouthTimer > 10) {
+                    gameState.player.mouthOpen = !gameState.player.mouthOpen;
+                    gameState.player.mouthTimer = 0;
+                }
+                
+                // Move player
+                if (currentTime - gameState.lastMoveTime > gameState.moveSpeed) {
+                    gameState.lastMoveTime = currentTime;
+                    
+                    // Try to change direction
+                    if (canMoveTo(gameState.player.x + gameState.player.nextDirection.x, 
+                                  gameState.player.y + gameState.player.nextDirection.y)) {
+                        gameState.player.direction = { ...gameState.player.nextDirection };
+                    }
+                    
+                    // Move in current direction
+                    if (canMoveTo(gameState.player.x + gameState.player.direction.x, 
+                                  gameState.player.y + gameState.player.direction.y)) {
+                        gameState.player.x += gameState.player.direction.x;
+                        gameState.player.y += gameState.player.direction.y;
+                    }
+                }
+                
+                // Check dot collection
+                const dotIndex = gameState.dots.findIndex(dot => 
+                    dot.x === gameState.player.x && dot.y === gameState.player.y);
+                if (dotIndex !== -1) {
+                    gameState.dots.splice(dotIndex, 1);
+                    gameState.score += 10;
+                    playSound('score');
+                }
+                
+                // Check power pellet collection
+                const pelletIndex = gameState.powerPellets.findIndex(pellet => 
+                    pellet.x === gameState.player.x && pellet.y === gameState.player.y);
+                if (pelletIndex !== -1) {
+                    gameState.powerPellets.splice(pelletIndex, 1);
+                    gameState.score += 50;
+                    gameState.powerMode = true;
+                    gameState.powerModeTimer = 300; // ~5 seconds
+                    playSound('lineClear');
+                }
+                
+                // Update power mode
+                if (gameState.powerMode) {
+                    gameState.powerModeTimer--;
+                    if (gameState.powerModeTimer <= 0) {
+                        gameState.powerMode = false;
+                    }
+                }
+                
+                // Update ghosts
+                gameState.ghosts.forEach(ghost => {
+                    if (Math.random() < 0.1) {
+                        const directions = [
+                            { x: 0, y: -1 }, { x: 1, y: 0 }, 
+                            { x: 0, y: 1 }, { x: -1, y: 0 }
+                        ];
+                        const validDirections = directions.filter(dir => 
+                            canMoveTo(ghost.x + dir.x, ghost.y + dir.y));
+                        
+                        if (validDirections.length > 0) {
+                            ghost.direction = validDirections[Math.floor(Math.random() * validDirections.length)];
+                        }
+                    }
+                    
+                    if (canMoveTo(ghost.x + ghost.direction.x, ghost.y + ghost.direction.y)) {
+                        ghost.x += ghost.direction.x;
+                        ghost.y += ghost.direction.y;
+                    } else {
+                        ghost.direction.x *= -1;
+                        ghost.direction.y *= -1;
+                    }
+                });
+                
+                // Check ghost collisions
+                gameState.ghosts.forEach(ghost => {
+                    if (ghost.x === gameState.player.x && ghost.y === gameState.player.y) {
+                        if (gameState.powerMode) {
+                            gameState.score += 200;
+                            ghost.x = Math.floor(gameState.cols/2);
+                            ghost.y = Math.floor(gameState.rows/2);
+                            playSound('score');
+                        } else {
+                            gameState.lives--;
+                            gameState.player.x = 1;
+                            gameState.player.y = 1;
+                            gameState.player.direction = { x: 0, y: 0 };
+                            playSound('gameOver');
+                            
+                            if (gameState.lives <= 0) {
+                                gameOver();
+                                return;
+                            }
+                        }
+                    }
+                });
+                
+                // Check win condition
+                if (gameState.dots.length === 0) {
+                    gameState.level++;
+                    gameState.maze = createMaze();
+                    gameState.dots = createDots();
+                    gameState.powerPellets = createPowerPellets();
+                    gameState.player.x = 1;
+                    gameState.player.y = 1;
+                    gameState.player.direction = { x: 0, y: 0 };
+                    gameState.moveSpeed = Math.max(100, gameState.moveSpeed - 10);
+                    playSound('lineClear');
+                }
+                
+                if (scoreDisplay) {
+                    scoreDisplay.textContent = `Score: ${gameState.score} | Lives: ${gameState.lives} | Level: ${gameState.level}`;
+                }
+                
+                drawPacmanGame();
+                gameState.animationId = requestAnimationFrame(updatePacmanGame);
+            }
+
+            function gameOver() {
+                gameState.running = false;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Game Over!', canvas.width / 2, canvas.height / 2 - 20);
+                ctx.fillText(`Final Score: ${gameState.score}`, canvas.width / 2, canvas.height / 2 + 10);
+                ctx.fillText(`Level Reached: ${gameState.level}`, canvas.width / 2, canvas.height / 2 + 40);
+                ctx.font = '14px Arial';
+                ctx.fillText('Click Stop and Play again to restart', canvas.width / 2, canvas.height / 2 + 70);
+                ctx.textAlign = 'left';
+            }
+
+            window.currentGameKeyHandler = (e) => {
+                if (!gameState.running || gameState.paused) return;
+                
+                // Prevent default for arrow keys
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                    e.preventDefault();
+                }
+                
+                switch(e.key) {
+                    case 'ArrowUp': 
+                        gameState.player.nextDirection = { x: 0, y: -1 }; 
+                        break;
+                    case 'ArrowDown': 
+                        gameState.player.nextDirection = { x: 0, y: 1 }; 
+                        break;
+                    case 'ArrowLeft': 
+                        gameState.player.nextDirection = { x: -1, y: 0 }; 
+                        break;
+                    case 'ArrowRight': 
+                        gameState.player.nextDirection = { x: 1, y: 0 }; 
+                        break;
+                }
+                playSound('move');
+            };
+
+            document.addEventListener('keydown', window.currentGameKeyHandler);
+
+            if (scoreDisplay) {
+                scoreDisplay.textContent = `Score: 0 | Lives: 3 | Level: 1`;
+            }
+
+            drawPacmanGame();
+            updatePacmanGame();
+        }
+    </script>
+</body>
+</html>

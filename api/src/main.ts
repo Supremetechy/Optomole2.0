@@ -72,6 +72,11 @@ async function bootstrap() {
   const browserEngineRoot = path.resolve(process.cwd(), config.browserEnginePath);
   app.use('/v1/browser-engine', express.static(browserEngineRoot));
 
+  // GameDuplicator, served so it can share the gateway origin in a standalone /
+  // prod deploy (the Vite dev server serves it at /gameduplicator for local dev).
+  const gameDuplicatorRoot = path.resolve(process.cwd(), config.gameDuplicatorPath);
+  app.use('/v1/gameduplicator', express.static(gameDuplicatorRoot));
+
   const swagger = new DocumentBuilder()
     .setTitle('Optimole API Gateway')
     .setDescription('Experience Fabric gateway for AI generation, build queues, engine workers, and playable launch sessions.')

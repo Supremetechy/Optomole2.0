@@ -23,6 +23,8 @@ export interface ExperiencePackage {
     genre?: unknown;
     outputType?: unknown;
     outputExperience?: unknown;
+    /** The favorite game this experience was modeled off, when the user chose one. */
+    modeledAfter?: unknown;
     world?: unknown;
   };
   source?: SourcePayload;

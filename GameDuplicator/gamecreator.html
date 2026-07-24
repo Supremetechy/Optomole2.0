@@ -1,0 +1,1447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Generator - GameDupe Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .game-canvas {
+            border: 2px solid #4B5563;
+            background: #1F2937;
+        }
+        .step-active {
+            background: linear-gradient(135deg, #8B5CF6, #A855F7);
+        }
+        .step-completed {
+            background: linear-gradient(135deg, #10B981, #059669);
+        }
+        .game-preview {
+            min-height: 400px;
+            background: linear-gradient(45deg, #1F2937, #374151);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <!-- Header -->
+    <header class="bg-gray-800 shadow-lg">
+        <div class="container mx-auto px-4 py-6">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-magic text-3xl text-purple-500"></i>
+                    <h1 class="text-2xl font-bold">Game <span class="text-purple-500">Generator</span></h1>
+                </div>
+                <button onclick="goBack()" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg transition">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to Main
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-4 py-8">
+        <!-- Progress Steps -->
+        <div class="mb-8">
+            <div class="flex justify-between items-center">
+                <div id="step1" class="step-active flex-1 mx-2 p-4 rounded-lg text-center transition">
+                    <i class="fas fa-pencil-alt text-2xl mb-2"></i>
+                    <div class="font-bold">1. Describe</div>
+                    <div class="text-sm opacity-75">Game Concept</div>
+                </div>
+                <div id="step2" class="bg-gray-700 flex-1 mx-2 p-4 rounded-lg text-center transition">
+                    <i class="fas fa-cogs text-2xl mb-2"></i>
+                    <div class="font-bold">2. Configure</div>
+                    <div class="text-sm opacity-75">Rules & Mechanics</div>
+                </div>
+                <div id="step3" class="bg-gray-700 flex-1 mx-2 p-4 rounded-lg text-center transition">
+                    <i class="fas fa-palette text-2xl mb-2"></i>
+                    <div class="font-bold">3. Design</div>
+                    <div class="text-sm opacity-75">Visual & Audio</div>
+                </div>
+                <div id="step4" class="bg-gray-700 flex-1 mx-2 p-4 rounded-lg text-center transition">
+                    <i class="fas fa-play text-2xl mb-2"></i>
+                    <div class="font-bold">4. Generate</div>
+                    <div class="text-sm opacity-75">Create & Test</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content Panels -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Input Panel -->
+            <div class="bg-gray-800 rounded-xl p-6">
+                <!-- Step 1: Game Description -->
+                <div id="panel1" class="step-panel">
+                    <h2 class="text-2xl font-bold mb-6">Describe Your Game</h2>
+                    
+                    <!-- Quick Templates -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-3">Quick Start Templates</h3>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button onclick="loadTemplate('chess')" class="bg-gray-700 hover:bg-gray-600 p-3 rounded-lg text-left transition">
+                                <div class="font-bold">Chess-like</div>
+                                <div class="text-sm text-gray-400">Turn-based strategy</div>
+                            </button>
+                            <button onclick="loadTemplate('pacman')" class="bg-gray-700 hover:bg-gray-600 p-3 rounded-lg text-left transition">
+                                <div class="font-bold">Pacman-like</div>
+                                <div class="text-sm text-gray-400">Maze collection</div>
+                            </button>
+                            <button onclick="loadTemplate('tetris')" class="bg-gray-700 hover:bg-gray-600 p-3 rounded-lg text-left transition">
+                                <div class="font-bold">Tetris-like</div>
+                                <div class="text-sm text-gray-400">Falling blocks puzzle</div>
+                            </button>
+                            <button onclick="loadTemplate('snake')" class="bg-gray-700 hover:bg-gray-600 p-3 rounded-lg text-left transition">
+                                <div class="font-bold">Snake-like</div>
+                                <div class="text-sm text-gray-400">Growing character</div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Game Description Form -->
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block font-medium mb-2">Game Name</label>
+                            <input type="text" id="gameName" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Enter your game name">
+                        </div>
+
+                        <div>
+                            <label class="block font-medium mb-2">Game Type</label>
+                            <select id="gameType" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                <option value="strategy">Strategy (Chess, Checkers)</option>
+                                <option value="arcade">Arcade (Pacman, Space Invaders)</option>
+                                <option value="puzzle">Puzzle (Tetris, Match-3)</option>
+                                <option value="action">Action (Snake, Frogger)</option>
+                                <option value="platformer">Platformer (Mario-like)</option>
+                                <option value="shooter">Shooter (Space shooter)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block font-medium mb-2">Game Description</label>
+                            <textarea id="gameDescription" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 h-32 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Describe your game concept, mechanics, and objective..."></textarea>
+                        </div>
+
+                        <div>
+                            <label class="block font-medium mb-2">Main Objective</label>
+                            <input type="text" id="gameObjective" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="What is the main goal of the game?">
+                        </div>
+                    </div>
+
+                    <button onclick="nextStep()" class="w-full mt-6 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition">
+                        Next: Configure Rules
+                    </button>
+                </div>
+
+                <!-- Step 2: Game Configuration -->
+                <div id="panel2" class="step-panel hidden">
+                    <h2 class="text-2xl font-bold mb-6">Configure Game Rules</h2>
+                    
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block font-medium mb-2">Board/Playing Field</label>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm mb-1">Width</label>
+                                    <input type="number" id="boardWidth" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2" value="8" min="3" max="20">
+                                </div>
+                                <div>
+                                    <label class="block text-sm mb-1">Height</label>
+                                    <input type="number" id="boardHeight" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2" value="8" min="3" max="20">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block font-medium mb-2">Game Pieces/Characters</label>
+                            <div id="gameCharacters">
+                                <div class="bg-gray-700 rounded-lg p-4 mb-3">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <input type="text" placeholder="Character name" class="bg-gray-600 rounded px-3 py-2 flex-1 mr-3">
+                                        <button onclick="removeCharacter(this)" class="text-red-400 hover:text-red-300">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                    <textarea placeholder="Describe movement rules and abilities..." class="w-full bg-gray-600 rounded px-3 py-2 h-20 text-sm"></textarea>
+                                </div>
+                            </div>
+                            <button onclick="addCharacter()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition">
+                                <i class="fas fa-plus mr-2"></i>Add Character
+                            </button>
+                        </div>
+
+                        <div>
+                            <label class="block font-medium mb-2">Win Conditions</label>
+                            <textarea id="winConditions" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 h-24" placeholder="How does a player win the game?"></textarea>
+                        </div>
+
+                        <div>
+                            <label class="block font-medium mb-2">Game Rules</label>
+                            <textarea id="gameRules" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 h-32" placeholder="Describe the detailed rules and mechanics..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4 mt-6">
+                        <button onclick="previousStep()" class="flex-1 bg-gray-600 hover:bg-gray-500 text-white px-6 py-3 rounded-lg transition">
+                            <i class="fas fa-arrow-left mr-2"></i>Previous
+                        </button>
+                        <button onclick="nextStep()" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg transition">
+                            Next: Design
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 3: Visual Design -->
+                <div id="panel3" class="step-panel hidden">
+                    <h2 class="text-2xl font-bold mb-6">Design Visuals & Audio</h2>
+                    
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block font-medium mb-2">Visual Style</label>
+                            <select id="visualStyle" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3">
+                                <option value="retro">Retro/Pixel Art</option>
+                                <option value="modern">Modern/Clean</option>
+                                <option value="minimalist">Minimalist</option>
+                                <option value="cartoon">Cartoon</option>
+                                <option value="realistic">Realistic</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block font-medium mb-2">Color Scheme</label>
+                            <div class="grid grid-cols-3 gap-3">
+                                <button onclick="selectColorScheme('blue')" class="color-scheme bg-blue-600 hover:bg-blue-500 p-3 rounded-lg text-center">
+                                    Blue Theme
+                                </button>
+                                <button onclick="selectColorScheme('green')" class="color-scheme bg-green-600 hover:bg-green-500 p-3 rounded-lg text-center">
+                                    Green Theme
+                                </button>
+                                <button onclick="selectColorScheme('purple')" class="color-scheme bg-purple-600 hover:bg-purple-500 p-3 rounded-lg text-center">
+                                    Purple Theme
+                                </button>
+                                <button onclick="selectColorScheme('red')" class="color-scheme bg-red-600 hover:bg-red-500 p-3 rounded-lg text-center">
+                                    Red Theme
+                                </button>
+                                <button onclick="selectColorScheme('orange')" class="color-scheme bg-orange-600 hover:bg-orange-500 p-3 rounded-lg text-center">
+                                    Orange Theme
+                                </button>
+                                <button onclick="selectColorScheme('dark')" class="color-scheme bg-gray-800 hover:bg-gray-700 p-3 rounded-lg text-center border border-gray-600">
+                                    Dark Theme
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block font-medium mb-2">Sound Effects</label>
+                            <div class="space-y-3">
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="soundMove" class="mr-3" checked>
+                                    Movement sounds
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="soundScore" class="mr-3" checked>
+                                    Scoring sounds
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="soundWin" class="mr-3" checked>
+                                    Victory sounds
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="backgroundMusic" class="mr-3">
+                                    Background music
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block font-medium mb-2">Animation Speed</label>
+                            <input type="range" id="animationSpeed" class="w-full" min="1" max="10" value="5">
+                            <div class="flex justify-between text-sm text-gray-400">
+                                <span>Slow</span>
+                                <span>Fast</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4 mt-6">
+                        <button onclick="previousStep()" class="flex-1 bg-gray-600 hover:bg-gray-500 text-white px-6 py-3 rounded-lg transition">
+                            <i class="fas fa-arrow-left mr-2"></i>Previous
+                        </button>
+                        <button onclick="nextStep()" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg transition">
+                            Generate Game
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 4: Generation -->
+                <div id="panel4" class="step-panel hidden">
+                    <h2 class="text-2xl font-bold mb-6">Generate Your Game</h2>
+                    
+                    <div id="generationStatus" class="space-y-4 mb-6">
+                        <div class="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
+                            <span>Analyzing game concept...</span>
+                            <i class="fas fa-spinner fa-spin text-purple-400"></i>
+                        </div>
+                    </div>
+
+                    <div id="generationProgress" class="mb-6">
+                        <div class="bg-gray-700 rounded-full h-4">
+                            <div id="progressBar" class="bg-purple-600 h-4 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                        <div class="text-center mt-2">
+                            <span id="progressText">0%</span>
+                        </div>
+                    </div>
+
+                    <div class="text-center">
+                        <button id="generateBtn" onclick="generateGame()" class="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-lg font-bold text-lg transition">
+                            <i class="fas fa-magic mr-2"></i>Start Generation
+                        </button>
+                    </div>
+
+                    <div id="generationComplete" class="hidden text-center mt-6">
+                        <div class="bg-green-600 text-white p-4 rounded-lg mb-4">
+                            <i class="fas fa-check-circle text-2xl mb-2"></i>
+                            <div class="font-bold">Game Generated Successfully!</div>
+                        </div>
+                        <div class="flex gap-4">
+                            <button onclick="testGame()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition">
+                                <i class="fas fa-play mr-2"></i>Test Game
+                            </button>
+                            <button onclick="saveGame()" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg transition">
+                                <i class="fas fa-save mr-2"></i>Save Game
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview Panel -->
+            <div class="bg-gray-800 rounded-xl p-6">
+                <h2 class="text-2xl font-bold mb-6">Live Preview</h2>
+                
+                <div id="gamePreview" class="game-preview rounded-lg p-6 mb-6">
+                    <div class="text-center text-gray-400">
+                        <i class="fas fa-gamepad text-6xl mb-4"></i>
+                        <h3 class="text-xl font-bold mb-2">Game Preview</h3>
+                        <p>Your game will appear here as you build it</p>
+                    </div>
+                </div>
+
+                <!-- Game Canvas (will be populated during generation) -->
+                <canvas id="gameCanvas" class="w-full game-canvas rounded-lg hidden" width="400" height="400"></canvas>
+
+                <!-- Game Info -->
+                <div id="gameInfo" class="space-y-4">
+                    <div>
+                        <h4 class="font-bold">Game Summary:</h4>
+                        <p id="gameSummary" class="text-gray-400">Configure your game to see a summary</p>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-bold">Estimated Features:</h4>
+                        <ul id="featureList" class="text-gray-400 list-disc list-inside">
+                            <li>Game board/field generation</li>
+                            <li>Player movement system</li>
+                            <li>Game rules implementation</li>
+                            <li>Win condition detection</li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <h4 class="font-bold">Technical Specs:</h4>
+                        <div id="techSpecs" class="text-gray-400 text-sm">
+                            <div>Engine: HTML5 Canvas</div>
+                            <div>Language: JavaScript</div>
+                            <div>Controls: Keyboard/Mouse</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Test Modal -->
+    <div id="gameTestModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-gray-800 rounded-xl max-w-4xl w-full max-h-screen overflow-y-auto">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-white">Test Your Game</h2>
+                        <button onclick="closeTestModal()" class="text-gray-400 hover:text-white">
+                            <i class="fas fa-times text-2xl"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Game Area -->
+                        <div class="lg:col-span-2">
+                            <div class="bg-gray-900 rounded-lg p-4 mb-4">
+                                <canvas id="testGameCanvas" class="w-full border-2 border-gray-600 rounded" width="600" height="400"></canvas>
+                            </div>
+                            
+                            <!-- Game Controls -->
+                            <div class="flex gap-4 mb-4">
+                                <button id="startTestBtn" onclick="startTestGame()" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded transition">
+                                    <i class="fas fa-play mr-2"></i>Start
+                                </button>
+                                <button id="pauseTestBtn" onclick="pauseTestGame()" class="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded transition">
+                                    <i class="fas fa-pause mr-2"></i>Pause
+                                </button>
+                                <button id="resetTestBtn" onclick="resetTestGame()" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded transition">
+                                    <i class="fas fa-redo mr-2"></i>Reset
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Game Stats & Info -->
+                        <div>
+                            <div class="bg-gray-700 rounded-lg p-4 mb-4">
+                                <h3 class="font-bold mb-3">Game Stats</h3>
+                                <div class="space-y-2 text-sm">
+                                    <div class="flex justify-between">
+                                        <span>Score:</span>
+                                        <span id="testScore">0</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Level:</span>
+                                        <span id="testLevel">1</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Time:</span>
+                                        <span id="testTime">00:00</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-gray-700 rounded-lg p-4 mb-4">
+                                <h3 class="font-bold mb-3">Controls</h3>
+                                <div id="gameControls" class="text-sm text-gray-300">
+                                    <!-- Will be populated based on game type -->
+                                </div>
+                            </div>
+
+                            <div class="bg-gray-700 rounded-lg p-4">
+                                <h3 class="font-bold mb-3">Objective</h3>
+                                <p id="gameObjectiveDisplay" class="text-sm text-gray-300">
+                                    <!-- Will show the game objective -->
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game generation state
+        let currentStep = 1;
+        let gameConfig = {};
+        let generatedGame = null;
+        let testGame = null;
+        let selectedColorScheme = 'blue';
+
+        // Game templates
+        const gameTemplates = {
+            chess: {
+                name: "Chess Master",
+                type: "strategy",
+                description: "A classic chess game with traditional rules. Players take turns moving pieces to capture the opponent's king.",
+                objective: "Checkmate the opponent's king",
+                boardWidth: 8,
+                boardHeight: 8,
+                characters: [
+                    { name: "King", rules: "Moves one square in any direction" },
+                    { name: "Queen", rules: "Moves any number of squares in any direction" },
+                    { name: "Rook", rules: "Moves horizontally or vertically any distance" },
+                    { name: "Bishop", rules: "Moves diagonally any distance" },
+                    { name: "Knight", rules: "Moves in L-shape: 2+1 squares" },
+                    { name: "Pawn", rules: "Moves forward one square, captures diagonally" }
+                ],
+                winConditions: "Checkmate the opponent's king",
+                rules: "Traditional chess rules apply. Players alternate turns. Check must be resolved immediately."
+            },
+            pacman: {
+                name: "Maze Runner",
+                type: "arcade",
+                description: "Navigate through a maze collecting dots while avoiding enemies. Clear all dots to advance to the next level.",
+                objective: "Collect all dots while avoiding ghosts",
+                boardWidth: 19,
+                boardHeight: 21,
+                characters: [
+                    { name: "Player", rules: "Moves through maze paths, collects dots" },
+                    { name: "Ghost", rules: "Chases player, causes game over on contact" },
+                    { name: "Power Pellet", rules: "Temporarily makes ghosts vulnerable" }
+                ],
+                winConditions: "Collect all dots in the maze",
+                rules: "Move through maze collecting dots. Avoid ghosts. Power pellets make ghosts edible temporarily."
+            },
+            tetris: {
+                name: "Block Puzzle",
+                type: "puzzle",
+                description: "Falling blocks must be arranged to form complete lines. Lines clear when filled completely.",
+                objective: "Clear lines by filling rows completely",
+                boardWidth: 10,
+                boardHeight: 20,
+                characters: [
+                    { name: "I-Block", rules: "4-square straight line piece" },
+                    { name: "O-Block", rules: "2x2 square piece" },
+                    { name: "T-Block", rules: "T-shaped piece" },
+                    { name: "L-Block", rules: "L-shaped piece" },
+                    { name: "J-Block", rules: "Reverse L-shaped piece" },
+                    { name: "S-Block", rules: "S-shaped piece" },
+                    { name: "Z-Block", rules: "Z-shaped piece" }
+                ],
+                winConditions: "Survive as long as possible, clear lines for points",
+                rules: "Blocks fall from top. Rotate and move them to form complete lines. Game ends when blocks reach the top."
+            },
+            snake: {
+                name: "Snake Game",
+                type: "action",
+                description: "Control a growing snake to collect food. The snake grows longer with each food eaten. Don't hit walls or yourself!",
+                objective: "Grow the snake as long as possible without hitting obstacles",
+                boardWidth: 20,
+                boardHeight: 15,
+                characters: [
+                    { name: "Snake", rules: "Moves continuously, grows when eating food" },
+                    { name: "Food", rules: "Randomly appears, increases snake length when eaten" }
+                ],
+                winConditions: "Achieve the highest score possible",
+                rules: "Snake moves continuously. Eat food to grow. Avoid hitting walls or snake body. Speed increases over time."
+            }
+        };
+
+        // Initialize page
+        function goBack() {
+            window.history.back();
+        }
+
+        // Template loading
+        function loadTemplate(templateName) {
+            const template = gameTemplates[templateName];
+            if (!template) return;
+
+            document.getElementById('gameName').value = template.name;
+            document.getElementById('gameType').value = template.type;
+            document.getElementById('gameDescription').value = template.description;
+            document.getElementById('gameObjective').value = template.objective;
+            
+            updatePreview();
+            showNotification(`Loaded ${template.name} template!`, 'success');
+        }
+
+        // Step navigation
+        function nextStep() {
+            if (validateCurrentStep()) {
+                currentStep++;
+                updateStepDisplay();
+                updatePreview();
+            }
+        }
+
+        function previousStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                updateStepDisplay();
+            }
+        }
+
+        function updateStepDisplay() {
+            // Hide all panels
+            for (let i = 1; i <= 4; i++) {
+                document.getElementById(`panel${i}`).classList.add('hidden');
+                const stepEl = document.getElementById(`step${i}`);
+                stepEl.className = 'bg-gray-700 flex-1 mx-2 p-4 rounded-lg text-center transition';
+            }
+
+            // Show current panel
+            document.getElementById(`panel${currentStep}`).classList.remove('hidden');
+            
+            // Update step indicators
+            for (let i = 1; i <= 4; i++) {
+                const stepEl = document.getElementById(`step${i}`);
+                if (i < currentStep) {
+                    stepEl.className = 'step-completed flex-1 mx-2 p-4 rounded-lg text-center transition';
+                } else if (i === currentStep) {
+                    stepEl.className = 'step-active flex-1 mx-2 p-4 rounded-lg text-center transition';
+                }
+            }
+        }
+
+        function validateCurrentStep() {
+            switch (currentStep) {
+                case 1:
+                    const name = document.getElementById('gameName').value.trim();
+                    const desc = document.getElementById('gameDescription').value.trim();
+                    const obj = document.getElementById('gameObjective').value.trim();
+                    
+                    if (!name || !desc || !obj) {
+                        showNotification('Please fill in all required fields', 'warning');
+                        return false;
+                    }
+                    break;
+                case 2:
+                    const winCond = document.getElementById('winConditions').value.trim();
+                    const rules = document.getElementById('gameRules').value.trim();
+                    if (!winCond || !rules) {
+                        showNotification('Please specify win conditions and game rules', 'warning');
+                        return false;
+                    }
+                    break;
+                case 3:
+                    // Visual step is optional, always valid
+                    break;
+            }
+            return true;
+        }
+
+        // Character management
+        function addCharacter() {
+            const container = document.getElementById('gameCharacters');
+            const characterDiv = document.createElement('div');
+            characterDiv.className = 'bg-gray-700 rounded-lg p-4 mb-3';
+            characterDiv.innerHTML = `
+                <div class="flex justify-between items-center mb-2">
+                    <input type="text" placeholder="Character name" class="bg-gray-600 rounded px-3 py-2 flex-1 mr-3">
+                    <button onclick="removeCharacter(this)" class="text-red-400 hover:text-red-300">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+                <textarea placeholder="Describe movement rules and abilities..." class="w-full bg-gray-600 rounded px-3 py-2 h-20 text-sm"></textarea>
+            `;
+            container.appendChild(characterDiv);
+        }
+
+        function removeCharacter(button) {
+            const characterDiv = button.closest('.bg-gray-700');
+            characterDiv.remove();
+        }
+
+        // Color scheme selection
+        function selectColorScheme(scheme) {
+            selectedColorScheme = scheme;
+            document.querySelectorAll('.color-scheme').forEach(btn => {
+                btn.classList.remove('ring-4', 'ring-white');
+            });
+            event.target.classList.add('ring-4', 'ring-white');
+            updatePreview();
+        }
+
+        // Preview updates
+        function updatePreview() {
+            const name = document.getElementById('gameName').value || 'Untitled Game';
+            const type = document.getElementById('gameType').value;
+            const desc = document.getElementById('gameDescription').value;
+            const obj = document.getElementById('gameObjective').value;
+
+            // Update game summary
+            document.getElementById('gameSummary').textContent = desc || 'Configure your game to see a summary';
+
+            // Update feature list based on game type
+            const featureList = document.getElementById('featureList');
+            const features = getGameFeatures(type);
+            featureList.innerHTML = features.map(feature => `<li>${feature}</li>`).join('');
+
+            // Update preview visual
+            updatePreviewVisual(name, type);
+        }
+
+        function getGameFeatures(gameType) {
+            const featureMap = {
+                strategy: [
+                    'Turn-based gameplay system',
+                    'Piece movement validation',
+                    'AI opponent (basic)',
+                    'Game state tracking',
+                    'Win condition checking'
+                ],
+                arcade: [
+                    'Real-time movement system',
+                    'Collision detection',
+                    'Score tracking',
+                    'Enemy AI behavior',
+                    'Level progression'
+                ],
+                puzzle: [
+                    'Block/piece generation',
+                    'Line clearing mechanics',
+                    'Gravity simulation',
+                    'Increasing difficulty',
+                    'High score system'
+                ],
+                action: [
+                    'Continuous movement',
+                    'Food/item spawning',
+                    'Growth mechanics',
+                    'Boundary collision',
+                    'Speed progression'
+                ],
+                platformer: [
+                    'Physics-based movement',
+                    'Platform collision',
+                    'Jump mechanics',
+                    'Enemy interactions',
+                    'Level design system'
+                ],
+                shooter: [
+                    'Projectile system',
+                    'Enemy wave spawning',
+                    'Health/lives system',
+                    'Power-up mechanics',
+                    'Boss battles'
+                ]
+            };
+            return featureMap[gameType] || featureMap.strategy;
+        }
+
+        function updatePreviewVisual(name, type) {
+            const preview = document.getElementById('gamePreview');
+            const icons = {
+                strategy: 'fas fa-chess',
+                arcade: 'fas fa-ghost',
+                puzzle: 'fas fa-puzzle-piece',
+                action: 'fas fa-snake',
+                platformer: 'fas fa-running',
+                shooter: 'fas fa-rocket'
+            };
+
+            const colors = {
+                blue: 'text-blue-400',
+                green: 'text-green-400',
+                purple: 'text-purple-400',
+                red: 'text-red-400',
+                orange: 'text-orange-400',
+                dark: 'text-gray-400'
+            };
+
+            preview.innerHTML = `
+                <div class="text-center">
+                    <i class="${icons[type] || icons.strategy} text-6xl mb-4 ${colors[selectedColorScheme]}"></i>
+                    <h3 class="text-2xl font-bold mb-2">${name}</h3>
+                    <p class="text-gray-400 capitalize">${type} Game</p>
+                    <div class="mt-4 p-4 bg-gray-700 rounded-lg">
+                        <div class="text-sm text-gray-300">Preview will show game mechanics as you configure them</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Game generation
+        function generateGame() {
+            const generateBtn = document.getElementById('generateBtn');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const statusContainer = document.getElementById('generationStatus');
+
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Generating...';
+
+            // Collect all game configuration
+            gameConfig = collectGameConfig();
+
+            const steps = [
+                { progress: 10, status: 'Analyzing game concept...', action: 'concept' },
+                { progress: 25, status: 'Creating game board/field...', action: 'board' },
+                { progress: 40, status: 'Implementing game mechanics...', action: 'mechanics' },
+                { progress: 55, status: 'Adding characters and pieces...', action: 'characters' },
+                { progress: 70, status: 'Setting up rules and logic...', action: 'rules' },
+                { progress: 85, status: 'Applying visual styling...', action: 'visuals' },
+                { progress: 100, status: 'Finalizing game...', action: 'complete' }
+            ];
+
+            let currentStepIndex = 0;
+
+            function executeStep() {
+                if (currentStepIndex >= steps.length) {
+                    completeGeneration();
+                    return;
+                }
+
+                const step = steps[currentStepIndex];
+                
+                // Update progress
+                progressBar.style.width = step.progress + '%';
+                progressText.textContent = step.progress + '%';
+
+                // Update status
+                statusContainer.innerHTML = `
+                    <div class="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
+                        <span>${step.status}</span>
+                        <i class="fas fa-spinner fa-spin text-purple-400"></i>
+                    </div>
+                `;
+
+                // Execute step action
+                executeGenerationStep(step.action);
+
+                currentStepIndex++;
+                setTimeout(executeStep, 1500 + Math.random() * 1000); // Realistic timing
+            }
+
+            executeStep();
+        }
+
+        function executeGenerationStep(action) {
+            switch (action) {
+                case 'concept':
+                    analyzeGameConcept();
+                    break;
+                case 'board':
+                    createGameBoard();
+                    break;
+                case 'mechanics':
+                    implementMechanics();
+                    break;
+                case 'characters':
+                    addGameCharacters();
+                    break;
+                case 'rules':
+                    setupGameRules();
+                    break;
+                case 'visuals':
+                    applyVisualStyling();
+                    break;
+                case 'complete':
+                    finalizeGame();
+                    break;
+            }
+        }
+
+        function collectGameConfig() {
+            const characters = [];
+            document.querySelectorAll('#gameCharacters .bg-gray-700').forEach(charDiv => {
+                const nameInput = charDiv.querySelector('input');
+                const rulesTextarea = charDiv.querySelector('textarea');
+                if (nameInput.value.trim()) {
+                    characters.push({
+                        name: nameInput.value.trim(),
+                        rules: rulesTextarea.value.trim()
+                    });
+                }
+            });
+
+            return {
+                name: document.getElementById('gameName').value,
+                type: document.getElementById('gameType').value,
+                description: document.getElementById('gameDescription').value,
+                objective: document.getElementById('gameObjective').value,
+                boardWidth: parseInt(document.getElementById('boardWidth').value),
+                boardHeight: parseInt(document.getElementById('boardHeight').value),
+                characters: characters,
+                winConditions: document.getElementById('winConditions').value,
+                rules: document.getElementById('gameRules').value,
+                visualStyle: document.getElementById('visualStyle')?.value || 'retro',
+                colorScheme: selectedColorScheme,
+                soundEffects: {
+                    move: document.getElementById('soundMove')?.checked || false,
+                    score: document.getElementById('soundScore')?.checked || false,
+                    win: document.getElementById('soundWin')?.checked || false,
+                    music: document.getElementById('backgroundMusic')?.checked || false
+                },
+                animationSpeed: parseInt(document.getElementById('animationSpeed')?.value || 5)
+            };
+        }
+
+        // Generation step implementations
+        function analyzeGameConcept() {
+            console.log('Analyzing game concept:', gameConfig.name, gameConfig.type);
+        }
+
+        function createGameBoard() {
+            console.log(`Creating ${gameConfig.boardWidth}x${gameConfig.boardHeight} game board`);
+        }
+
+        function implementMechanics() {
+            console.log('Implementing game mechanics for', gameConfig.type);
+        }
+
+        function addGameCharacters() {
+            console.log('Adding characters:', gameConfig.characters.map(c => c.name));
+        }
+
+        function setupGameRules() {
+            console.log('Setting up game rules');
+        }
+
+        function applyVisualStyling() {
+            console.log('Applying', gameConfig.visualStyle, 'visual style with', gameConfig.colorScheme, 'color scheme');
+        }
+
+        function finalizeGame() {
+            console.log('Finalizing game generation');
+        }
+
+        function completeGeneration() {
+            document.getElementById('generationStatus').innerHTML = `
+                <div class="flex items-center justify-between p-3 bg-green-600 rounded-lg">
+                    <span>Game generation completed!</span>
+                    <i class="fas fa-check-circle text-white"></i>
+                </div>
+            `;
+
+            document.getElementById('generateBtn').classList.add('hidden');
+            document.getElementById('generationComplete').classList.remove('hidden');
+
+            // Create the actual playable game
+            generatedGame = createPlayableGame(gameConfig);
+            showNotification('Game generated successfully!', 'success');
+        }
+
+        function createPlayableGame(config) {
+            return {
+                config: config,
+                gameEngine: new GameEngine(config),
+                isRunning: false,
+                score: 0,
+                level: 1,
+                startTime: null
+            };
+        }
+
+        // Game Engine Class
+        class GameEngine {
+            constructor(config) {
+                this.config = config;
+                this.canvas = null;
+                this.ctx = null;
+                this.gameState = 'stopped';
+                this.entities = [];
+                this.board = [];
+                this.player = null;
+                this.score = 0;
+                this.level = 1;
+                this.keys = {};
+                
+                this.setupKeyHandlers();
+            }
+
+            setupKeyHandlers() {
+                document.addEventListener('keydown', (e) => {
+                    this.keys[e.code] = true;
+                    this.handleKeyDown(e);
+                });
+
+                document.addEventListener('keyup', (e) => {
+                    this.keys[e.code] = false;
+                });
+            }
+
+            init(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.createBoard();
+                this.createEntities();
+                this.gameState = 'ready';
+            }
+
+            createBoard() {
+                const { boardWidth, boardHeight } = this.config;
+                this.board = [];
+                for (let y = 0; y < boardHeight; y++) {
+                    this.board[y] = [];
+                    for (let x = 0; x < boardWidth; x++) {
+                        this.board[y][x] = this.getBoardCellType(x, y);
+                    }
+                }
+            }
+
+            getBoardCellType(x, y) {
+                const { type, boardWidth, boardHeight } = this.config;
+                
+                switch (type) {
+                    case 'strategy':
+                        return this.getChessBoardCell(x, y);
+                    case 'arcade':
+                        return this.getMazeCell(x, y, boardWidth, boardHeight);
+                    case 'puzzle':
+                        return 'empty';
+                    case 'action':
+                        return this.getSnakeCell(x, y, boardWidth, boardHeight);
+                    default:
+                        return 'empty';
+                }
+            }
+
+            getChessBoardCell(x, y) {
+                // Chess board setup
+                if (y === 0 || y === 1 || y === 6 || y === 7) {
+                    return 'piece';
+                }
+                return 'empty';
+            }
+
+            getMazeCell(x, y, width, height) {
+                // Simple maze generation
+                if (x === 0 || x === width - 1 || y === 0 || y === height - 1) {
+                    return 'wall';
+                }
+                if (x % 2 === 0 && y % 2 === 0 && Math.random() > 0.3) {
+                    return 'wall';
+                }
+                return Math.random() > 0.8 ? 'dot' : 'empty';
+            }
+
+            getSnakeCell(x, y, width, height) {
+                // Snake game setup
+                if (x === 0 || x === width - 1 || y === 0 || y === height - 1) {
+                    return 'wall';
+                }
+                return 'empty';
+            }
+
+            createEntities() {
+                const { type } = this.config;
+                this.entities = [];
+
+                switch (type) {
+                    case 'strategy':
+                        this.createChessPieces();
+                        break;
+                    case 'arcade':
+                        this.createArcadeEntities();
+                        break;
+                    case 'action':
+                        this.createSnakeEntities();
+                        break;
+                    case 'puzzle':
+                        this.createPuzzlePieces();
+                        break;
+                }
+            }
+
+            createChessPieces() {
+                this.player = { x: 4, y: 7, type: 'king', color: 'white' };
+                this.entities.push(this.player);
+            }
+
+            createArcadeEntities() {
+                this.player = { x: 1, y: 1, type: 'player' };
+                this.entities.push(this.player);
+                
+                // Add some enemies
+                for (let i = 0; i < 3; i++) {
+                    this.entities.push({
+                        x: Math.floor(Math.random() * this.config.boardWidth),
+                        y: Math.floor(Math.random() * this.config.boardHeight),
+                        type: 'enemy',
+                        direction: Math.floor(Math.random() * 4)
+                    });
+                }
+            }
+
+            createSnakeEntities() {
+                this.player = {
+                    body: [{ x: Math.floor(this.config.boardWidth / 2), y: Math.floor(this.config.boardHeight / 2) }],
+                    direction: 'right',
+                    type: 'snake'
+                };
+                this.entities.push(this.player);
+                this.spawnFood();
+            }
+
+            createPuzzlePieces() {
+                // Tetris-like falling pieces
+                this.spawnNewPiece();
+            }
+
+            start() {
+                this.gameState = 'running';
+                this.gameLoop();
+            }
+
+            pause() {
+                this.gameState = 'paused';
+            }
+
+            reset() {
+                this.score = 0;
+                this.level = 1;
+                this.createBoard();
+                this.createEntities();
+                this.gameState = 'ready';
+                this.render();
+            }
+
+            gameLoop() {
+                if (this.gameState !== 'running') return;
+
+                this.update();
+                this.render();
+
+                requestAnimationFrame(() => this.gameLoop());
+            }
+
+            update() {
+                const { type } = this.config;
+
+                switch (type) {
+                    case 'arcade':
+                        this.updateArcade();
+                        break;
+                    case 'action':
+                        this.updateAction();
+                        break;
+                    case 'puzzle':
+                        this.updatePuzzle();
+                        break;
+                    case 'strategy':
+                        this.updateStrategy();
+                        break;
+                }
+
+                this.checkWinCondition();
+            }
+
+            updateArcade() {
+                // Move enemies
+                this.entities.filter(e => e.type === 'enemy').forEach(enemy => {
+                    const directions = [
+                        { x: 0, y: -1 }, // up
+                        { x: 1, y: 0 },  // right
+                        { x: 0, y: 1 },  // down
+                        { x: -1, y: 0 }  // left
+                    ];
+
+                    if (Math.random() > 0.9) {
+                        enemy.direction = Math.floor(Math.random() * 4);
+                    }
+
+                    const dir = directions[enemy.direction];
+                    const newX = enemy.x + dir.x;
+                    const newY = enemy.y + dir.y;
+
+                    if (this.isValidMove(newX, newY)) {
+                        enemy.x = newX;
+                        enemy.y = newY;
+                    } else {
+                        enemy.direction = Math.floor(Math.random() * 4);
+                    }
+                });
+            }
+
+            updateAction() {
+                if (!this.player) return;
+
+                // Move snake
+                const head = { ...this.player.body[0] };
+                const directions = {
+                    'up': { x: 0, y: -1 },
+                    'down': { x: 0, y: 1 },
+                    'left': { x: -1, y: 0 },
+                    'right': { x: 1, y: 0 }
+                };
+
+                const dir = directions[this.player.direction];
+                head.x += dir.x;
+                head.y += dir.y;
+
+                // Check collision with walls or self
+                if (head.x < 1 || head.x >= this.config.boardWidth - 1 ||
+                    head.y < 1 || head.y >= this.config.boardHeight - 1 ||
+                    this.player.body.some(segment => segment.x === head.x && segment.y === head.y)) {
+                    this.gameState = 'gameover';
+                    return;
+                }
+
+                this.player.body.unshift(head);
+
+                // Check food collision
+                const food = this.entities.find(e => e.type === 'food');
+                if (food && food.x === head.x && food.y === head.y) {
+                    this.score += 10;
+                    this.entities = this.entities.filter(e => e.type !== 'food');
+                    this.spawnFood();
+                } else {
+                    this.player.body.pop();
+                }
+            }
+
+            updatePuzzle() {
+                // Simple falling block logic
+                const fallingPiece = this.entities.find(e => e.type === 'falling');
+                if (fallingPiece) {
+                    fallingPiece.y += 0.1;
+                    if (fallingPiece.y > this.config.boardHeight - 2) {
+                        fallingPiece.type = 'placed';
+                        this.spawnNewPiece();
+                    }
+                }
+            }
+
+            updateStrategy() {
+                // Turn-based, no automatic updates needed
+            }
+
+            handleKeyDown(e) {
+                if (this.gameState !== 'running') return;
+
+                const { type } = this.config;
+
+                switch (type) {
+                    case 'arcade':
+                        this.handleArcadeInput(e.code);
+                        break;
+                    case 'action':
+                        this.handleActionInput(e.code);
+                        break;
+                    case 'puzzle':
+                        this.handlePuzzleInput(e.code);
+                        break;
+                    case 'strategy':
+                        this.handleStrategyInput(e.code);
+                        break;
+                }
+            }
+
+            handleArcadeInput(key) {
+                if (!this.player) return;
+
+                const moves = {
+                    'ArrowUp': { x: 0, y: -1 },
+                    'ArrowDown': { x: 0, y: 1 },
+                    'ArrowLeft': { x: -1, y: 0 },
+                    'ArrowRight': { x: 1, y: 0 },
+                    'KeyW': { x: 0, y: -1 },
+                    'KeyS': { x: 0, y: 1 },
+                    'KeyA': { x: -1, y: 0 },
+                    'KeyD': { x: 1, y: 0 }
+                };
+
+                const move = moves[key];
+                if (move) {
+                    const newX = this.player.x + move.x;
+                    const newY = this.player.y + move.y;
+                    
+                    if (this.isValidMove(newX, newY)) {
+                        this.player.x = newX;
+                        this.player.y = newY;
+                        
+                        // Check for dot collection
+                        if (this.board[newY] && this.board[newY][newX] === 'dot') {
+                            this.board[newY][newX] = 'empty';
+                            this.score += 1;
+                        }
+                    }
+                }
+            }
+
+            handleActionInput(key) {
+                if (!this.player) return;
+
+                const directions = {
+                    'ArrowUp': 'up',
+                    'ArrowDown': 'down',
+                    'ArrowLeft': 'left',
+                    'ArrowRight': 'right',
+                    'KeyW': 'up',
+                    'KeyS': 'down',
+                    'KeyA': 'left',
+                    'KeyD': 'right'
+                };
+
+                const newDirection = directions[key];
+                if (newDirection) {
+                    // Prevent immediate reverse direction
+                    const opposites = {
+                        'up': 'down',
+                        'down': 'up',
+                        'left': 'right',
+                        'right': 'left'
+                    };
+
+                    if (opposites[newDirection] !== this.player.direction) {
+                        this.player.direction = newDirection;
+                    }
+                }
+            }
+
+            handlePuzzleInput(key) {
+                const fallingPiece = this.entities.find(e => e.type === 'falling');
+                if (!fallingPiece) return;
+
+                if (key === 'ArrowLeft' || key === 'KeyA') {
+                    fallingPiece.x = Math.max(0, fallingPiece.x - 1);
+                } else if (key === 'ArrowRight' || key === 'KeyD') {
+                    fallingPiece.x = Math.min(this.config.boardWidth - 1, fallingPiece.x + 1);
+                } else if (key === 'ArrowDown' || key === 'KeyS') {
+                    fallingPiece.y += 1;
+                }
+            }
+
+            handleStrategyInput(key) {
+                // Strategy games typically use mouse input
+            }
+
+            isValidMove(x, y) {
+                if (x < 0 || x >= this.config.boardWidth || y < 0 || y >= this.config.boardHeight) {
+                    return false;
+                }
+
+                if (this.board[y] && this.board[y][x] === 'wall') {
+                    return false;
+                }
+
+                return true;
+            }
+
+            spawnFood() {
+                let x, y;
+                do {
+                    x = 1 + Math.floor(Math.random() * (this.config.boardWidth - 2));
+                    y = 1 + Math.floor(Math.random() * (this.config.boardHeight - 2));
+                } while (this.board[y][x] === 'wall' || 
+                        (this.player && this.player.body && this.player.body.some(segment => segment.x === x && segment.y === y)));
+
+                this.entities.push({ x, y, type: 'food' });
+            }
+
+            spawnNewPiece() {
+                this.entities.push({
+                    x: Math.floor(this.config.boardWidth / 2),
+                    y: 0,
+                    type: 'falling',
+                    shape: 'square'
+                });
+            }
+
+            checkWinCondition() {
+                // Implementation depends on game type
+            }
+
+            render() {
+                if (!this.ctx) return;
+
+                const cellSize = Math.min(
+                    this.canvas.width / this.config.boardWidth,
+                    this.canvas.height / this.config.boardHeight
+                );
+
+                // Clear canvas
+                this.ctx.fillStyle = '#1F2937';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Render board
+                this.renderBoard(cellSize);
+
+                // Render entities
+                this.renderEntities(cellSize);
+
+                // Render UI
+                this.renderUI();
+            }
+
+            renderBoard(cellSize) {
+                for (let y = 0; y < this.config.boardHeight; y++) {
+                    for (let x = 0; x < this.config.boardWidth; x++) {
+                        const cell = this.board[y] ? this.board[y][x] : 'empty';
+                        this.renderCell(x, y, cell, cellSize);
+                    }
+                }
+            }
+
+            renderCell(x, y, type, cellSize) {
+                const colors = this.getColorScheme();
+                
+                this.ctx.fillStyle = colors[type] || colors.empty;
+                this.ctx.fillRect(x * cellSize, y * cellSize, cellSize - 1, cellSize - 1);
+
+                if (type === 'dot') {
+                    this.ctx.fillStyle = colors.accent;
+                    const dotSize = cellSize * 0.3;
+                    const dotX = x * cellSize + (cellSize - dotSize) / 2;
+                    const dotY = y * cellSize + (cellSize - dotSize) / 2;
+                    this.ctx.fillRect(dotX, dotY, dotSize, dotSize);
+                }
+            }
+
+            renderEntities(cellSize) {
+                this.entities.forEach(entity => {
+                    this.renderEntity(entity, cellSize);
+                });
+            }
+
+            renderEntity(entity, cellSize) {
+                const colors = this.getColorScheme();
+
+                if (entity.type === 'snake' && entity.body) {
+                    // Render snake
+                    entity.body.forEach((segment, index) => {
+                        this.ctx.fillStyle = index === 0 ? colors.player : colors.playerBody;
+                        this.ctx.fillRect(segment.x * cellSize + 1, segment.y * cellSize + 1, cellSize - 2, cellSize - 2);
+                    });
+                } else {
+                    this.ctx.fillStyle = colors[entity.type] || colors.player;
+                    this.ctx.fillRect(entity.x * cellSize + 1, entity.y * cellSize + 1, cellSize - 2, cellSize - 2);
+                }
+            }
+
+            renderUI() {
+                this.ctx.fillStyle = '#FFFFFF';
+                this.ctx.font = '16px Arial';
+                this.ctx.fillText(`Score: ${this.score}`, 10, 25);
+                this.ctx.fillText(`Level: ${this.level}`, 10, 45);
+                
+                if (this.gameState === 'gameover') {
+                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                    
+                    this.ctx.fillStyle = '#FFFFFF';
+                    this.ctx.font = 'bold 24px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText('Game Over!', this.canvas.width / 2, this.canvas.height / 2);
+                    this.ctx.fillText(`Final Score: ${this.score}`, this.canvas.width / 2, this.canvas.height / 2 + 40);
+                    this.ctx.textAlign = 'start';
+                }
+            }
+
+            getColorScheme() {
+                const schemes = {
+                    blue: {
+                        empty: '#1E3A8A',
+                        wall: '#1E40AF',
+                        dot: '#60A5FA',
+                        player: '#3B82F6',
+                        playerBody: '#1D4ED8',
+                        enemy: '#EF4444',
+                        food: '#10B981',
+                        accent: '#F59E0B'
+                    },
+                    green: {
+                        empty: '#14532D',
+                        wall: '#166534',
+                        dot: '#4ADE80',
+                        player: '#22C55E',
+                        playerBody: '#16A34A',
+                        enemy: '#EF4444',
+                        food: '#F59E0B',
+                        accent: '#3B82F6'
+                    },
+                    purple: {
+                        empty: '#581C87',
+                        wall: '#6B21A8',
+                        dot: '#A855F7',
+                        player: '#8B5CF6',
+                        playerBody: '#7C3AED',
+                        enemy: '#EF4444',
+                        food: '#10B981',
+                        accent: '#F59E0B'
+                    },
+                    red: {
+                        empty: '#7F1D1D',
+                        wall: '#991B1B',
+                        dot: '#F87171',
+                        player: '#EF4444',
+                        playerBody: '#DC2626',
+                        enemy: '#3B82F6',
+                        food: '#10B981',
+                        accent: '#F59E0B'
+                    }
+                };
+
+                return schemes[this.config.colorScheme] || schemes.blue;
+            }
+        }
+    </script>
+</body>
+</html>

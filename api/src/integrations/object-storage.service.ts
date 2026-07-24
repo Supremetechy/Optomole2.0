@@ -41,6 +41,25 @@ export class ObjectStorageService {
     return this.objects.get(key) || this.readLocalObject(gatewayConfig().localObjectStorePath, key);
   }
 
+  /**
+   * Delete a stored object from memory and (in local mode) from disk. Returns
+   * true if anything was removed. Used when deleting a build so its manifest
+   * isn't re-discovered by BuildsService.recoverPersistedBuilds on the next list.
+   */
+  deleteObject(key: string): boolean {
+    if (!key) return false;
+    const hadMemory = this.objects.delete(key);
+    let hadFile = false;
+    if (gatewayConfig().objectStorageMode === 'memory') {
+      const filePath = this.localObjectPath(gatewayConfig().localObjectStorePath, key);
+      if (fs.existsSync(filePath)) {
+        fs.rmSync(filePath);
+        hadFile = true;
+      }
+    }
+    return hadMemory || hadFile;
+  }
+
   private writeLocalObject(root: string, object: StoredObject) {
     const filePath = this.localObjectPath(root, object.key);
     fs.mkdirSync(path.dirname(filePath), { recursive: true });

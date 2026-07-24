@@ -1,4 +1,4 @@
-import { Body, Controller, Get, NotFoundException, Param, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { BuildsService } from './builds.service';
 import { EngineTarget, ExperiencePackage } from '../shared/types';
@@ -34,5 +34,27 @@ export class BuildsController {
     const build = this.builds.getBuild(id);
     if (!build) throw new NotFoundException('Build not found.');
     return { ok: true, build };
+  }
+
+  /**
+   * Delete every build. Gated behind an explicit `?confirm=all` so a stray
+   * `DELETE /v1/builds/` (empty :id — which Express routes here, not to the
+   * per-id handler) can never silently wipe everything. Without the flag this
+   * 400s instead of mass-deleting.
+   */
+  @Delete()
+  deleteAll(@Query('confirm') confirm?: string) {
+    if (confirm !== 'all') {
+      throw new BadRequestException('Refusing to delete all builds without ?confirm=all.');
+    }
+    return { ok: true, deletedCount: this.builds.deleteAllBuilds() };
+  }
+
+  @Delete(':id')
+  delete(@Param('id') id: string) {
+    if (!id || !id.trim()) throw new BadRequestException('A build id is required.');
+    const deleted = this.builds.deleteBuild(id);
+    if (!deleted) throw new NotFoundException('Build not found.');
+    return { ok: true, deleted: id };
   }
 }

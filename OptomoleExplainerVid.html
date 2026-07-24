@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Optomole — Content to Experience Engine | Explainer Video</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-deep: #05070a;
+      --bg-panel: #0a0f1a;
+      --bg-card: #0d1424;
+      --accent-cyan: #00d4ff;
+      --accent-blue: #3b82f6;
+      --accent-purple: #8b5cf6;
+      --accent-pink: #ec4899;
+      --accent-green: #10b981;
+      --accent-amber: #f59e0b;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #475569;
+      --border: #1e293b;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg-deep);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      font-family: 'Inter', system-ui, sans-serif;
+      color: var(--text-primary);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ambient-bg {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+    }
+    .ambient-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.12;
+      animation: orbFloat 12s infinite ease-in-out;
+    }
+    .ambient-orb:nth-child(1) { width: 400px; height: 400px; background: var(--accent-cyan); top: -100px; left: -100px; }
+    .ambient-orb:nth-child(2) { width: 300px; height: 300px; background: var(--accent-purple); bottom: -50px; right: -50px; animation-delay: -4s; }
+    .ambient-orb:nth-child(3) { width: 250px; height: 250px; background: var(--accent-blue); top: 50%; left: 50%; animation-delay: -8s; }
+    @keyframes orbFloat {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      33% { transform: translate(30px, -30px) scale(1.1); }
+      66% { transform: translate(-20px, 20px) scale(0.9); }
+    }
+
+    .grid-overlay {
+      position: absolute;
+      inset: 0;
+      background-image: linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+      mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+      z-index: 0;
+    }
+
+    .stage {
+      width: 100%;
+      max-width: 1000px;
+      aspect-ratio: 16/9;
+      background: var(--bg-panel);
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 0 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+      z-index: 1;
+    }
+
+    .scene {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem;
+      opacity: 0;
+      transition: opacity 1s cubic-bezier(0.4, 0, 0.2, 1);
+      text-align: center;
+      pointer-events: none;
+    }
+    .scene.active { opacity: 1; pointer-events: auto; }
+
+    .scene-title {
+      font-size: 2.8rem;
+      font-weight: 800;
+      margin-bottom: 1.2rem;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      transform: translateY(30px);
+      opacity: 0;
+      transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .scene.active .scene-title { transform: translateY(0); opacity: 1; }
+    .scene-title.gradient {
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple), var(--accent-pink));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .scene-title.cyan { color: var(--accent-cyan); text-shadow: 0 0 30px rgba(0,212,255,0.3); }
+    .scene-title.white { color: var(--text-primary); }
+
+    .scene-subtitle {
+      font-size: 1.15rem;
+      color: var(--text-secondary);
+      max-width: 650px;
+      line-height: 1.7;
+      font-weight: 400;
+      transform: translateY(20px);
+      opacity: 0;
+      transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s;
+    }
+    .scene.active .scene-subtitle { transform: translateY(0); opacity: 1; }
+
+    .voiceover-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(to top, rgba(5,7,10,0.95), rgba(5,7,10,0.7));
+      padding: 1.2rem 2rem;
+      border-top: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      transform: translateY(100%);
+      transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s;
+    }
+    .scene.active .voiceover-bar { transform: translateY(0); }
+    .voiceover-label { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; }
+    .voiceover-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-cyan); box-shadow: 0 0 10px var(--accent-cyan); animation: voicePulse 1.5s infinite; }
+    @keyframes voicePulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
+    .voiceover-tag { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--accent-cyan); font-weight: 600; }
+    .voiceover-text { font-size: 0.95rem; color: var(--text-primary); line-height: 1.5; }
+
+    .progress-track { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: rgba(255,255,255,0.03); z-index: 10; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple)); width: 0%; transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 0 10px rgba(0,212,255,0.3); }
+
+    .scene-num { position: absolute; top: 1.2rem; right: 1.5rem; font-size: 0.7rem; color: var(--text-muted); letter-spacing: 0.1em; font-variant-numeric: tabular-nums; z-index: 10; }
+
+    .music-indicator { position: absolute; top: 1.2rem; left: 1.5rem; display: flex; align-items: center; gap: 0.4rem; font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; z-index: 10; }
+    .music-bars { display: flex; align-items: flex-end; gap: 2px; height: 10px; }
+    .music-bar { width: 2px; background: var(--accent-cyan); border-radius: 1px; animation: musicWave 1s infinite ease-in-out; }
+    .music-bar:nth-child(1) { height: 4px; }
+    .music-bar:nth-child(2) { height: 8px; animation-delay: 0.1s; }
+    .music-bar:nth-child(3) { height: 6px; animation-delay: 0.2s; }
+    .music-bar:nth-child(4) { height: 10px; animation-delay: 0.3s; }
+    @keyframes musicWave { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(0.4); } }
+
+    /* Scene 1: Inbox */
+    .inbox-container { position: relative; width: 300px; height: 200px; margin-bottom: 1.5rem; perspective: 800px; }
+    .inbox-tab { position: absolute; width: 260px; height: 42px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; padding: 0 0.8rem; font-size: 0.75rem; color: var(--text-secondary); box-shadow: 0 4px 12px rgba(0,0,0,0.3); animation: inboxPile 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+    .inbox-tab .dot { width: 7px; height: 7px; border-radius: 50%; margin-right: 0.5rem; }
+    .inbox-tab .dot.red { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+    .inbox-tab .dot.amber { background: var(--accent-amber); }
+    .inbox-tab .dot.blue { background: var(--accent-blue); }
+    .inbox-tab:nth-child(1) { top: 0; left: 20px; z-index: 6; animation-delay: 0.1s; }
+    .inbox-tab:nth-child(2) { top: 26px; left: 8px; z-index: 5; animation-delay: 0.25s; }
+    .inbox-tab:nth-child(3) { top: 52px; left: 22px; z-index: 4; animation-delay: 0.4s; }
+    .inbox-tab:nth-child(4) { top: 78px; left: 5px; z-index: 3; animation-delay: 0.55s; }
+    .inbox-tab:nth-child(5) { top: 104px; left: 18px; z-index: 2; animation-delay: 0.7s; }
+    .inbox-tab:nth-child(6) { top: 130px; left: 30px; z-index: 1; animation-delay: 0.85s; }
+    @keyframes inboxPile { from { opacity: 0; transform: translateY(-15px) rotateX(8deg); } to { opacity: 1; transform: translateY(0) rotateX(0); } }
+    .notif-badges { position: absolute; top: -8px; right: -5px; display: flex; gap: 0.2rem; }
+    .notif-badge { background: #ef4444; color: white; font-size: 0.6rem; font-weight: 700; padding: 0.1rem 0.35rem; border-radius: 8px; animation: badgePop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; opacity: 0; }
+    .notif-badge:nth-child(1) { animation-delay: 1s; }
+    .notif-badge:nth-child(2) { animation-delay: 1.15s; }
+    .notif-badge:nth-child(3) { animation-delay: 1.3s; }
+    @keyframes badgePop { from { opacity: 0; transform: scale(0); } to { opacity: 1; transform: scale(1); } }
+
+    /* Scene 2: Logo */
+    .logo-reveal { position: relative; margin-bottom: 1.5rem; }
+    .optomole-logo { font-size: 3.5rem; font-weight: 900; letter-spacing: -0.03em; background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow(0 0 25px rgba(0,212,255,0.3)); transform: scale(0.8); opacity: 0; transition: all 1s cubic-bezier(0.16, 1, 0.3, 1) 0.2s; }
+    .scene.active .optomole-logo { transform: scale(1); opacity: 1; }
+    .logo-ring { position: absolute; inset: -15px; border: 1px solid rgba(0,212,255,0.15); border-radius: 50%; animation: ringExpand 2s infinite; opacity: 0; }
+    .scene.active .logo-ring { opacity: 1; }
+    .logo-ring:nth-child(2) { animation-delay: 0.5s; }
+    .logo-ring:nth-child(3) { animation-delay: 1s; }
+    @keyframes ringExpand { 0% { transform: scale(0.8); opacity: 0.5; } 100% { transform: scale(1.4); opacity: 0; } }
+
+    /* Scene 3: Transform */
+    .transform-card {
+    animation: cardIdleFloat 4s ease-in-out infinite;
+    }
+    .transform-card:nth-child(3) { animation-delay: 0.3s; }
+    .transform-card:nth-child(5) { animation-delay: 0.6s; }
+    @keyframes cardIdleFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+    }
+    /* prevent the idle loop from fighting the entrance transition on first paint */
+    .scene:not(.active) .transform-card { animation-play-state: paused; }
+    .transform-container { display: flex; align-items: center; gap: 1rem; margin: 1rem 0; flex-wrap: wrap; justify-content: center; }
+    .transform-card { width: 140px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1rem; text-align: center; transform: translateY(25px) scale(0.9); opacity: 0; transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1); position: relative; overflow: hidden; }
+    .scene.active .transform-card:nth-child(1) { transition-delay: 0.2s; transform: translateY(0) scale(1); opacity: 1; }
+    .scene.active .transform-card:nth-child(3) { transition-delay: 0.5s; transform: translateY(0) scale(1); opacity: 1; }
+    .scene.active .transform-card:nth-child(5) { transition-delay: 0.8s; transform: translateY(0) scale(1); opacity: 1; }
+    .transform-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple)); opacity: 0; transition: opacity 0.3s; }
+    .transform-card:hover::before { opacity: 1; }
+    .transform-icon { font-size: 1.8rem; margin-bottom: 0.4rem; display: block; }
+    .transform-label { font-size: 0.8rem; font-weight: 600; color: var(--text-primary); }
+    .transform-desc { font-size: 0.65rem; color: var(--text-muted); margin-top: 0.2rem; }
+    .transform-arrow { font-size: 1.3rem; color: var(--accent-cyan); opacity: 0; transition: opacity 0.4s ease; animation: arrowBounce 1.5s infinite; }
+    .scene.active .transform-arrow:nth-child(2) { transition-delay: 0.4s; opacity: 1; }
+    .scene.active .transform-arrow:nth-child(4) { transition-delay: 0.7s; opacity: 1; }
+    @keyframes arrowBounce { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(4px); } }
+    .glow-bar { width: 100%; height: 3px; background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple), var(--accent-pink)); border-radius: 2px; margin-top: 0.6rem; box-shadow: 0 0 8px rgba(0,212,255,0.3); animation: barFill 1.5s ease-out forwards; transform-origin: left; transform: scaleX(0); }
+    .scene.active .glow-bar { animation-delay: 1s; transform: scaleX(1); }
+    @keyframes barFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+    /* Scene 4: Neural */
+    .neural-network { position: relative; width: 350px; height: 160px; margin: 0.8rem 0; }
+    .nn-node { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: var(--accent-cyan); box-shadow: 0 0 12px rgba(0,212,255,0.4); animation: nodePulse 2s infinite; }
+    .nn-node.purple { background: var(--accent-purple); box-shadow: 0 0 12px rgba(139,92,246,0.4); }
+    .nn-node.blue { background: var(--accent-blue); box-shadow: 0 0 12px rgba(59,130,246,0.4); }
+    @keyframes nodePulse { 0%, 100% { opacity: 0.5; transform: scale(1); } 50% { opacity: 1; transform: scale(1.3); } }
+    .tech-badges { display: flex; gap: 0.8rem; margin-top: 1rem; flex-wrap: wrap; justify-content: center; }
+    .tech-badge { padding: 0.4rem 1rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600; border: 1px solid; transform: scale(0); transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); backdrop-filter: blur(10px); }
+    .scene.active .tech-badge:nth-child(1) { transition-delay: 0.4s; transform: scale(1); }
+    .scene.active .tech-badge:nth-child(2) { transition-delay: 0.55s; transform: scale(1); }
+    .scene.active .tech-badge:nth-child(3) { transition-delay: 0.7s; transform: scale(1); }
+    .scene.active .tech-badge:nth-child(4) { transition-delay: 0.85s; transform: scale(1); }
+    .tb-cyan { color: var(--accent-cyan); border-color: rgba(0,212,255,0.3); background: rgba(0,212,255,0.08); }
+    .tb-purple { color: var(--accent-purple); border-color: rgba(139,92,246,0.3); background: rgba(139,92,246,0.08); }
+    .tb-green { color: var(--accent-green); border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.08); }
+    .tb-amber { color: var(--accent-amber); border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.08); }
+
+    /* Scene 5: Pipeline */
+    /* Scene 5: pipeline nodes pulse in sequence, connectors "flow" continuously */
+.scene.active .pipeline-node.highlight {
+  animation: nodeIdleGlow 2.4s ease-in-out infinite;
+}
+.scene.active .pipeline-node.highlight:nth-child(3) { animation-delay: 0.4s; }
+.scene.active .pipeline-node.highlight:nth-child(5) { animation-delay: 0.8s; }
+@keyframes nodeIdleGlow {
+  0%, 100% { box-shadow: 0 0 15px rgba(0,212,255,0.1), inset 0 1px 0 rgba(0,212,255,0.1); }
+  50% { box-shadow: 0 0 26px rgba(0,212,255,0.28), inset 0 1px 0 rgba(0,212,255,0.2); }
+}
+
+.pipeline-connector {
+  background-size: 200% 100%;
+  animation: connectorFlow 2.5s linear infinite;
+}
+@keyframes connectorFlow {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+/* redeclare gradient as a moving one now that background-size is in play */
+.pipeline-connector {
+  background-image: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple), var(--accent-cyan));
+}
+
+.engine-pill {
+  animation: pillIdleGlow 3s ease-in-out infinite;
+}
+.engine-pill:nth-child(2) { animation-delay: 0.5s; }
+.engine-pill:nth-child(3) { animation-delay: 1s; }
+@keyframes pillIdleGlow {
+  0%, 100% { border-color: var(--border); }
+  50% { border-color: rgba(0,212,255,0.4); }
+}
+    .pipeline-container { display: flex; align-items: center; gap: 0; margin: 1rem 0; position: relative; flex-wrap: wrap; justify-content: center; }
+    .pipeline-node { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 0.8rem 1rem; min-width: 110px; text-align: center; position: relative; transform: scale(0.8); opacity: 0; transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1); z-index: 2; }
+    .scene.active .pipeline-node:nth-child(1) { transition-delay: 0.2s; transform: scale(1); opacity: 1; }
+    .scene.active .pipeline-node:nth-child(3) { transition-delay: 0.6s; transform: scale(1); opacity: 1; }
+    .scene.active .pipeline-node:nth-child(5) { transition-delay: 1.0s; transform: scale(1); opacity: 1; }
+    .scene.active .pipeline-node:nth-child(7) { transition-delay: 1.4s; transform: scale(1); opacity: 1; }
+    .pipeline-node.highlight { border-color: rgba(0,212,255,0.4); box-shadow: 0 0 15px rgba(0,212,255,0.1), inset 0 1px 0 rgba(0,212,255,0.1); }
+    .pipeline-node .node-icon { font-size: 1.3rem; margin-bottom: 0.3rem; display: block; }
+    .pipeline-node .node-label { font-size: 0.75rem; font-weight: 600; color: var(--text-primary); }
+    .pipeline-node .node-sublabel { font-size: 0.6rem; color: var(--text-muted); margin-top: 0.15rem; }
+    .pipeline-connector { width: 35px; height: 2px; background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple)); position: relative; opacity: 0; transition: opacity 0.4s ease; }
+    .scene.active .pipeline-connector:nth-child(2) { transition-delay: 0.5s; opacity: 1; }
+    .scene.active .pipeline-connector:nth-child(4) { transition-delay: 0.9s; opacity: 1; }
+    .scene.active .pipeline-connector:nth-child(6) { transition-delay: 1.3s; opacity: 1; }
+    .pipeline-connector::after { content: ''; position: absolute; right: -4px; top: -3px; width: 0; height: 0; border-left: 6px solid var(--accent-purple); border-top: 4px solid transparent; border-bottom: 4px solid transparent; }
+    .engine-row { display: flex; gap: 0.6rem; margin-top: 1rem; }
+    .engine-pill { padding: 0.35rem 0.8rem; background: var(--bg-deep); border: 1px solid var(--border); border-radius: 20px; font-size: 0.75rem; color: var(--text-secondary); transform: translateY(10px); opacity: 0; transition: all 0.5s ease; }
+    .scene.active .engine-pill:nth-child(1) { transition-delay: 1.8s; transform: translateY(0); opacity: 1; }
+    .scene.active .engine-pill:nth-child(2) { transition-delay: 1.95s; transform: translateY(0); opacity: 1; }
+    .scene.active .engine-pill:nth-child(3) { transition-delay: 2.1s; transform: translateY(0); opacity: 1; }
+
+    /* Scene 6: Game UI */
+    /* Scene 6: completed tasks keep a faint shimmer, stat numbers tick attention */
+.game-task {
+  animation: taskIdleShimmer 3s ease-in-out infinite;
+}
+.game-task:nth-child(3) { animation-delay: 0.4s; }
+.game-task:nth-child(4) { animation-delay: 0.8s; }
+@keyframes taskIdleShimmer {
+  0%, 100% { background: rgba(0,212,255,0.05); }
+  50% { background: rgba(0,212,255,0.11); }
+}
+
+.stat-value {
+  animation: statIdlePulse 2.2s ease-in-out infinite;
+}
+.stat-item:nth-child(2) .stat-value { animation-delay: 0.3s; }
+.stat-item:nth-child(3) .stat-value { animation-delay: 0.6s; }
+@keyframes statIdlePulse {
+  0%, 100% { text-shadow: 0 0 15px rgba(16,185,129,0.3); }
+  50% { text-shadow: 0 0 24px rgba(16,185,129,0.55); }
+}
+
+    .game-ui-container { width: 340px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1rem; margin-bottom: 1rem; box-shadow: 0 10px 40px rgba(0,0,0,0.4); transform: perspective(800px) rotateX(4deg) translateY(15px); opacity: 0; transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s; position: relative; }
+    .scene.active .game-ui-container { transform: perspective(800px) rotateX(0) translateY(0); opacity: 1; }
+    .game-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; padding-bottom: 0.6rem; border-bottom: 1px solid var(--border); }
+    .game-mission { font-size: 0.75rem; font-weight: 700; color: var(--accent-cyan); }
+    .game-timer { font-size: 0.8rem; font-weight: 700; color: var(--accent-amber); font-variant-numeric: tabular-nums; animation: timerPulse 1s infinite; }
+    @keyframes timerPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .game-task { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem; background: rgba(0,212,255,0.05); border-radius: 8px; margin-bottom: 0.4rem; border: 1px solid rgba(0,212,255,0.08); transform: translateX(-15px); opacity: 0; transition: all 0.5s ease; }
+    .scene.active .game-task:nth-child(2) { transition-delay: 0.5s; transform: translateX(0); opacity: 1; }
+    .scene.active .game-task:nth-child(3) { transition-delay: 0.7s; transform: translateX(0); opacity: 1; }
+    .scene.active .game-task:nth-child(4) { transition-delay: 0.9s; transform: translateX(0); opacity: 1; }
+    .game-check { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--accent-green); display: flex; align-items: center; justify-content: center; font-size: 0.65rem; color: var(--accent-green); animation: checkAppear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; animation-delay: 1.2s; opacity: 0; transform: scale(0); }
+    @keyframes checkAppear { to { opacity: 1; transform: scale(1); } }
+    .game-task-text { font-size: 0.75rem; color: var(--text-secondary); flex: 1; }
+    .game-reward { font-size: 0.65rem; color: var(--accent-amber); font-weight: 600; }
+    .level-up-banner { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0); background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink)); padding: 0.6rem 1.2rem; border-radius: 10px; font-size: 0.9rem; font-weight: 800; color: white; box-shadow: 0 0 30px rgba(139,92,246,0.4); animation: levelUpPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; animation-delay: 1.5s; z-index: 10; white-space: nowrap; }
+    @keyframes levelUpPop { 0% { transform: translate(-50%, -50%) scale(0); opacity: 0; } 50% { transform: translate(-50%, -50%) scale(1.1); } 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+    .stats-grid { display: flex; gap: 1.5rem; margin-top: 0.8rem; }
+    .stat-item { text-align: center; transform: translateY(12px); opacity: 0; transition: all 0.6s ease; }
+    .scene.active .stat-item:nth-child(1) { transition-delay: 0.6s; transform: translateY(0); opacity: 1; }
+    .scene.active .stat-item:nth-child(2) { transition-delay: 0.8s; transform: translateY(0); opacity: 1; }
+    .scene.active .stat-item:nth-child(3) { transition-delay: 1.0s; transform: translateY(0); opacity: 1; }
+    .stat-value { font-size: 2rem; font-weight: 800; color: var(--accent-green); text-shadow: 0 0 15px rgba(16,185,129,0.3); font-variant-numeric: tabular-nums; }
+    .stat-label { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.15rem; }
+
+    /* Scene 7: Benefits */
+    .benefit-cards { display: flex; gap: 1rem; margin: 1rem 0; flex-wrap: wrap; justify-content: center; }
+    .benefit-card { width: 160px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.2rem 0.8rem; text-align: center; position: relative; overflow: hidden; transform: translateY(20px); opacity: 0; transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
+    .scene.active .benefit-card:nth-child(1) { transition-delay: 0.2s; transform: translateY(0); opacity: 1; }
+    .scene.active .benefit-card:nth-child(2) { transition-delay: 0.4s; transform: translateY(0); opacity: 1; }
+    .scene.active .benefit-card:nth-child(3) { transition-delay: 0.6s; transform: translateY(0); opacity: 1; }
+    .benefit-card::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple)); transform: scaleX(0); transition: transform 0.6s ease; transform-origin: left; }
+    .scene.active .benefit-card:nth-child(1)::after { transition-delay: 0.5s; transform: scaleX(1); }
+    .scene.active .benefit-card:nth-child(2)::after { transition-delay: 0.7s; transform: scaleX(1); }
+    .scene.active .benefit-card:nth-child(3)::after { transition-delay: 0.9s; transform: scaleX(1); }
+    .benefit-icon { font-size: 2rem; margin-bottom: 0.6rem; display: block; }
+    .benefit-title { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.2rem; }
+    .benefit-desc { font-size: 0.7rem; color: var(--text-muted); line-height: 1.4; }
+    .progress-hero { width: 100%; max-width: 450px; height: 6px; background: var(--bg-deep); border-radius: 3px; margin-top: 1rem; overflow: hidden; position: relative; }
+    .progress-hero-fill { height: 100%; background: linear-gradient(90deg, var(--accent-cyan), var(--accent-green)); border-radius: 3px; width: 0%; transition: width 2s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 0 12px rgba(0,212,255,0.3); position: relative; }
+    .scene.active .progress-hero-fill { width: 100%; transition-delay: 0.8s; }
+    .progress-hero-fill::after { content: ''; position: absolute; right: 0; top: -3px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent-green); box-shadow: 0 0 12px var(--accent-green); animation: progressGlow 1.5s infinite; }
+    @keyframes progressGlow { 0%, 100% { box-shadow: 0 0 12px var(--accent-green); } 50% { box-shadow: 0 0 20px var(--accent-green), 0 0 30px rgba(16,185,129,0.3); } }
+
+    /* Scene 8: Dev */
+    .code-visual { width: 100%; max-width: 450px; background: var(--bg-deep); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem; margin: 0.8rem 0; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-align: left; overflow: hidden; transform: translateY(15px); opacity: 0; transition: all 0.6s ease; }
+    .scene.active .code-visual { transform: translateY(0); opacity: 1; transition-delay: 0.2s; }
+    .code-line { display: flex; gap: 0.4rem; padding: 0.1rem 0; opacity: 0; animation: codeReveal 0.3s ease forwards; }
+    .scene.active .code-line:nth-child(1) { animation-delay: 0.3s; }
+    .scene.active .code-line:nth-child(2) { animation-delay: 0.4s; }
+    .scene.active .code-line:nth-child(3) { animation-delay: 0.5s; }
+    .scene.active .code-line:nth-child(4) { animation-delay: 0.6s; }
+    .scene.active .code-line:nth-child(5) { animation-delay: 0.7s; }
+    @keyframes codeReveal { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+    .code-keyword { color: var(--accent-purple); }
+    .code-string { color: var(--accent-green); }
+    .code-func { color: var(--accent-cyan); }
+    .code-comment { color: var(--text-muted); }
+    .dev-blocks { display: flex; gap: 0.8rem; margin-top: 1rem; flex-wrap: wrap; justify-content: center; }
+    .dev-block { width: 90px; height: 70px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.3rem; transform: scale(0.8) rotate(-4deg); opacity: 0; transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); cursor: pointer; }
+    .dev-block:hover { border-color: var(--accent-cyan); transform: scale(1.05) rotate(0deg); box-shadow: 0 0 15px rgba(0,212,255,0.1); }
+    .scene.active .dev-block:nth-child(1) { transition-delay: 0.5s; transform: scale(1) rotate(0); opacity: 1; }
+    .scene.active .dev-block:nth-child(2) { transition-delay: 0.65s; transform: scale(1) rotate(0); opacity: 1; }
+    .scene.active .dev-block:nth-child(3) { transition-delay: 0.8s; transform: scale(1) rotate(0); opacity: 1; }
+    .dev-block-icon { font-size: 1.3rem; }
+    .dev-block-label { font-size: 0.65rem; color: var(--text-secondary); font-weight: 600; }
+
+    /* Scene 9: Diff */
+    /* Scene 9: diff cards alternate a slow highlight sweep across the grid */
+.diff-card.optomole {
+  animation: diffIdleGlow 3.5s ease-in-out infinite;
+}
+.diff-card.optomole:nth-child(4) { animation-delay: 0.6s; }
+.diff-card.optomole:nth-child(6) { animation-delay: 1.2s; }
+@keyframes diffIdleGlow {
+  0%, 100% { background: rgba(0,212,255,0.05); }
+  50% { background: rgba(0,212,255,0.12); }
+}
+    .diff-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; width: 100%; max-width: 520px; margin: 0.8rem 0; }
+    .diff-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem; text-align: left; transform: translateY(12px); opacity: 0; transition: all 0.5s ease; }
+    .scene.active .diff-card:nth-child(1) { transition-delay: 0.2s; transform: translateY(0); opacity: 1; }
+    .scene.active .diff-card:nth-child(2) { transition-delay: 0.35s; transform: translateY(0); opacity: 1; }
+    .scene.active .diff-card:nth-child(3) { transition-delay: 0.5s; transform: translateY(0); opacity: 1; }
+    .scene.active .diff-card:nth-child(4) { transition-delay: 0.65s; transform: translateY(0); opacity: 1; }
+    .scene.active .diff-card:nth-child(5) { transition-delay: 0.8s; transform: translateY(0); opacity: 1; }
+    .scene.active .diff-card:nth-child(6) { transition-delay: 0.95s; transform: translateY(0); opacity: 1; }
+    .diff-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 0.2rem; }
+    .diff-value { font-size: 0.8rem; font-weight: 600; color: var(--text-primary); }
+    .diff-card.optomole { border-color: rgba(0,212,255,0.3); background: rgba(0,212,255,0.05); }
+    .diff-card.optomole .diff-value { color: var(--accent-cyan); }
+
+    /* Scene 10: Closing */
+    .closing-logo { font-size: 4.5rem; font-weight: 900; letter-spacing: -0.03em; background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple), var(--accent-pink)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow(0 0 35px rgba(0,212,255,0.2)); margin-bottom: 1.2rem; transform: scale(0.7); opacity: 0; transition: all 1.2s cubic-bezier(0.16, 1, 0.3, 1); }
+    .scene.active .closing-logo { transform: scale(1); opacity: 1; }
+    .closing-tagline { font-size: 1.4rem; font-weight: 300; font-style: italic; color: var(--text-secondary); max-width: 500px; line-height: 1.5; margin-bottom: 0.8rem; transform: translateY(15px); opacity: 0; transition: all 0.8s ease 0.5s; }
+    .scene.active .closing-tagline { transform: translateY(0); opacity: 1; }
+    .closing-sub { font-size: 0.9rem; color: var(--text-muted); transform: translateY(10px); opacity: 0; transition: all 0.8s ease 0.8s; }
+    .scene.active .closing-sub { transform: translateY(0); opacity: 1; }
+
+    /* CONTROLS */
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      margin-top: 1.2rem;
+      padding: 0.8rem 1.5rem;
+      background: var(--bg-panel);
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      backdrop-filter: blur(20px);
+      z-index: 1;
+    }
+    .btn {
+      background: var(--bg-deep);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 0.5rem 1rem;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-family: inherit;
+    }
+    .btn:hover {
+      border-color: var(--accent-cyan);
+      background: rgba(0,212,255,0.08);
+      transform: translateY(-1px);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      border: none;
+      font-weight: 600;
+      color: white;
+    }
+    .btn-primary:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px rgba(0,212,255,0.2);
+    }
+    .scene-dots {
+      display: flex;
+      gap: 0.35rem;
+      align-items: center;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: all 0.3s ease;
+      cursor: pointer;
+      border: none;
+      padding: 0;
+      display: block;
+    }
+    .dot.active {
+      background: var(--accent-cyan);
+      width: 22px;
+      border-radius: 4px;
+      box-shadow: 0 0 8px rgba(0,212,255,0.3);
+    }
+    .time-display {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+      min-width: 45px;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .scene-label {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      min-width: 100px;
+      text-align: center;
+    }
+
+    @media (max-width: 768px) {
+      .scene-title { font-size: 1.6rem; }
+      .scene-subtitle { font-size: 0.9rem; }
+      .stage { aspect-ratio: 4/3; }
+      .transform-container { flex-direction: column; }
+      .pipeline-container { flex-direction: column; gap: 0.4rem; }
+      .pipeline-connector { width: 2px; height: 16px; transform: rotate(90deg); }
+      .benefit-cards { flex-direction: column; align-items: center; }
+      .diff-grid { grid-template-columns: 1fr; }
+      .closing-logo { font-size: 2.5rem; }
+      .controls { flex-wrap: wrap; justify-content: center; padding: 0.6rem 1rem; }
+      .optomole-logo { font-size: 2.5rem; }
+      .inbox-container { width: 260px; }
+      .inbox-tab { width: 220px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient-bg">
+    <div class="ambient-orb"></div>
+    <div class="ambient-orb"></div>
+    <div class="ambient-orb"></div>
+  </div>
+  <div class="grid-overlay"></div>
+
+  <div class="stage" id="stage">
+    <audio id="voiceoverAudio" src="OptomoleExplainer.mp3" preload="auto"></audio>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    
+    <div class="music-indicator">
+      <div class="music-bars"><div class="music-bar"></div><div class="music-bar"></div><div class="music-bar"></div><div class="music-bar"></div></div>
+      Ambient
+    </div>
+    <div class="scene-num" id="sceneNum">01 / 11</div>
+
+    <!-- SCENE 1: Problem -->
+    <div class="scene active" data-scene="0">
+      <div class="inbox-container">
+        <div class="inbox-tab"><span class="dot red"></span>Project update required...</div>
+        <div class="inbox-tab"><span class="dot amber"></span>Course: Module 3 pending</div>
+        <div class="inbox-tab"><span class="dot blue"></span>Research paper - unread</div>
+        <div class="inbox-tab"><span class="dot red"></span>Reading list: 47 items</div>
+        <div class="inbox-tab"><span class="dot amber"></span>Meeting notes to review</div>
+        <div class="inbox-tab"><span class="dot blue"></span>+186 more unread...</div>
+        <div class="notif-badges"><span class="notif-badge">47</span><span class="notif-badge">12</span><span class="notif-badge">8</span></div>
+      </div>
+      <div class="scene-title white">The Content Overload</div>
+      <div class="scene-subtitle">Every day, important content keeps piling up. We know it matters. But we really don't want to be bothered with it.</div>
+      <div class="voiceover-bar">
+        <div class="voiceover-label"><div class="voiceover-dot"></div><span class="voiceover-tag">Voiceover</span></div>
+        <div class="voiceover-text">"Every day, we face the same problem. Important content keeps piling up—emails, courses, research, reading lists. We know it matters. But we really don't want to be bothered with it."</div>
+      </div>
+    </div>
+
+    <!-- SCENE 2: Video -->
+    <div class="scene" data-scene="0">
+      <div class="logo-reveal">
+        <div class="logo-ring"></div><div class="logo-ring"></div><div class="logo-ring"></div>
+          <video id="optomoleLogoVideo" src="frontend/dist/OptomoleEngine.mp4" autoplay loop muted playsinline style="width: 100%; height: 100%;"></video>
+      </div>
+      <div class="voiceover-bar">
+        <!--<div class="voiceover-text">"AI this and AI that, none of it ever gets to the root of the problem. Optomole changes that. It turns knowledge work into a playable experience."</div>-->
+      </div>
+    </div>
+
+    <!-- SCENE 3: Solution -->
+    <div class="scene" data-scene="1">
+      <div class="logo-reveal">
+        <div class="logo-ring"></div><div class="logo-ring"></div><div class="logo-ring"></div>
+        <div class="optomole-logo">OPTOMOLE</div>
+        
+      </div>
+      <div class="scene-title gradient">The Playable Experience</div>
+      <div class="scene-subtitle">AI this and AI that, none of it ever gets to the root of the problem. Optomole changes that. It turns knowledge work into a playable experience.</div>
+
+      <div class="voiceover-bar">
+        <div class="voiceover-label"><div class="voiceover-dot"></div><span class="voiceover-tag">Voiceover</span></div>
+        <!--<div class="voiceover-text">"AI this and AI that, none of it ever gets to the root of the problem. Optomole changes that. It turns knowledge work into a playable experience."</div>-->
+      </div>
+    </div>
+
+    <!-- SCENE 4: Core Concept -->
+    <div class="scene" data-scene="2">
+      <div class="transform-container">
+        <div class="transform-card"><span class="transform-icon">📧</span><div class="transform-label">Inbox</div><div class="transform-desc">Endless scrolling</div></div>
+        <div class="transform-arrow">→</div>
+        <div class="transform-card"><span class="transform-icon">⚔️</span><div class="transform-label">Missions</div><div class="transform-desc">Timed challenges</div><div class="glow-bar"></div></div>
+        <div class="transform-arrow">→</div>
+        <div class="transform-card"><span class="transform-icon">🏆</span><div class="transform-label">Rewards</div><div class="transform-desc">Unlock progress</div><div class="glow-bar"></div></div>
+      </div>
+      <div class="scene-title cyan">Your Content, Reimagined</div>
+      <div class="scene-subtitle">Instead of treating content like an endless chore, Optomole converts it into gamified interactive quests, challenges, and rewards. Your inbox becomes missions. Your research becomes progression. Your learning becomes a game you can actually finish.</div>
+      <div class="voiceover-bar">
+        <div class="voiceover-label"><div class="voiceover-dot"></div><span class="voiceover-tag">Voiceover</span></div>
+        <div class="voiceover-text">"Instead of treating content like an endless chore, Optomole converts it into gamified interactive playable structured quests, challenges, and rewards. Your inbox becomes missions. Your research becomes progression. Your learning becomes a game you can actually finish."</div>
+      </div>
+    </div>
+
+    <!-- SCENE 5: Tech Stack -->
+    <div class="scene" data-scene="3">
+      <div class="neural-network" id="neuralNetwork"></div>
+      <div class="scene-title gradient">Powered by Giants</div>
+      <div class="scene-subtitle">Built using Codex and GPT 5.6, Optomole sits on top of one of the most powerful LLMs on the market. A combination of AI, ML, and deep learning.</div>
+      <div class="tech-badges">
+        <span class="tech-badge tb-cyan">Codex</span>
+        <span class="tech-badge tb-purple">GPT 5.6</span>
+        <span class="tech-badge tb-green">Deep Learning</span>
+        <span class="tech-badge tb-amber">ML Stack</span>
+      </div>
+      <div class="voiceover-bar">
+        <div class="voiceover-label"><div class="voiceover-dot"></div><span class="voiceover-tag">Voiceover</span></div>
+        <div class="voiceover-text">"Built using Codex and GPT 5.6, Optomole is built on top of one of the most powerful LLMs on the market. It is a combination of AI, ML, and deep learning."</div>
+      </div>
+    </div>
+
+    <!-- SCENE 6: How It Works -->
+    <div class="scene" data-scene="4">
+      <div class="pipeline-container">
+        <div class="pipeline-node"><span class="node-icon">📄</span><div class="node-label">Your Content</div><div class="node-sublabel">Raw material</div></div>
+        <div class="pipeline-connector"></div>
+        <div class="pipeline-node highlight"><span class="node-icon">⚙️</span><div class="node-label">Experience Compiler</div><div class="node-sublabel">Quests, rules, loops</div></div>
+        <div class="pipeline-connector"></div>
+        <div class="pipeline-node highlight"><span class="node-icon">📦</span><div class="node-label">XIR Package</div><div class="node-sublabel">Portable format</div></div>
+        <div class="pipeline-connector"></div>
+        <div class="pipeline-node"><span class="node-icon">🎮</span><div class="node-label">Experience Fabric</div><div class="node-sublabel">Any engine</div></div>
+      </div>
+      <div class="scene-title cyan">You Bring the Content.<br>Optomole Builds the Experience.</div>
+      <div class="scene-subtitle">The Experience Compiler transforms raw material into a complete game structure. Packaged into XIR, delivered through the Experience Fabric to Unity, Unreal, Godot, or others.</div>
+      <div class="engine-row"><div class="engine-pill">Unity</div><div class="engine-pill">Unreal Engine</div><div class="engine-pill">Godot</div></div>
+      <div class="voiceover-bar">
+        <div class="voiceover-label"><div class="voiceover-dot"></div><span class="voiceover-tag">Voiceover</span></div>
+        <div class="voiceover-text">"You bring the content. Optomole builds the experience. Behind the scenes, the Experience Compiler transforms raw material into a complete game structure—quests, rules, progression systems, and feedback loops. That experience is packaged into a portable format called XIR, then delivered through the Experience Fabric to the engine of your choice—Unity, Unreal, Godot, or others. The result? A fully playable session, tailored to your workload."</div>
+      </div>
+    </div>
+
+    <!-- SCENE 7: Email Example -->
+    <div class="scene" data-scene="5">
+      <div style="position:relative;">
+        <div class="game-ui-container">
+          <div class="game-header"><span class="game-mission">📧 INBOX ASSAULT — MISSION 3</span><span class="game-timer">⏱ 02:47</span></div>
+          <div class="game-task"><div class="game-check">✓</div><span class="game-task-text">Review project proposal</span><span class="game-reward">+50 XP</span></div>
+          <div class="game-task"><div class="game-check">✓</div><span class="game-task-text">Approve budget request</span><span class="game-reward">+30 XP</span></div>
+          <div class="game-task"><div class="game-check" style="animation-delay:1.4s">✓</div><span class="game-task-text">Reply to stakeholder update</span><span class="game-reward">+40 XP</span></div>
+        </div>
+        <div class="level-up-banner">🎉 LEVEL UP! INBOX CLEARED</div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-item"><div class="stat-value">200</div><div class="stat-label">Emails Cleared</div></div>
+        <div class="stat-item"><div class="stat-value">12</div><div class="stat-label">Missions Done</div></div>
+        <div class="stat-item"><div class="stat-value">5</div><div class="stat-label">Rewards Unlocked</div></div>
+      </div>
+      <div class="voiceover-bar">
+        <div class="voiceover-label"><div class="voiceover-dot"></div><span class="voiceover-tag">Voiceover</span></div>
+        <div class="voiceover-text">"Imagine clearing 200 unread emails. Instead of scrolling endlessly, you complete timed missions, earn rewards for decisions, and unlock progress as you go. What used to drain you now pulls you forward."</div>
+      </div>
+    </div>
+
+    <!-- SCENE 8: Benefits -->
+    <div class="scene" data-scene="6">
+      <div class="benefit-cards">
+        <div class="benefit-card"><span class="benefit-icon">🛹</span><div class="benefit-title">Reduces Friction</div><div class="benefit-desc">Smooth entry into any task without the usual dread</div></div>
+        <div class="benefit-card"><span class="benefit-icon">🚀</span><div class="benefit-title">Creates Momentum</div><div class="benefit-desc">Progress loops that pull you forward naturally</div></div>
+        <div class="benefit-card"><span class="benefit-icon">🔥</span><div class="benefit-title">Drives Motivation</div><div class="benefit-desc">"I should" becomes "I want to finish this"</div></div>
+      </div>
+      <div class="progress-hero"><div class="progress-hero-fill"></div></div>
+      <div class="voiceover-bar">
+        <div class="voiceover-label"><div class="voiceover-dot"></div><span class="voiceover-tag">Voiceover</span></div>
+        <div class="voiceover-text">"Optomole reduces friction. It creates momentum. And it turns 'I should do this' into 'I want to finish this.'"</div>
+      </div>
+    </div>
+
+    <!-- SCENE 9: Developer Tools -->
+    <div class="scene" data-scene="7">
+      <div class="code-visual">
+        <div class="code-line"><span class="code-keyword">import</span> { ExperienceCompiler } <span class="code-keyword">from</span> <span class="code-string">'@optomole/core'</span>;</div>
+        <div class="code-line"><span class="code-keyword">const</span> compiler = <span class="code-keyword">new</span> <span class="code-func">ExperienceCompiler</span>({</div>
+        <div class="code-line">&nbsp;&nbsp;engine: <span class="code-string">'unity'</span>,</div>
+        <div class="code-line">&nbsp;&nbsp;format: <span class="code-string">'xir'</span>,</div>
+        <div class="code-line">&nbsp;&nbsp;<span class="code-comment">// Generate reusable artifacts</span></div>
+      </div>
+      <div class="scene-title cyan">Built for Developers</div>
+      <div class="scene-subtitle">Optomole generates reusable artifacts—engine projects, plugins, or raw packages—making it easy to extend, customize, or integrate into existing systems.</div>
+      <div class="dev-blocks">
+        <div class="dev-block"><span class="dev-block-icon">📁</span><span class="dev-block-label">Engine Projects</span></div>
+        <div class="dev-block"><span class="dev-block-icon">🔌</span><span class="dev-block-label">Plugins</span></div>
+        <div class="dev-block"><span class="dev-block-icon">📦</span><span class="dev-block-label">Raw Packages</span></div>
+      </div>
+      <div class="voiceover-bar">
+        <div class="voiceover-label"><div class="voiceover-dot"></div><span class="voiceover-tag">Voiceover</span></div>
+        <div class="voiceover-text">"For developers, Optomole also generates reusable artifacts—engine projects, plugins, or raw packages—making it easy to extend, customize, or integrate into existing systems."</div>
+      </div>
+    </div>
+
+    <!-- SCENE 10: Key Differentiators -->
+    <div class="scene" data-scene="8">
+      <div class="scene-title gradient" style="font-size:2rem; margin-bottom:0.8rem;">Key Differentiators</div>
+      <div class="diff-grid">
+        <div class="diff-card"><div class="diff-label">Traditional AI</div><div class="diff-value">Answers questions</div></div>
+        <div class="diff-card optomole"><div class="diff-label">Optomole</div><div class="diff-value">Creates experiences</div></div>
+        <div class="diff-card"><div class="diff-label">Traditional Knowledge Management</div><div class="diff-value">Stores information</div></div>
+        <div class="diff-card optomole"><div class="diff-label">Optomole</div><div class="diff-value">Transforms information into worlds</div></div>
+        <div class="diff-card"><div class="diff-label">Traditional Games</div><div class="diff-value">Start with fictional worlds</div></div>
+        <div class="diff-card optomole"><div class="diff-label">Optomole</div><div class="diff-value">Starts with your data & creates worlds</div></div>
+      </div>
+      <div class="voiceover-bar">
+        <div class="voiceover-label"><div class="voiceover-dot"></div><span class="voiceover-tag">Voiceover</span></div>
+        <div class="voiceover-text">Optomole doesn't just answer questions or store files. It transforms your actual data into playable worlds—bridging the gap between importance and motivation.</div>
+      </div>
+    </div>
+
+    <!-- SCENE 11: Closing -->
+    <div class="scene" data-scene="9">
+      <div class="closing-logo">OPTOMOLE</div>
+      <div class="closing-tagline">"The problem was never the content. It was the experience."</div>
+      <div class="closing-sub">Bridging the gap between importance and motivation.</div>
+      <div class="voiceover-bar">
+        <div class="voiceover-label"><div class="voiceover-dot"></div><span class="voiceover-tag">Voiceover</span></div>
+        <div class="voiceover-text">"Optomole bridges the gap between importance and motivation. Because the problem was never the content. It was the experience."</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <button class="btn" id="prevBtn" onclick="prevScene()">⏮ Prev</button>
+    <button class="btn btn-primary" id="playBtn" onclick="togglePlay()">▶ Play</button>
+    <div class="scene-dots" id="sceneDots"></div>
+    <span class="time-display" id="timeDisplay">0:00</span>
+    <span class="scene-label" id="sceneLabel">Problem</span>
+    <button class="btn" id="nextBtn" onclick="nextScene()">Next ⏭</button>
+  </div>
+
+  <script>
+  /* ------------------------------------------------------------------
+     Optomole Explainer — single source of truth.
+     The voiceover MP3 (OptomoleExplainer.mp3) drives everything: the
+     sync loop reads audio.currentTime each frame and flips scenes at
+     the window boundaries below. Scene durations are stretched to fill
+     the ~134.5s narration, allotted proportionally to each scene's
+     spoken length so the visuals track what's being said. Tune any
+     value in sceneDurations to nudge a scene's on-screen timing.
+  ------------------------------------------------------------------ */
+  const scenes = document.querySelectorAll('.scene');
+  const totalScenes = scenes.length;
+  let currentScene = 0;
+  let isPlaying = false;
+  let syncFrame = null;
+
+  const audio = document.getElementById('voiceoverAudio');
+
+  // SINGLE SOURCE OF TRUTH: the second each scene begins in OptomoleExplainer.mp3,
+  // measured by align_audio.py (see scene_timing.json "starts"). The MP3 drives
+  // everything — scenes flip exactly at these boundaries. To retime a scene, edit
+  // its start second here; every downstream offset is derived from this array.
+  //                      Problem Video  Solution Concept Tech   Pipeline Demo   Benefits Dev    Diff    Closing
+  const sceneTimes     = [0.0,   10.8,  11.32,   20.54,  38.04, 49.92,   80.92, 95.32,   103.34, 115.48, 125.88];
+  const sceneLabels    = ['Problem', 'Video', 'Solution', 'Concept', 'Tech Stack', 'Pipeline', 'Demo', 'Benefits', 'Dev Tools', 'Differentiators', 'Closing'];
+
+  // True length of the MP3 (ffprobe) — the final scene runs to here.
+  const AUDIO_END_MS = 134443;
+
+  // Derive ms start offsets and per-scene windows straight from sceneTimes.
+  const sceneStarts    = sceneTimes.map(t => Math.round(t * 1000));
+  const sceneDurations = sceneStarts.map((s, i) =>
+    (i < sceneStarts.length - 1 ? sceneStarts[i + 1] : AUDIO_END_MS) - s);
+  const totalDurationMs = AUDIO_END_MS;
+
+  // Build neural network for the Tech Stack scene.
+  const nnContainer = document.getElementById('neuralNetwork');
+  const nodePositions = [
+    [50,30],[120,20],[190,35],[260,25],[310,40],
+    [80,70],[150,60],[220,75],[280,65],
+    [110,110],[180,100],[250,115],
+    [150,140],[210,135]
+  ];
+  const nodeColors = ['cyan','purple','blue','cyan','purple','blue','cyan','purple','cyan','blue','purple','cyan','purple','blue'];
+  nodePositions.forEach((pos, i) => {
+    const node = document.createElement('div');
+    node.className = 'nn-node ' + nodeColors[i];
+    node.style.left = pos[0] + 'px';
+    node.style.top = pos[1] + 'px';
+    node.style.animationDelay = (i * 0.15) + 's';
+    nnContainer.appendChild(node);
+  });
+
+  // Build dot indicators.
+  const dotsContainer = document.getElementById('sceneDots');
+  for (let i = 0; i < totalScenes; i++) {
+    const dot = document.createElement('button');
+    dot.className = 'dot' + (i === 0 ? ' active' : '');
+    dot.onclick = () => goToScene(i);
+    dot.setAttribute('aria-label', 'Scene ' + (i + 1));
+    dotsContainer.appendChild(dot);
+  }
+
+  function updateScene(index) {
+    scenes.forEach((s, i) => s.classList.toggle('active', i === index));
+    document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === index));
+    document.getElementById('progressFill').style.width = ((index + 1) / totalScenes * 100) + '%';
+    document.getElementById('sceneNum').textContent = String(index + 1).padStart(2, '0') + ' / ' + String(totalScenes).padStart(2, '0');
+    document.getElementById('sceneLabel').textContent = sceneLabels[index];
+
+    const secs = Math.floor(sceneStarts[index] / 1000);
+    const mins = Math.floor(secs / 60);
+    const rem = secs % 60;
+    document.getElementById('timeDisplay').textContent = mins + ':' + String(rem).padStart(2, '0');
+
+    currentScene = index;
+  }
+
+  // Called every animation frame while playing — reads audio.currentTime
+  // and flips the active scene the instant we cross a window boundary.
+  function syncLoop() {
+    const nowMs = audio.currentTime * 1000;
+
+    // Resolve which scene window the audio is in (handles skips in either direction).
+    let target = totalScenes - 1;
+    for (let i = 0; i < totalScenes; i++) {
+      if (nowMs < sceneStarts[i] + sceneDurations[i]) { target = i; break; }
+    }
+    if (target !== currentScene) updateScene(target);
+
+    if (audio.ended || nowMs >= totalDurationMs) {
+      isPlaying = false;
+      document.getElementById('playBtn').textContent = '▶ Replay';
+      cancelAnimationFrame(syncFrame);
+      syncFrame = null;
+      return;
+    }
+    syncFrame = requestAnimationFrame(syncLoop);
+  }
+
+  function nextScene() {
+    if (currentScene < totalScenes - 1) {
+      jumpToScene(currentScene + 1);
+    } else {
+      jumpToScene(0);
+      pausePlayback();
+    }
+  }
+
+  function prevScene() {
+    if (currentScene > 0) jumpToScene(currentScene - 1);
+  }
+
+  function goToScene(index) {
+    jumpToScene(index);
+  }
+
+  // Moves both the audio position AND the visible scene together.
+  function jumpToScene(index) {
+    audio.currentTime = sceneStarts[index] / 1000;
+    updateScene(index);
+  }
+
+  function pausePlayback() {
+    audio.pause();
+    if (syncFrame) cancelAnimationFrame(syncFrame);
+    syncFrame = null;
+    isPlaying = false;
+    document.getElementById('playBtn').textContent = '▶ Play';
+  }
+
+  function togglePlay() {
+    const btn = document.getElementById('playBtn');
+    if (isPlaying) {
+      pausePlayback();
+    } else {
+      if (currentScene === totalScenes - 1 && audio.currentTime * 1000 >= totalDurationMs) jumpToScene(0);
+      audio.play();
+      syncFrame = requestAnimationFrame(syncLoop);
+      btn.textContent = '⏸ Pause';
+      isPlaying = true;
+    }
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight') nextScene();
+    if (e.key === 'ArrowLeft') prevScene();
+    if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+  });
+
+  updateScene(0);
+</script>
+</body>
+</html>
+

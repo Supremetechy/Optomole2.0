@@ -6,6 +6,8 @@ import { id } from '../shared/ids';
 import { HUMAN_EXPERIENCES } from '../shared/human-experiences';
 import { plainText, shortLabel } from '../shared/text';
 import { ExperiencePackage, SourcePayload } from '../shared/types';
+import { gatewayConfig } from '../shared/config';
+import { GameReferencesService } from '../game-references/game-references.service';
 import {
   ArchetypeId,
   buildRuntimeContract,
@@ -15,7 +17,7 @@ import {
   RUNTIME_ARCHETYPES,
 } from '../shared/runtime-archetypes';
 
-type AiProvider = 'openai' | 'claude' | 'gemini';
+type AiProvider = 'openai' | 'claude' | 'gemini' | 'local';
 
 export interface AiCompilerOptions {
   provider?: AiProvider;
@@ -27,18 +29,64 @@ export interface AiCompilerOptions {
   };
 }
 
+// The `local` provider runs fully offline against an OpenAI-compatible server
+// (Ollama / LM Studio) and needs no API key, unlike the hosted providers.
+const KEYLESS_PROVIDERS = new Set<AiProvider>(['local']);
+
 @Injectable()
 export class ExperienceCompilerService {
-  canCompile(options: Record<string, unknown> = {}) {
-    const ai = this.aiOptions(options);
-    return Boolean(ai.provider && this.keyFor(ai.provider, ai));
+  constructor(private readonly gameReferences: GameReferencesService) {}
+
+  /**
+   * "Model off a favorite game." When options carry a `gameReferenceId`, fold the
+   * reference's template/archetype/mechanics mapping into the compile options so
+   * the ExperienceManifest is shaped like that game — but never override an
+   * explicit user selection (templateId / genre / archetype). Returns a new
+   * options object; provenance is stored under `gameReference` for the manifest
+   * and the AI prompt.
+   */
+  applyGameReference(options: Record<string, unknown>): Record<string, unknown> {
+    const referenceId = String((options as any).gameReferenceId || (options as any).favoriteGameId || '').trim();
+    if (!referenceId) return options;
+    const steering = this.gameReferences.steeringFor(referenceId);
+    if (!steering) return options;
+
+    const next: Record<string, unknown> = { ...options };
+    // Choosing a favorite is a deliberate act, so it outranks the `genre`
+    // dropdown (which always carries a default). A directly-specified
+    // `templateId` is more precise still, so that alone is left untouched.
+    const hasExplicitTemplateId = Boolean(next.templateId && String(next.templateId).trim());
+    if (!hasExplicitTemplateId) {
+      next.templateId = steering.templateId;
+      // Drop the genre default so templatePreference resolves via templateId.
+      delete next.genre;
+    }
+    if (!(next.archetype && String(next.archetype).trim())) next.archetype = steering.archetype;
+    next.gameReference = {
+      id: referenceId,
+      title: steering.title,
+      category: steering.category,
+      genreFamily: steering.genreFamily,
+      templateId: steering.templateId,
+      archetype: steering.archetype,
+      mechanics: steering.mechanics,
+    };
+    return next;
   }
 
-  async compileWithAi(source: SourcePayload, options: Record<string, unknown> = {}): Promise<ExperiencePackage> {
+  canCompile(options: Record<string, unknown> = {}) {
+    const ai = this.aiOptions(options);
+    if (!ai.provider) return false;
+    return KEYLESS_PROVIDERS.has(ai.provider) || Boolean(this.keyFor(ai.provider, ai));
+  }
+
+  async compileWithAi(source: SourcePayload, rawOptions: Record<string, unknown> = {}): Promise<ExperiencePackage> {
+    const options = this.applyGameReference(rawOptions);
     const ai = this.aiOptions(options);
     if (!ai.provider) throw new BadRequestException('AI provider is required.');
+    const keyless = KEYLESS_PROVIDERS.has(ai.provider);
     const apiKey = this.keyFor(ai.provider, ai);
-    if (!apiKey) throw new BadRequestException(`API key is required for ${ai.provider}.`);
+    if (!keyless && !apiKey) throw new BadRequestException(`API key is required for ${ai.provider}.`);
 
     const manifest = await this.callProvider(ai.provider, apiKey, ai.model || this.defaultModel(ai.provider), source, options);
     return this.packageFromManifest(this.normalizeManifest(manifest, source, options), source, options, ai);
@@ -48,7 +96,47 @@ export class ExperienceCompilerService {
     const prompt = this.prompt(source, options);
     if (provider === 'openai') return this.callOpenAi(apiKey, model, prompt);
     if (provider === 'claude') return this.callClaude(apiKey, model, prompt);
+    if (provider === 'local') return this.callLocal(model, prompt);
     return this.callGemini(apiKey, model, prompt);
+  }
+
+  /**
+   * Offline compile against a local OpenAI-compatible server (Ollama / LM Studio).
+   * No network call leaves the machine and no API key is used. The endpoint and
+   * model tag come from LOCAL_AI_BASE_URL / LOCAL_AI_MODEL. We ask for a JSON
+   * object response; `parseJson` still salvages the manifest if the local model
+   * wraps it in prose or fences.
+   */
+  private async callLocal(model: string, prompt: string) {
+    const baseUrl = gatewayConfig().localAiBaseUrl.replace(/\/$/, '');
+    let response: Response;
+    try {
+      response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          stream: false,
+          temperature: 0.2,
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: this.systemPrompt() },
+            { role: 'user', content: prompt },
+          ],
+        }),
+      });
+    } catch (err) {
+      throw new Error(
+        `Local compile could not reach ${baseUrl}. Is the local model server running ` +
+          `(e.g. \`ollama serve\`) and the model "${model}" loaded? (${(err as Error).message})`,
+      );
+    }
+    const data = await this.readJson(response);
+    if (!response.ok) throw new Error(`Local compile failed: ${this.errorMessage(data, response.status)}`);
+    const text = Array.isArray(data?.choices)
+      ? data.choices.map((choice: any) => choice?.message?.content || '').join('\n')
+      : '';
+    return this.parseJson(text);
   }
 
   private async callOpenAi(apiKey: string, model: string, prompt: string) {
@@ -126,8 +214,18 @@ export class ExperienceCompilerService {
     const irx = (source.metadata?.irx && typeof source.metadata.irx === 'object' ? source.metadata.irx : null) as any | null;
     const schema = this.readReference('spec-engine/schemas/experience-manifest.schema.json');
     const skills = this.readReference('scripts/Optomole_Skills.md');
+    const reference = (options as any).gameReference as { title?: string; category?: string; genreFamily?: string; mechanics?: string[] } | undefined;
+    const referenceDirective = reference?.title
+      ? [
+          `Model the experience off the user's favorite game: "${reference.title}" (${reference.category} / ${reference.genreFamily}).`,
+          `Shape quests, progression, and pacing after these mechanics: ${(reference.mechanics || []).join(', ') || 'core loop of that genre'}.`,
+          'Keep every quest and evidence item traceable to the user\'s source content — model the FORM off the reference game, fill the CONTENT from the source.',
+          '',
+        ]
+      : [];
     return [
       'Compile the ingested content into ExperienceManifest.json.',
+      ...referenceDirective,
       'Use Optomole_Skills.md as the operating directive for the compiler stage.',
       'Use the Optomole IRX, storyboard, knowledge graph, semantic extraction, and compiler references below as the transformation contract.',
       'Do not invent a parallel pipeline. Treat the supplied IRX artifacts as the source of truth.',
@@ -295,6 +393,7 @@ export class ExperienceCompilerService {
         genre: displayGenre(preference, archetype),
         outputType: manifest.classification?.experienceOutputType,
         outputExperience: manifest.classification?.outputExperience,
+        modeledAfter: (options as any).gameReference || null,
         world: manifest.world,
       },
       blueprint: {
@@ -363,12 +462,14 @@ export class ExperienceCompilerService {
   }
 
   private keyFor(provider: AiProvider, options: AiCompilerOptions) {
+    if (provider === 'local') return '';
     return options.apiKeys?.[provider] || '';
   }
 
   private defaultModel(provider: AiProvider) {
     if (provider === 'openai') return 'gpt-4o-mini';
     if (provider === 'claude') return 'claude-3-5-sonnet-latest';
+    if (provider === 'local') return gatewayConfig().localAiModel;
     return 'gemini-3.5-flash';
   }
 

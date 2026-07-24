@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Resolve the repo root robustly: works whether this script lives at the repo
+# root or under scripts/. Pick the ancestor dir that actually contains api/.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -d "$SCRIPT_DIR/api" && -d "$SCRIPT_DIR/frontend" ]]; then
+  ROOT_DIR="$SCRIPT_DIR"
+else
+  ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+fi
 LOG_DIR="$ROOT_DIR/.optomole-data/dev/logs"
 PID_DIR="$ROOT_DIR/.optomole-data/dev/pids"
 OBJECT_DIR="$ROOT_DIR/.optomole-data/objects"
@@ -164,10 +171,18 @@ ENV
   echo "Created local .env with development defaults."
 fi
 
-set -a
-# shellcheck disable=SC1091
-source "$ROOT_DIR/.env"
-set +a
+# Load the dev .env without `source`: values here can contain spaces/backslashes
+# (e.g. a Windows UE_PATH) that are valid for Node's --env-file but break bash
+# `source` word-splitting. Export each KEY=VALUE line as a single quoted arg so
+# the whole value is preserved literally; skip comments and blank lines.
+if [[ -f "$ROOT_DIR/.env" ]]; then
+  while IFS= read -r env_line || [[ -n "$env_line" ]]; do
+    env_line="${env_line#"${env_line%%[![:space:]]*}"}"   # strip leading whitespace
+    [[ -z "$env_line" || "$env_line" == \#* ]] && continue # skip blanks/comments
+    [[ "$env_line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || continue # skip non-assignments (prose, etc.)
+    export "$env_line"
+  done < "$ROOT_DIR/.env"
+fi
 
 if [[ "$USE_DOCKER_INFRA" -eq 1 ]]; then
   echo "Starting Docker infrastructure..."

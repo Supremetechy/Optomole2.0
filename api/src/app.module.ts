@@ -35,9 +35,11 @@ import { TemplatesService } from './templates/templates.service';
 import { TranscriptionController } from './transcription/transcription.controller';
 import { TranscriptionService } from './transcription/transcription.service';
 import { WorkersController } from './workers/workers.controller';
+import { GameReferencesController } from './game-references/game-references.controller';
+import { GameReferencesService } from './game-references/game-references.service';
 
 @Module({
-  controllers: [HealthController, ExperienceController, EmailController, GdpController, BuildsController, WorkersController, ArtifactsController, TemplatesController, IrxController, TranscriptionController, CompilerController, PreprocessingController, AccountsController],
-  providers: [ExperienceService, EmailService, GdpService, BuildsService, AiGenerationService, QueueService, ObjectStorageService, ArtifactsService, TemplatesService, IrxService, TranscriptionService, ExperienceCompilerService, PreprocessingPipelineService, ContentSanitizationService, SemanticExtractionService, EmotionalIntelligenceService, GameplayNormalizationService, StoryboardService, KnowledgeGraphService, AccountsService, AccountStore, PersonNodeAdapterService, AdminGuard],
+  controllers: [HealthController, ExperienceController, EmailController, GdpController, BuildsController, WorkersController, ArtifactsController, TemplatesController, IrxController, TranscriptionController, CompilerController, PreprocessingController, AccountsController, GameReferencesController],
+  providers: [ExperienceService, EmailService, GdpService, BuildsService, AiGenerationService, QueueService, ObjectStorageService, ArtifactsService, TemplatesService, IrxService, TranscriptionService, ExperienceCompilerService, PreprocessingPipelineService, ContentSanitizationService, SemanticExtractionService, EmotionalIntelligenceService, GameplayNormalizationService, StoryboardService, KnowledgeGraphService, AccountsService, AccountStore, PersonNodeAdapterService, AdminGuard, GameReferencesService],
 })
 export class AppModule {}

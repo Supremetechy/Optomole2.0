@@ -82,6 +82,37 @@ export class BuildsService {
   }
 
   /**
+   * Delete a build and everything it owns: its artifact record(s), the in-memory
+   * build entry, and the persisted manifest object on disk. Removing the disk
+   * object matters — otherwise recoverPersistedBuilds re-adds the build on the
+   * next list. Returns false if the build id is unknown.
+   */
+  deleteBuild(id: string): boolean {
+    this.recoverPersistedBuilds();
+    const build = this.builds.get(id);
+    if (!build) return false;
+
+    for (const artifact of [...this.artifacts.values()]) {
+      if (artifact.jobId !== id && artifact.id !== build.artifactId) continue;
+      if (artifact.storageKey) this.storage.deleteObject(artifact.storageKey);
+      this.artifacts.delete(artifact.id);
+    }
+    this.builds.delete(id);
+    return true;
+  }
+
+  /** Delete every build/artifact and their persisted manifests. Returns the count. */
+  deleteAllBuilds(): number {
+    this.recoverPersistedBuilds();
+    const ids = [...this.builds.keys()];
+    let removed = 0;
+    for (const id of ids) {
+      if (this.deleteBuild(id)) removed += 1;
+    }
+    return removed;
+  }
+
+  /**
    * Rebuild build/artifact records from the object store.
    *
    * Build state lives in memory, but every browser build durably writes

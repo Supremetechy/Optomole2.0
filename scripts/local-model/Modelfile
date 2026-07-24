@@ -1,0 +1,17 @@
+# Ollama Modelfile for the offline compiler provider (`provider: "local"`).
+#
+# Registers the One Touch GGUF as the Ollama model tag `claude-sonnet-reasoning`,
+# which is the default LOCAL_AI_MODEL the gateway looks for. Build it with:
+#
+#   ollama create claude-sonnet-reasoning -f scripts/local-model/Modelfile
+#
+# NOTE: `ollama create` COPIES the 12.5 GB GGUF into Ollama's model store. The
+# internal disk is nearly full, so relocate the store to the drive first — see
+# scripts/local-model/README.md.
+
+FROM /Volumes/One Touch/claude-3.7-sonnet-reasoning-gemma3-12B/claude-3.7-sonnet-reasoning-gemma3-12B.Q8_0.gguf
+
+# Deterministic-ish JSON compilation. The compiler sends its own system prompt
+# per request, so none is baked in here.
+PARAMETER temperature 0.2
+PARAMETER num_ctx 8192

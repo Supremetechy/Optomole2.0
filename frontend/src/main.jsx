@@ -6,11 +6,15 @@ import {
   API_BASE,
   connectEmailInbox,
   compileExperience,
+  deleteAllBuilds,
+  deleteBuild,
   getBuild,
   getHealth,
+  importGameReferences,
   launchExperience,
   listArtifacts,
   listBuilds,
+  listGameReferences,
   listTemplates,
   normalizeIrx,
   runPreprocessing,
@@ -112,6 +116,15 @@ function createSourceItem(input) {
     origin: input.origin || 'manual-entry',
     metadata: input.metadata || {},
   };
+}
+
+function humanizeTemplate(id) {
+  return String(id || '')
+    .replace(/\.v\d+$/i, '')
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((word) => (['rpg', 'fps', 'ai'].includes(word.toLowerCase()) ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1)))
+    .join(' ');
 }
 
 function normalizeArray(value) {
@@ -436,6 +449,23 @@ function App() {
   const [title, setTitle] = useState('Operational Readiness Mission');
   const [worldTitle, setWorldTitle] = useState('Knowledge Frontier');
   const [genre, setGenre] = useState('action-adventure-key-lock.v1');
+  const [gameReferences, setGameReferences] = useState([]);
+  const [favoriteGameId, setFavoriteGameId] = useState('');
+  const gameReferenceGroups = useMemo(() => {
+    const buckets = new Map();
+    for (const game of gameReferences) {
+      const list = buckets.get(game.category) || [];
+      list.push(game);
+      buckets.set(game.category, list);
+    }
+    return [...buckets.entries()].map(([category, games]) => ({ category, games }));
+  }, [gameReferences]);
+  const selectedFavorite = useMemo(
+    () => gameReferences.find((game) => game.id === favoriteGameId) || null,
+    [gameReferences, favoriteGameId],
+  );
+  const [gameRefImport, setGameRefImport] = useState('');
+  const gameDuplicatorUrl = typeof window !== 'undefined' ? `${window.location.origin}/gameduplicator/` : '/gameduplicator/';
   const [text, setText] = useState(sampleText);
   const [goals, setGoals] = useState('Help the user master the operational readiness process.');
   const [achievements, setAchievements] = useState('Complete first mission, identify correct evidence, unlock readiness badge.');
@@ -504,6 +534,7 @@ function App() {
         genre,
         goals,
         achievements,
+        gameReferenceId: favoriteGameId || undefined,
         publicGatewayUrl: publicGatewayBase(),
         ai: useAiCompiler
           ? {
@@ -515,7 +546,7 @@ function App() {
       },
       target,
     }),
-    [achievements, aiModel, aiProvider, apiKeys, genre, goals, ingestedItems, irx, preprocessingPipeline, sourceType, target, text, title, useAiCompiler, worldTitle],
+    [achievements, aiModel, aiProvider, apiKeys, favoriteGameId, genre, goals, ingestedItems, irx, preprocessingPipeline, sourceType, target, text, title, useAiCompiler, worldTitle],
   );
 
   const activeQuest = activeQuestFromPackage(compiledPackage);
@@ -539,15 +570,71 @@ function App() {
   }, [compiledPackage?.id, activeQuest?.id]);
 
   async function refreshSideData() {
-    const [templateData, buildData, artifactData] = await Promise.allSettled([
+    const [templateData, buildData, artifactData, gameRefData] = await Promise.allSettled([
       listTemplates(),
       listBuilds(),
       listArtifacts(),
+      listGameReferences(),
     ]);
 
     if (templateData.status === 'fulfilled') setTemplates(normalizeArray(templateData.value));
     if (buildData.status === 'fulfilled') setBuilds(normalizeArray(buildData.value));
     if (artifactData.status === 'fulfilled') setArtifacts(normalizeArray(artifactData.value));
+    if (gameRefData.status === 'fulfilled') setGameReferences(normalizeArray(gameRefData.value?.games));
+  }
+
+  async function importGamesFromPayload(rawText, label) {
+    try {
+      const parsed = JSON.parse(rawText);
+      const games = Array.isArray(parsed) ? parsed : parsed.games || parsed.projects || parsed;
+      const result = await importGameReferences(games);
+      const refreshed = await listGameReferences();
+      setGameReferences(normalizeArray(refreshed?.games));
+      setGameRefImport(`Imported ${result.importedCount} game(s) from ${label}.`);
+    } catch (caught) {
+      setGameRefImport(`Import failed: ${caught.message}`);
+    }
+  }
+
+  function importGamesFromBrowser() {
+    const raw = (typeof window !== 'undefined' && window.localStorage.getItem('gameDuplicatorProjects')) || '';
+    if (!raw) {
+      setGameRefImport('No GameDuplicator games in this browser. Open GameDuplicator here first, or use "Import file".');
+      return;
+    }
+    importGamesFromPayload(raw, 'this browser');
+  }
+
+  function importGamesFromFile(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => importGamesFromPayload(String(reader.result || ''), file.name);
+    reader.readAsText(file);
+    event.target.value = '';
+  }
+
+  async function removeBuild(id) {
+    try {
+      await deleteBuild(id);
+      if (activeBuild?.id === id) setActiveBuild(null);
+      await refreshSideData();
+    } catch (caught) {
+      setError(caught.message);
+    }
+  }
+
+  async function clearAllBuilds() {
+    if (typeof window !== 'undefined' && !window.confirm('Delete all builds and their playable manifests? This cannot be undone.')) return;
+    try {
+      const result = await deleteAllBuilds();
+      setActiveBuild(null);
+      await refreshSideData();
+      setError('');
+      if (result?.deletedCount != null) setGameRefImport('');
+    } catch (caught) {
+      setError(caught.message);
+    }
   }
 
   useEffect(() => {
@@ -938,7 +1025,14 @@ function App() {
             </label>
             <label>
               Genre
-              <select value={genre} onChange={(event) => setGenre(event.target.value)}>
+              <select
+                value={genre}
+                onChange={(event) => {
+                  setGenre(event.target.value);
+                  // Manual genre override decouples from the favorite-game pick.
+                  setFavoriteGameId('');
+                }}
+              >
                 {genres.map((item) => (
                   <option value={item.value} key={item.value}>
                     {item.label}
@@ -947,6 +1041,55 @@ function App() {
               </select>
             </label>
           </div>
+
+          <label>
+            Model off a favorite game
+            <select
+              value={favoriteGameId}
+              onChange={(event) => {
+                const id = event.target.value;
+                setFavoriteGameId(id);
+                const ref = gameReferences.find((game) => game.id === id);
+                if (ref?.mapping?.templateId) setGenre(`${ref.mapping.templateId}.v1`);
+              }}
+            >
+              <option value="">— None (use Genre above) —</option>
+              {gameReferenceGroups.map((group) => (
+                <optgroup label={group.category} key={group.category}>
+                  {group.games.map((game) => (
+                    <option value={game.id} key={game.id}>
+                      {game.title}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+          {selectedFavorite ? (
+            <p className="muted">
+              Modeled after <b>{selectedFavorite.title}</b> → {humanizeTemplate(selectedFavorite.mapping.templateId)} ·{' '}
+              {selectedFavorite.mapping.archetype}
+              {selectedFavorite.mapping.mechanics?.length ? ` · ${selectedFavorite.mapping.mechanics.join(', ')}` : ''}. Your
+              uploaded content fills this game shape.
+            </p>
+          ) : null}
+          <div className="import-row">
+            <a className="secondary inline-action file-btn" href={gameDuplicatorUrl} target="_blank" rel="noreferrer">
+              Open GameDuplicator
+            </a>
+            <button className="secondary inline-action" type="button" onClick={importGamesFromBrowser}>
+              Import my GameDuplicator games
+            </button>
+            <label className="secondary inline-action file-btn">
+              Import file
+              <input type="file" accept="application/json,.json" onChange={importGamesFromFile} hidden />
+            </label>
+          </div>
+          <p className="muted">
+            Create or duplicate games in GameDuplicator (opens here, same origin), then click “Import my GameDuplicator
+            games”.
+          </p>
+          {gameRefImport ? <p className="muted">{gameRefImport}</p> : null}
 
           <label>
             Source content
@@ -1077,12 +1220,21 @@ function App() {
                       onChange={(event) => {
                         const provider = event.target.value;
                         setAiProvider(provider);
-                        setAiModel(provider === 'openai' ? 'gpt-4o-mini' : provider === 'claude' ? 'claude-3-5-sonnet-latest' : 'gemini-3.5-flash');
+                        setAiModel(
+                          provider === 'openai'
+                            ? 'gpt-4o-mini'
+                            : provider === 'claude'
+                              ? 'claude-3-5-sonnet-latest'
+                              : provider === 'local'
+                                ? 'claude-sonnet-reasoning'
+                                : 'gemini-3.5-flash',
+                        );
                       }}
                     >
                       <option value="openai">OpenAI</option>
                       <option value="claude">Claude</option>
                       <option value="gemini">Gemini</option>
+                      <option value="local">Local (offline)</option>
                     </select>
                   </label>
                   <label>
@@ -1090,16 +1242,25 @@ function App() {
                     <input value={aiModel} onChange={(event) => setAiModel(event.target.value)} />
                   </label>
                 </div>
-                <label>
-                  {aiProvider} API key
-                  <input
-                    type="password"
-                    value={apiKeys[aiProvider] || ''}
-                    onChange={(event) => setApiKeys((current) => ({ ...current, [aiProvider]: event.target.value }))}
-                    placeholder="Used for this compile request only"
-                  />
-                </label>
-                <p className="muted">The API key is sent to the local gateway for this compile request and is not stored by the frontend.</p>
+                {aiProvider === 'local' ? (
+                  <p className="muted">
+                    Runs fully offline against your local model server (Ollama / LM Studio). No API key and no
+                    external call. The Model field is the local model tag to load.
+                  </p>
+                ) : (
+                  <>
+                    <label>
+                      {aiProvider} API key
+                      <input
+                        type="password"
+                        value={apiKeys[aiProvider] || ''}
+                        onChange={(event) => setApiKeys((current) => ({ ...current, [aiProvider]: event.target.value }))}
+                        placeholder="Used for this compile request only"
+                      />
+                    </label>
+                    <p className="muted">The API key is sent to the local gateway for this compile request and is not stored by the frontend.</p>
+                  </>
+                )}
               </>
             ) : null}
           </div>
@@ -1147,6 +1308,9 @@ function App() {
               <span>{compiledPackage?.experience?.world?.planet || 'Waiting for source content'} / {domainLabels[activeDomain] || activeDomain}</span>
               {compiledPackage?.experience?.genre?.title ? (
                 <span className="genre-chip">{compiledPackage.experience.genre.title}</span>
+              ) : null}
+              {compiledPackage?.experience?.modeledAfter?.title ? (
+                <span className="genre-chip">★ Modeled after {compiledPackage.experience.modeledAfter.title}</span>
               ) : null}
             </div>
           </div>
@@ -1454,13 +1618,29 @@ function App() {
             <div className="section-title compact">
               <p>Recent Builds</p>
               <h2>{builds.length} jobs</h2>
+              {builds.length ? (
+                <button className="secondary inline-action danger" type="button" onClick={clearAllBuilds}>
+                  Clear all
+                </button>
+              ) : null}
             </div>
             <div className="mini-list">
-              {builds.slice(0, 6).map((build) => (
-                <button type="button" key={build.id} onClick={() => setActiveBuild(build)}>
-                  <b>{build.id}</b>
-                  <span>{build.target} / {build.status}</span>
-                </button>
+              {builds.map((build) => (
+                <div className={`build-row${activeBuild?.id === build.id ? ' active' : ''}`} key={build.id}>
+                  <button type="button" className="build-select" onClick={() => setActiveBuild(build)}>
+                    <b>{build.id}</b>
+                    <span>{build.target} / {build.status}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="build-delete"
+                    title="Delete this build"
+                    aria-label={`Delete build ${build.id}`}
+                    onClick={() => removeBuild(build.id)}
+                  >
+                    ×
+                  </button>
+                </div>
               ))}
               {!builds.length ? <span className="muted">No builds have been created in this gateway process.</span> : null}
             </div>

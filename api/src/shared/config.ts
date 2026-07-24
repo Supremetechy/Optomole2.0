@@ -19,15 +19,19 @@ export interface GatewayConfig {
   internalApiToken: string;
   adminApiToken: string;
   accountStorePath: string;
+  gameReferenceStorePath: string;
   personNodeModulePath: string;
   personNodeSchemaPath: string;
   templateRegistryPath: string;
   browserEnginePath: string;
+  gameDuplicatorPath: string;
   browserEngineUrl: string;
   gatewayHttps: boolean;
   tlsCertPath: string;
   tlsKeyPath: string;
   localObjectStorePath: string;
+  localAiBaseUrl: string;
+  localAiModel: string;
   openaiApiKey: string;
   whisperModel: string;
   openaiTranscribeModel: string;
@@ -64,12 +68,18 @@ export function gatewayConfig(): GatewayConfig {
     // (or `Authorization: Bearer …`) to reach the account-management endpoints.
     adminApiToken: value('ADMIN_API_TOKEN', 'dev-admin-token'),
     accountStorePath: value('ACCOUNT_STORE_PATH', '../.optomole-data/accounts'),
+    // Imported GameDuplicator user games, persisted one JSON per game so the
+    // "model off a favorite" catalog survives gateway restarts.
+    gameReferenceStorePath: value('GAME_REFERENCE_STORE_PATH', '../.optomole-data/game-references'),
     // The shared, framework-free Person Node contract both AdminConsole and the
     // api import. Resolved from the api's cwd, like templateRegistryPath.
     personNodeModulePath: value('PERSON_NODE_MODULE_PATH', '../shared/person-node/person-node.mjs'),
     personNodeSchemaPath: value('PERSON_NODE_SCHEMA_PATH', '../shared/person-node/person-node.schema.json'),
     templateRegistryPath: value('TEMPLATE_REGISTRY_PATH', '../templates/registry.json'),
     browserEnginePath: value('BROWSER_ENGINE_PATH', '../browser-engine'),
+    // GameDuplicator (root-level app) served at /v1/gameduplicator for standalone
+    // / prod, so it can share the gateway origin when the console is gateway-hosted.
+    gameDuplicatorPath: value('GAME_DUPLICATOR_PATH', '../GameDuplicator'),
     // Base URL where the playable browser-engine is actually served. Set this
     // when the engine runs standalone (e.g. `serve.py` at https://localhost:8777)
     // instead of being served by the gateway at /v1/browser-engine. Empty =
@@ -79,6 +89,12 @@ export function gatewayConfig(): GatewayConfig {
     tlsCertPath: value('TLS_CERT_PATH', '../browser-engine/.certs/localhost.pem'),
     tlsKeyPath: value('TLS_KEY_PATH', '../browser-engine/.certs/localhost-key.pem'),
     localObjectStorePath: value('LOCAL_OBJECT_STORE_PATH', '../.optomole-data/objects'),
+    // Local, offline LLM used by the compiler's `local` provider. Points at an
+    // OpenAI-compatible endpoint (Ollama at :11434/v1, or LM Studio) so the
+    // gateway never loads the GGUF in-process. LOCAL_AI_MODEL is the tag the
+    // runtime exposes (e.g. the Ollama model created from the One Touch GGUF).
+    localAiBaseUrl: value('LOCAL_AI_BASE_URL', 'http://localhost:11434/v1'),
+    localAiModel: value('LOCAL_AI_MODEL', 'claude-sonnet-reasoning'),
     openaiApiKey: value('OPENAI_API_KEY', ''),
     whisperModel: value('WHISPER_MODEL', 'whisper-1'),
     openaiTranscribeModel: value('OPENAI_TRANSCRIBE_MODEL', 'gpt-4o-mini-transcribe'),
