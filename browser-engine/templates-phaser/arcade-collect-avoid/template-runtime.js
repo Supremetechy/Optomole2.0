@@ -28,7 +28,8 @@ export class PhaserArcadeTemplateRuntime {
     this.mapping = new MappingEngine(manifest);
     this.waveModel = buildWaves(this.mapping.specs, {
       waveSize: meta.waveSize || 4,
-      title: meta.title || manifest.title,
+      title: this.mapping.world.title || meta.title || manifest.title,
+      world: this.mapping.world,
     });
     const coach = this.mapping.specs.find((s) => s.entityType === 'npc');
     this._coachLine = coach?.description || null;
@@ -62,6 +63,7 @@ export class PhaserArcadeTemplateRuntime {
     const flow = {
       ctx,
       meta: this.meta,
+      theme: this.meta.theme || null, // content+engine theme (palette + retro style)
       waveModel: this.waveModel,
       coachLine: this._coachLine,
       waveCount: this.waveModel.waves.length,

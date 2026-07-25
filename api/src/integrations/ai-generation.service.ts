@@ -112,7 +112,7 @@ export class AiGenerationService {
     const archetype = RUNTIME_ARCHETYPES[archetypeId];
     const preference = this.templatePreference(options);
     const skillTree = this.skillTree(domain);
-    const proceduralMap = this.proceduralMap(title, quests);
+    const proceduralMap = this.proceduralMap(title, quests, irx);
     const preprocessing = irx?.preprocessingPipeline || {
       semanticExtraction: irx?.semanticExtraction,
       gameplayNormalization: irx?.gameplayNormalization,
@@ -255,18 +255,41 @@ export class AiGenerationService {
     ];
   }
 
-  private proceduralMap(title: string, quests: any[]) {
+  private proceduralMap(title: string, quests: any[], irx: any | null = null) {
+    const locations = quests.slice(0, 6).map((quest: any, index: number) => ({
+      name: quest.title || `Mission Node ${index + 1}`,
+      description: quest.summary || 'Compiled quest location.',
+      type: 'mission_node',
+      hazards: (Array.isArray(quest.evidence) ? quest.evidence : []).filter((item: any) => item.correct === false).map((item: any) => String(item.text || item.label || item)).slice(0, 3),
+      spawns: ['Evidence prompt', 'Objective marker'],
+      lootTable: ['Compiled Insight', 'Evidence Token'],
+    }));
+
+    // A single pasted blob compiles to one quest, which used to leave the world
+    // map with one location — so the playable's rooms/waves/chapters had nothing
+    // to be named after. Extend the map from the gameplay projection: each
+    // gameplay atom is a place in the person's content the runtime can walk.
+    const seen = new Set(locations.map((loc) => loc.name.toLowerCase()));
+    const atoms = Array.isArray(irx?.gameplayNormalization?.gameplayAtoms) ? irx.gameplayNormalization.gameplayAtoms : [];
+    for (const atom of atoms) {
+      if (locations.length >= 6) break;
+      const name = String(atom.label || atom.title || '').trim();
+      if (!name || seen.has(name.toLowerCase())) continue;
+      seen.add(name.toLowerCase());
+      locations.push({
+        name,
+        description: String(atom.summary || atom.successCondition || `Explore: ${name}`),
+        type: String(atom.gameplayType || 'concept_node'),
+        hazards: [],
+        spawns: ['Evidence prompt', 'Objective marker'],
+        lootTable: ['Compiled Insight', 'Evidence Token'],
+      });
+    }
+
     return {
       regionName: title,
       description: 'A domain map generated from compiled source signals.',
-      locations: quests.slice(0, 6).map((quest: any, index: number) => ({
-        name: quest.title || `Mission Node ${index + 1}`,
-        description: quest.summary || 'Compiled quest location.',
-        type: 'mission_node',
-        hazards: (Array.isArray(quest.evidence) ? quest.evidence : []).filter((item: any) => item.correct === false).map((item: any) => String(item.text || item.label || item)).slice(0, 3),
-        spawns: ['Evidence prompt', 'Objective marker'],
-        lootTable: ['Compiled Insight', 'Evidence Token'],
-      })),
+      locations,
     };
   }
 }

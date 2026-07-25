@@ -12,6 +12,8 @@
 import { PhaserRuntime } from './PhaserRuntime.js';
 import { mountHud } from '../runtime/Hud.js';
 import { attachSignalEmitter } from '../runtime/SignalEmitter.js';
+import { resolveTheme } from '../runtime/theme.js';
+import { PALETTE } from '../runtime/AssetLoader.js';
 import { createPhaserArcadeRuntime } from '../templates-phaser/arcade-collect-avoid/template-runtime.js';
 
 /** Phaser-build template registry — mirrors the Pixi TEMPLATES map in boot.js. */
@@ -54,19 +56,23 @@ function loadPhaserLib() {
 export async function bootPhaser(manifest, meta) {
   await loadPhaserLib();
 
+  // Content + engine theme: domain picks the palette, Phaser gets the retro style.
+  const theme = resolveTheme(PALETTE, { manifest, meta, engine: 'phaser' });
+  const themedMeta = { ...meta, theme };
+
   const runtime = new PhaserRuntime();
   await runtime.init('#game');
   mountHud(runtime.services.state);
 
   const createTemplate = selectPhaserTemplate(manifest);
-  const template = createTemplate(manifest, meta);
+  const template = createTemplate(manifest, themedMeta);
   await runtime.start(template);
 
   // Return edge of the loop (same emitter as the Pixi path; it's renderer-agnostic).
   const signals = attachSignalEmitter(runtime, manifest, meta, 'phaser');
 
   // Debug handle, parallel to the Pixi path's window.__optomole.
-  window.__optomole = { engine: 'phaser', runtime, template, services: runtime.services, signals };
+  window.__optomole = { engine: 'phaser', runtime, template, services: runtime.services, signals, theme };
   document.body.classList.add('ready');
   return template;
 }

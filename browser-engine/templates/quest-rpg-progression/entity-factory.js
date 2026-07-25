@@ -68,7 +68,7 @@ export const SKILL_BRANCHES = [
  * a gate. Enemies are spread rather than clustered so no chapter is pure combat
  * or pure pickup.
  */
-export function buildCampaign(specs, { chapterSize = 5, title = 'The Campaign' } = {}) {
+export function buildCampaign(specs, { chapterSize = 5, title = 'The Campaign', world = null } = {}) {
   const sorted = [...specs].sort((a, b) => b.priority - a.priority);
   const objectives = sorted.filter((s) => classifyRpg(s) === 'objective');
   const enemies = sorted.filter((s) => classifyRpg(s) === 'enemy');
@@ -93,9 +93,12 @@ export function buildCampaign(specs, { chapterSize = 5, title = 'The Campaign' }
     chapters.push({
       id: `chapter-${i + 1}`,
       index: i,
-      title: chapterObjectives[0]?.label
-        ? `Chapter ${i + 1}: ${short(chapterObjectives[0].label)}`
-        : `Chapter ${i + 1}`,
+      title: world
+        ? world.chunkTitle(i, 'Chapter', chapterObjectives[0]?.label)
+        : chapterObjectives[0]?.label
+          ? `Chapter ${i + 1}: ${short(chapterObjectives[0].label)}`
+          : `Chapter ${i + 1}`,
+      flavor: world ? world.chunkDescription(i) : '',
       objectives: chapterObjectives,
       enemies: chapterEnemies,
       giver,
@@ -112,7 +115,10 @@ export function buildCampaign(specs, { chapterSize = 5, title = 'The Campaign' }
     });
   }
 
-  return { title, chapters, skillBranches: SKILL_BRANCHES };
+  // The compiled manifest's own skillTree (domain-specific names from the
+  // person's content) takes precedence over the generic fallback branches.
+  const skillBranches = world?.skillTree?.length >= 3 ? world.skillTree.slice(0, 3) : SKILL_BRANCHES;
+  return { title, chapters, skillBranches };
 }
 
 /**

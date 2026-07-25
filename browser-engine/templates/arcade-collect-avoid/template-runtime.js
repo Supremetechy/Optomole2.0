@@ -25,7 +25,8 @@ export class ArcadeTemplateRuntime {
     this.mapping = new MappingEngine(manifest);
     this.waveModel = buildWaves(this.mapping.specs, {
       waveSize: meta.waveSize || 4,
-      title: meta.title || manifest.title,
+      title: this.mapping.world.title || meta.title || manifest.title,
+      world: this.mapping.world,
     });
     // Fold any NPC "coach" binding into the boot briefing.
     const coach = this.mapping.specs.find((s) => s.entityType === 'npc');
@@ -91,6 +92,7 @@ export class ArcadeTemplateRuntime {
 
   _showResult(win) {
     const ctx = this.runtime.services;
+    ctx.state.setFlag('experienceComplete', true); // ends the signal session + notifies the embedding page
     ctx.scenes.replace(
       new ResultScene(ctx, {
         win,

@@ -20,6 +20,9 @@ export class RewardScene {
 
   enter(ctx) {
     ctx.audio?.play('reward');
+    // Mark the experience finished so the SignalEmitter can close the session and
+    // notify the embedding page (Workstation) in-play — not just on tab teardown.
+    ctx.state.setFlag('experienceComplete', true);
     this._layout(ctx.runtime.size());
     this._spawnBurst(ctx.runtime.size());
   }

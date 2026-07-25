@@ -10,6 +10,8 @@
 import { OptomoleRuntime } from './runtime/OptomoleRuntime.js';
 import { mountHud } from './runtime/Hud.js';
 import { attachSignalEmitter } from './runtime/SignalEmitter.js';
+import { resolveTheme } from './runtime/theme.js';
+import { PALETTE } from './runtime/AssetLoader.js';
 import { createKeyLockRuntime } from './templates/action-adventure-key-lock/template-runtime.js';
 import { createArcadeRuntime } from './templates/arcade-collect-avoid/template-runtime.js';
 import { createIdleRuntime } from './templates/idle-progress/template-runtime.js';
@@ -89,8 +91,10 @@ async function main() {
   }
 
   ensureLibs();
+  // Content + engine driven theme: domain picks the palette, Pixi picks the neon style.
+  const theme = resolveTheme(PALETTE, { manifest, meta, engine: 'pixi' });
   const runtime = new OptomoleRuntime();
-  await runtime.init('#game');
+  await runtime.init('#game', theme);
   mountHud(runtime.services.state);
 
   const createTemplate = selectTemplate(manifest);
@@ -102,7 +106,7 @@ async function main() {
   const signals = attachSignalEmitter(runtime, manifest, meta, 'pixi');
 
   // Debug handle for automated testing / dev-tools inspection. Harmless in prod.
-  window.__optomole = { runtime, template, services: runtime.services, signals };
+  window.__optomole = { runtime, template, services: runtime.services, signals, theme };
 
   document.body.classList.add('ready');
 }

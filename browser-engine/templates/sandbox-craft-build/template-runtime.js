@@ -28,7 +28,7 @@ export class SandboxTemplateRuntime {
     const span = Math.max(14, Math.min(30, 10 + bindingCount));
 
     this.model = buildWorld(this.mapping.specs, {
-      title: meta.title || manifest.title || 'The Claim',
+      title: this.mapping.world.title || meta.title || manifest.title || 'The Claim',
       cols: span,
       rows: Math.round(span * 0.75),
     });
@@ -115,6 +115,7 @@ export class SandboxTemplateRuntime {
 
   _showCompletion(win, stats) {
     const ctx = this.runtime.services;
+    ctx.state.setFlag('experienceComplete', true); // ends the signal session + notifies the embedding page
     ctx.scenes.replace(
       new CompletionScene(ctx, {
         win,

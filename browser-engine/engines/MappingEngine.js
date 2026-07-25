@@ -19,6 +19,8 @@
  * into rooms so the template can lay out a room graph.
  */
 
+import { createWorldContext } from './WorldContext.js';
+
 let _seq = 0;
 const uid = (p = 'ent') => `${p}-${Date.now().toString(36)}-${(_seq++).toString(36)}`;
 
@@ -53,7 +55,7 @@ export function bindingToEntitySpec(binding = {}) {
  * we chunk objectives/keys/hazards so every room has something to do and a gate
  * to leave through.
  */
-export function buildRoomGraph(specs, { roomSize = 6, title = 'Training Facility' } = {}) {
+export function buildRoomGraph(specs, { roomSize = 6, title = 'Training Facility', world = null } = {}) {
   const sorted = [...specs].sort((a, b) => b.priority - a.priority);
 
   const gates = sorted.filter((s) => s.entityType === 'lock' || s.entityType === 'exit-gate');
@@ -93,7 +95,12 @@ export function buildRoomGraph(specs, { roomSize = 6, title = 'Training Facility
     rooms.push({
       id: `room-${i + 1}`,
       index: i,
-      title: chunk[0]?.label ? `Room ${i + 1}: ${short(chunk[0].label)}` : `Room ${i + 1}`,
+      // World-derived room identity: the compiled proceduralMap/storyboard names
+      // this chunk of content; the first entity's label is only the fallback.
+      title: world
+        ? world.chunkTitle(i, 'Room', chunk[0]?.label)
+        : chunk[0]?.label ? `Room ${i + 1}: ${short(chunk[0].label)}` : `Room ${i + 1}`,
+      flavor: world ? world.chunkDescription(i) : '',
       entities: chunk,
       npc: npcs[i] || npcs[0] || null,
       door: doors[i] || {
@@ -134,6 +141,9 @@ export class MappingEngine {
     this.assetSlots = manifest.assetSlots || [];
     this.requiredSystems = manifest.requiredRuntimeSystems || [];
     this.specs = (manifest.bindings || []).map(bindingToEntitySpec);
+    // World-building layers (proceduralMap / storyboard / world / skillTree)
+    // projected once so every genre names its chunks from the person's content.
+    this.world = createWorldContext(manifest);
   }
 
   /** Resolve an asset slot's fallback/url for a given slot id. */
@@ -143,8 +153,9 @@ export class MappingEngine {
 
   toRoomGraph(options = {}) {
     return buildRoomGraph(this.specs, {
-      title: this.manifest.title || options.title || 'Training Facility',
+      title: this.world.title || this.manifest.title || options.title || 'Training Facility',
       roomSize: options.roomSize || 6,
+      world: this.world,
     });
   }
 }

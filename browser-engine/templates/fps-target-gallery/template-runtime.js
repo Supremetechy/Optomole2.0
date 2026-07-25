@@ -24,7 +24,8 @@ export class FpsGalleryTemplateRuntime {
     this.mapping = new MappingEngine(manifest);
     this.roundModel = buildRounds(this.mapping.specs, {
       roundSize: meta.roundSize || 4,
-      title: meta.title || manifest.title || 'The Range',
+      title: this.mapping.world.title || meta.title || manifest.title || 'The Range',
+      world: this.mapping.world,
     });
     // An npc binding becomes the range officer's brief.
     const officer = this.mapping.specs.find((s) => s.entityType === 'npc');
@@ -109,6 +110,7 @@ export class FpsGalleryTemplateRuntime {
 
   _showResult(win) {
     const ctx = this.runtime.services;
+    ctx.state.setFlag('experienceComplete', true); // ends the signal session + notifies the embedding page
     const { shotsFired, shotsHit } = this.session;
     ctx.scenes.replace(
       new ResultScene(ctx, {

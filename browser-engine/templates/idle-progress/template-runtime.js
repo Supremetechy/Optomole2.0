@@ -22,7 +22,7 @@ export class IdleTemplateRuntime {
     this.manifest = manifest;
     this.meta = meta;
     this.mapping = new MappingEngine(manifest);
-    this.model = buildEconomy(this.mapping.specs, { title: meta.title || manifest.title });
+    this.model = buildEconomy(this.mapping.specs, { title: this.mapping.world.title || meta.title || manifest.title });
     const coach = this.mapping.specs.find((s) => s.entityType === 'npc');
     this._coachLine = coach?.description || null;
   }
@@ -86,6 +86,7 @@ export class IdleTemplateRuntime {
 
   _showCompletion() {
     const ctx = this.runtime.services;
+    ctx.state.setFlag('experienceComplete', true); // ends the signal session + notifies the embedding page
     ctx.scenes.replace(
       new CompletionScene(ctx, {
         economy: this.economy,

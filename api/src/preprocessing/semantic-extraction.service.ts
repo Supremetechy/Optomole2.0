@@ -389,20 +389,172 @@ export class SemanticExtractionService {
       }));
   }
 
-  private keyPhrases(sentence: string) {
-    const phrases = new Set<string>();
-    const nounish = sentence.match(/\b[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,2}\b/gi) || [];
-    nounish
-      .map((value) => value.trim())
-      .filter((value) => value.length > 4 && !this.stopPhrase(value))
-      .slice(0, 8)
-      .forEach((value) => phrases.add(value));
-    return [...phrases];
+  /** Determiners and quantifiers. A word right after one of these opens a noun phrase. */
+  private static readonly DETERMINERS = [
+    'a', 'an', 'the', 'this', 'that', 'these', 'those', 'each', 'every', 'some', 'any', 'no', 'all',
+    'both', 'either', 'neither', 'much', 'many', 'more', 'most', 'few', 'several', 'such', 'own',
+    'my', 'your', 'his', 'her', 'its', 'our', 'their',
+  ];
+
+  private static readonly PREPOSITIONS = [
+    'of', 'in', 'on', 'at', 'to', 'from', 'by', 'for', 'with', 'without', 'into', 'onto', 'upon',
+    'about', 'across', 'after', 'before', 'during', 'through', 'between', 'among', 'against',
+    'over', 'under', 'above', 'below', 'within', 'inside', 'outside', 'toward', 'towards', 'via', 'per',
+    // participial prepositions — they head a modifier clause, not a concept
+    'using', 'including', 'regarding', 'concerning', 'following', 'based', 'given', 'despite',
+  ];
+
+  private static readonly SUBORDINATORS = [
+    'and', 'or', 'but', 'nor', 'so', 'yet', 'as', 'than', 'because', 'if', 'unless', 'while',
+    'when', 'where', 'whether', 'though', 'although', 'since', 'until',
+  ];
+
+  /**
+   * Words after which a lone following word is almost certainly a verb, not a
+   * concept: modals, the infinitive marker, copulas, do-support, negation, and
+   * the adverbs that introduce an imperative step ("First, isolate the host").
+   */
+  private static readonly VERB_LEAD = new Set([
+    'to', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'am', 'do', 'does', 'did',
+    'have', 'has', 'had', 'will', 'would', 'shall', 'should', 'can', 'could', 'may', 'might',
+    'must', 'need', 'ought', 'let', 'not', 'never', 'also', 'then', 'first', 'second', 'third',
+    'next', 'finally', 'likely', 'probably', 'typically', 'generally', 'simply', 'actually',
+    'really', 'clearly', 'certainly', 'often', 'usually', 'always',
+  ]);
+
+  /**
+   * Words that end a noun phrase rather than belong to one. A phrase is never
+   * allowed to start or end on one of these, which is what keeps concepts from
+   * coming out as mid-sentence fragments.
+   */
+  private static readonly PHRASE_BOUNDARY = new Set([
+    ...SemanticExtractionService.DETERMINERS,
+    ...SemanticExtractionService.PREPOSITIONS,
+    ...SemanticExtractionService.SUBORDINATORS,
+    // pronouns / wh-words
+    'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'us', 'them',
+    'who', 'whom', 'whose', 'which', 'what', 'there', 'here',
+    // auxiliaries / modals / copulas
+    'is', 'are', 'was', 'were', 'be', 'been', 'being', 'am', 'do', 'does', 'did', 'done',
+    'have', 'has', 'had', 'having', 'will', 'would', 'shall', 'should', 'can', 'could',
+    'may', 'might', 'must', 'need', 'ought', 'let',
+    // sequence / discourse / manner adverbs — these surfaced as standalone "concepts"
+    'first', 'second', 'third', 'next', 'then', 'finally', 'also', 'however', 'therefore',
+    'thus', 'meanwhile', 'furthermore', 'moreover', 'instead', 'rather', 'again', 'once',
+    'very', 'just', 'only', 'even', 'still', 'not', 'never', 'always', 'often', 'usually',
+    'likely', 'probably', 'typically', 'generally', 'simply', 'actually', 'really', 'clearly',
+    'certainly',
+    // high-frequency verbs — splitting on these leaves the noun phrases on either side
+    'get', 'gets', 'got', 'make', 'makes', 'made', 'take', 'takes', 'took', 'give', 'gives',
+    'use', 'uses', 'used', 'show', 'shows', 'showed', 'know', 'knows', 'knew', 'see', 'sees',
+    'come', 'comes', 'came', 'go', 'goes', 'went', 'say', 'says', 'said', 'find', 'finds',
+    'found', 'keep', 'keeps', 'kept', 'put', 'puts', 'call', 'calls', 'called', 'become',
+    'becomes', 'became', 'includes', 'include', 'included', 'contains', 'contain', 'allows',
+    'allow', 'produces', 'produce', 'produced', 'requires', 'require', 'required', 'means',
+    'converts', 'convert', 'absorbs', 'absorb', 'splits', 'split', 'fixes', 'fix', 'hosts',
+    'host', 'regulates', 'regulate', 'catalyzes', 'catalyze', 'releases', 'release',
+    'identify', 'identifies', 'review', 'reviews', 'avoid', 'avoids', 'complete', 'completes',
+    'build', 'builds', 'create', 'creates', 'verify', 'verifies', 'compare', 'compares',
+    'analyze', 'analyzes', 'configure', 'configures', 'select', 'selects', 'improve',
+    'improves', 'increase', 'increases', 'explain', 'explains', 'learn', 'learns',
+    'holds', 'hold', 'wants', 'want', 'remains', 'remain', 'depends', 'depend', 'rise', 'rises',
+    'encrypt', 'encrypts', 'revoke', 'revokes', 'rotate', 'rotates', 'isolate', 'isolates',
+    'restart', 'restarts', 'decide', 'decides', 'enter', 'enters', 'capture', 'captures',
+  ]);
+
+  /** Longest phrase we keep. English noun phrases are head-final, so we trim the front. */
+  private static readonly MAX_PHRASE_TOKENS = 4;
+
+  /** A third-person verb form ("holds", "reviews") rather than a plural noun ("logs", "class"). */
+  private looksThirdPerson(word: string): boolean {
+    return /s$/.test(word) && !/(?:ss|us|is|as|os)$/.test(word) && word.length > 3;
   }
 
-  private stopPhrase(value: string) {
-    const lowered = value.toLowerCase();
-    return ['this', 'that', 'with', 'from', 'into', 'have', 'will', 'your', 'about', 'their', 'there', 'when', 'then', 'than', 'they'].some((word) => lowered === word || lowered.startsWith(`${word} `));
+  /**
+   * Extract noun-phrase-shaped concepts from one sentence.
+   *
+   * The previous implementation slid a non-overlapping 1-3 word window across the
+   * sentence, which chopped clauses at arbitrary points: "Chlorophyll absorbs blue
+   * and red light inside the chloroplast" became "Chlorophyll absorbs blue" /
+   * "and red light" / "inside the chloroplast". Those fragments became gameplay
+   * atom labels, entity captions, and world location names.
+   *
+   * Instead, split on function words and punctuation and keep the content-word
+   * runs between them, then use the surrounding function words to tell a noun
+   * phrase from a bare verb — a single word after a modal ("must decide") or
+   * before a determiner ("isolate the endpoint") is the predicate, not a concept.
+   * Phrases are sliced from the original sentence so real capitalization survives.
+   */
+  private keyPhrases(sentence: string) {
+    const tokens: Array<{ lower: string; start: number; end: number }> = [];
+    const wordPattern = /[A-Za-z][A-Za-z0-9-]*/g;
+    let match: RegExpExecArray | null;
+    while ((match = wordPattern.exec(sentence)) !== null) {
+      tokens.push({ lower: match[0].toLowerCase(), start: match.index, end: match.index + match[0].length });
+    }
+
+    const phrases: string[] = [];
+    const seen = new Set<string>();
+    let run: typeof tokens = [];
+    // The function words bracketing the current run; '' means punctuation or
+    // the sentence edge, which carries no part-of-speech evidence.
+    let leading = '';
+
+    const flush = (trailing: string) => {
+      const candidate = run;
+      run = [];
+      if (!candidate.length) return;
+
+      // "The forensic analyst reviews the logs" -> drop the trailing verb.
+      const trailingIsDeterminer = SemanticExtractionService.DETERMINERS.includes(trailing);
+      let kept = candidate;
+      if (kept.length > 1 && trailingIsDeterminer && this.looksThirdPerson(kept[kept.length - 1].lower)) {
+        kept = kept.slice(0, -1);
+      }
+      // Head-final: "the primary electron transport chain" -> "electron transport chain".
+      if (kept.length > SemanticExtractionService.MAX_PHRASE_TOKENS) {
+        kept = kept.slice(-SemanticExtractionService.MAX_PHRASE_TOKENS);
+      }
+      if (!kept.length) return;
+
+      if (kept.length === 1) {
+        const word = kept[0];
+        // A lone short word ("red", "gas") is noise, not a concept.
+        if (word.end - word.start < 5) return;
+        // Positional verb test: "must decide whether", "isolate the endpoint".
+        const followsVerbLead = SemanticExtractionService.VERB_LEAD.has(leading);
+        const precedesFunctionWord = trailingIsDeterminer
+          || SemanticExtractionService.PREPOSITIONS.includes(trailing)
+          || SemanticExtractionService.SUBORDINATORS.includes(trailing);
+        if (followsVerbLead && precedesFunctionWord) return;
+        if (trailingIsDeterminer && !SemanticExtractionService.DETERMINERS.includes(leading)) return;
+      }
+
+      const phrase = sentence.slice(kept[0].start, kept[kept.length - 1].end).trim();
+      const key = phrase.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      phrases.push(phrase);
+    };
+
+    for (const token of tokens) {
+      if (SemanticExtractionService.PHRASE_BOUNDARY.has(token.lower)) {
+        flush(token.lower);
+        leading = token.lower;
+        continue;
+      }
+      // Punctuation between two words also ends the phrase — a comma or dash is
+      // a clause boundary, not part of the concept.
+      const previous = run[run.length - 1];
+      if (previous && /[^\s]/.test(sentence.slice(previous.end, token.start))) {
+        flush('');
+        leading = '';
+      }
+      run.push(token);
+    }
+    flush('');
+
+    return phrases.slice(0, 8);
   }
 
   private salience(text: string, order: number) {

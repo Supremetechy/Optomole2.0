@@ -33,13 +33,15 @@ export class OptomoleRuntime {
     };
   }
 
-  async init(mount) {
+  async init(mount, theme = null) {
     const host = typeof mount === 'string' ? document.querySelector(mount) : mount;
     if (!host) throw new Error('OptomoleRuntime: mount element not found');
 
     this.app = new PIXI.Application();
     await this.app.init({
-      background: 0x030712,
+      // Stage background follows the theme (a shade darker than the floor) so the
+      // whole canvas reads as the content's environment, not one fixed navy.
+      background: theme?.background != null ? darken(theme.background) : 0x030712,
       resizeTo: window,
       antialias: true,
       autoDensity: true,
@@ -49,11 +51,11 @@ export class OptomoleRuntime {
     this.app.canvas.style.touchAction = 'none';
 
     const state = new StateStore(this.options.initialState);
-    const assets = new AssetLoader(this.app.renderer).buildDefaultPack();
+    const assets = new AssetLoader(this.app.renderer, theme).buildDefaultPack();
     const audio = new AudioManager();
     const input = new InputController(this.app.canvas);
 
-    this.services = { runtime: this, state, assets, audio, input, scenes: null };
+    this.services = { runtime: this, state, assets, audio, input, scenes: null, theme };
     const scenes = new SceneManager(this.services);
     this.services.scenes = scenes;
     this.app.stage.addChild(scenes.root);
@@ -89,4 +91,12 @@ export class OptomoleRuntime {
     }
     return template.start(this);
   }
+}
+
+/** Darken a 0xRRGGBB color ~40% for the stage backdrop behind the themed floor. */
+function darken(color, factor = 0.6) {
+  const r = Math.round(((color >> 16) & 0xff) * factor);
+  const g = Math.round(((color >> 8) & 0xff) * factor);
+  const b = Math.round((color & 0xff) * factor);
+  return (r << 16) | (g << 8) | b;
 }

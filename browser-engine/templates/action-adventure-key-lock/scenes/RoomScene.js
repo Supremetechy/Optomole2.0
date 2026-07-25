@@ -87,10 +87,13 @@ export class RoomScene {
       [x - WALL, y - WALL, WALL, h + WALL * 2], // left
       [x + w, y - WALL, WALL, h + WALL * 2], // right
     ];
+    const pal = this.ctx.theme?.palette;
+    const wallFill = pal?.floorGrid ?? 0x1e293b;
+    const wallEdge = pal?.wall ?? 0x334155;
     const bodies = [];
     for (const [sx, sy, sw, sh] of segs) {
-      g.rect(sx, sy, sw, sh).fill(0x1e293b);
-      g.rect(sx, sy, sw, sh).stroke({ width: 2, color: 0x334155 });
+      g.rect(sx, sy, sw, sh).fill(wallFill);
+      g.rect(sx, sy, sw, sh).stroke({ width: 2, color: wallEdge });
       bodies.push(Matter.Bodies.rectangle(sx + sw / 2, sy + sh / 2, sw, sh, { isStatic: true, label: 'wall' }));
     }
     this.world.addChild(g);

@@ -38,6 +38,7 @@ export function makeArenaScene(Phaser) {
 
       this._makeTextures();
       this._setupInput();
+      this._applyRetroBackdrop();
 
       // One player + one set of groups + one set of overlaps for the scene's life.
       // Later waves swap the orbs INSIDE these groups (see _startWave/_clearEntities)
@@ -89,20 +90,33 @@ export function makeArenaScene(Phaser) {
     // --- setup helpers -----------------------------------------------------
 
     _makeTextures() {
-      const disc = (key, color, r = 18) => {
+      const pal = this.flow.theme?.palette || {};
+      // Phaser's retro identity: chunky square blocks with a hard black edge (vs
+      // the Pixi build's smooth glowing discs). Colors come from the content theme.
+      const block = (key, color, r = 18) => {
         if (this.textures.exists(key)) return;
         const g = this.make.graphics({ add: false });
         g.fillStyle(color, 1);
-        g.fillCircle(r, r, r);
-        g.lineStyle(3, 0xffffff, 0.55);
-        g.strokeCircle(r, r, r);
+        g.fillRect(0, 0, r * 2, r * 2);
+        g.lineStyle(3, 0x000000, 0.7);
+        g.strokeRect(1, 1, r * 2 - 2, r * 2 - 2);
         g.generateTexture(key, r * 2, r * 2);
         g.destroy();
       };
-      disc('oe-player', 0x67e8f9, 16);
-      disc('oe-good', 0x34d399, 18);
-      disc('oe-bad', 0xfb7185, 16);
-      disc('oe-power', 0xfbbf24, 18);
+      block('oe-player', pal.player ?? 0x67e8f9, 16);
+      block('oe-good', pal.key ?? 0x34d399, 18);
+      block('oe-bad', pal.hazard ?? 0xfb7185, 16);
+      block('oe-power', pal.powerup ?? 0xfbbf24, 18);
+    }
+
+    /** Themed background + CRT scanlines — the Phaser "retro" signature. */
+    _applyRetroBackdrop() {
+      const theme = this.flow.theme;
+      if (theme?.background != null) this.cameras.main.setBackgroundColor(theme.background);
+      const { width, height } = this.scale;
+      const lines = this.add.graphics().setScrollFactor(0).setDepth(9000);
+      lines.fillStyle(0x000000, 0.16);
+      for (let y = HUD_MARGIN; y < height; y += 3) lines.fillRect(0, y, width, 1);
     }
 
     _setupInput() {

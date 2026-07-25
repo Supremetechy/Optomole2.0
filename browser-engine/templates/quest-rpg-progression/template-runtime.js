@@ -29,7 +29,8 @@ export class QuestRpgTemplateRuntime {
     this.mapping = new MappingEngine(manifest);
     this.campaign = buildCampaign(this.mapping.specs, {
       chapterSize: meta.chapterSize || 5,
-      title: meta.title || manifest.title || 'The Campaign',
+      title: this.mapping.world.title || meta.title || manifest.title || 'The Campaign',
+      world: this.mapping.world,
     });
     // The mentor/author line frames the boot card.
     const mentor = this.mapping.specs.find((s) => s.entityType === 'npc');
@@ -136,6 +137,7 @@ export class QuestRpgTemplateRuntime {
       ctx.scenes.replace(
         new SkillScene(ctx, {
           points: gained,
+          branches: this.campaign.skillBranches,
           onDone: next,
         }),
       );
@@ -146,6 +148,7 @@ export class QuestRpgTemplateRuntime {
 
   _showCompletion(win) {
     const ctx = this.runtime.services;
+    ctx.state.setFlag('experienceComplete', true); // ends the signal session + notifies the embedding page
     const factCount = this.campaign.chapters.reduce((n, c) => n + c.objectives.length, 0);
     const enemyCount = this.campaign.chapters.reduce((n, c) => n + c.enemies.length, 0);
     ctx.scenes.replace(

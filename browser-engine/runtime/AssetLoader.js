@@ -48,10 +48,13 @@ export const PALETTE = {
 };
 
 export class AssetLoader {
-  constructor(renderer) {
+  constructor(renderer, theme = null) {
     this.renderer = renderer;
     this.textures = new Map();
     this.sounds = new Map();
+    // Themed palette (content domain + engine style); falls back to default neon.
+    this.palette = theme?.palette || PALETTE;
+    this.theme = theme || null;
   }
 
   /** Build the default procedural sprite pack. Call once after the renderer exists. */
@@ -60,13 +63,13 @@ export class AssetLoader {
     this._register('npc', this._drawNpc());
     this._register('key', this._drawKey());
     this._register('hazard', this._drawHazard());
-    this._register('door', this._drawDoor(PALETTE.door));
-    this._register('door-open', this._drawDoor(PALETTE.doorOpen, true));
+    this._register('door', this._drawDoor(this.palette.door));
+    this._register('door-open', this._drawDoor(this.palette.doorOpen, true));
     this._register('objective', this._drawObjective());
     this._register('particle', this._drawParticle());
     this._register('tile-floor', this._drawFloorTile());
-    this._register('orb-good', this._drawOrb(PALETTE.orbGood, true));
-    this._register('orb-bad', this._drawOrb(PALETTE.orbBad, false));
+    this._register('orb-good', this._drawOrb(this.palette.orbGood, true));
+    this._register('orb-bad', this._drawOrb(this.palette.orbBad, false));
     this._register('powerup', this._drawPowerUp());
 
     // ---- quest-rpg-progression ----
@@ -79,22 +82,22 @@ export class AssetLoader {
     this._register('spike', this._drawSpike());
 
     // ---- fps-target-gallery ----
-    this._register('target-good', this._drawTarget(PALETTE.target, true));
-    this._register('target-bad', this._drawTarget(PALETTE.civilian, false));
+    this._register('target-good', this._drawTarget(this.palette.target, true));
+    this._register('target-bad', this._drawTarget(this.palette.civilian, false));
     this._register('muzzle', this._drawMuzzle());
 
     // ---- open-world-courier ----
     this._register('vehicle', this._drawVehicle());
     this._register('tile-road', this._drawRoadTile());
     this._register('tile-block', this._drawBlockTile());
-    this._register('waypoint-pickup', this._drawWaypoint(PALETTE.key));
-    this._register('waypoint-dropoff', this._drawWaypoint(PALETTE.powerup));
+    this._register('waypoint-pickup', this._drawWaypoint(this.palette.key));
+    this._register('waypoint-dropoff', this._drawWaypoint(this.palette.powerup));
     this._register('patrol', this._drawPatrol());
 
     // ---- sandbox-craft-build ----
-    this._register('node-ore', this._drawNode(PALETTE.ore));
-    this._register('node-wood', this._drawNode(PALETTE.wood));
-    this._register('node-stone', this._drawNode(PALETTE.stone));
+    this._register('node-ore', this._drawNode(this.palette.ore));
+    this._register('node-wood', this._drawNode(this.palette.wood));
+    this._register('node-stone', this._drawNode(this.palette.stone));
     this._register('structure', this._drawStructure());
     this._register('tile-ground', this._drawGroundTile());
 
@@ -142,8 +145,8 @@ export class AssetLoader {
 
   _drawPlayer() {
     const g = new PIXI.Graphics();
-    g.circle(20, 20, 16).fill(PALETTE.player);
-    g.circle(20, 20, 16).stroke({ width: 3, color: PALETTE.playerRing });
+    g.circle(20, 20, 16).fill(this.palette.player);
+    g.circle(20, 20, 16).stroke({ width: 3, color: this.palette.playerRing });
     // little directional notch
     g.circle(28, 20, 3).fill(0x03131d);
     return g;
@@ -151,8 +154,8 @@ export class AssetLoader {
 
   _drawNpc() {
     const g = new PIXI.Graphics();
-    g.roundRect(4, 4, 32, 36, 8).fill(PALETTE.npc);
-    g.roundRect(4, 4, 32, 36, 8).stroke({ width: 3, color: PALETTE.npcTrim });
+    g.roundRect(4, 4, 32, 36, 8).fill(this.palette.npc);
+    g.roundRect(4, 4, 32, 36, 8).stroke({ width: 3, color: this.palette.npcTrim });
     g.circle(14, 18, 3).fill(0x1f2937); // eyes
     g.circle(26, 18, 3).fill(0x1f2937);
     g.moveTo(13, 28).lineTo(27, 28).stroke({ width: 2, color: 0x1f2937 });
@@ -161,15 +164,15 @@ export class AssetLoader {
 
   _drawKey() {
     const g = new PIXI.Graphics();
-    g.circle(12, 20, 9).stroke({ width: 4, color: PALETTE.key });
-    g.rect(20, 18, 16, 4).fill(PALETTE.key);
-    g.rect(32, 18, 4, 8).fill(PALETTE.key);
+    g.circle(12, 20, 9).stroke({ width: 4, color: this.palette.key });
+    g.rect(20, 18, 16, 4).fill(this.palette.key);
+    g.rect(32, 18, 4, 8).fill(this.palette.key);
     return g;
   }
 
   _drawHazard() {
     const g = new PIXI.Graphics();
-    g.poly([20, 3, 37, 34, 3, 34]).fill(PALETTE.hazard);
+    g.poly([20, 3, 37, 34, 3, 34]).fill(this.palette.hazard);
     g.poly([20, 3, 37, 34, 3, 34]).stroke({ width: 2, color: 0x7f1d1d });
     g.rect(18, 14, 4, 10).fill(0x3b0a0a);
     g.circle(20, 29, 2.5).fill(0x3b0a0a);
@@ -198,14 +201,14 @@ export class AssetLoader {
 
   _drawParticle() {
     const g = new PIXI.Graphics();
-    g.circle(6, 6, 6).fill(PALETTE.particle);
+    g.circle(6, 6, 6).fill(this.palette.particle);
     return g;
   }
 
   _drawFloorTile() {
     const g = new PIXI.Graphics();
-    g.rect(0, 0, 64, 64).fill(PALETTE.floor);
-    g.rect(0, 0, 64, 64).stroke({ width: 1, color: PALETTE.floorGrid, alpha: 0.6 });
+    g.rect(0, 0, 64, 64).fill(this.palette.floor);
+    g.rect(0, 0, 64, 64).stroke({ width: 1, color: this.palette.floorGrid, alpha: 0.6 });
     return g;
   }
 
@@ -227,8 +230,8 @@ export class AssetLoader {
 
   _drawPowerUp() {
     const g = new PIXI.Graphics();
-    g.circle(22, 22, 20).fill({ color: PALETTE.powerup, alpha: 0.18 });
-    g.star(22, 22, 5, 18, 8).fill(PALETTE.powerup);
+    g.circle(22, 22, 20).fill({ color: this.palette.powerup, alpha: 0.18 });
+    g.star(22, 22, 5, 18, 8).fill(this.palette.powerup);
     g.star(22, 22, 5, 18, 8).stroke({ width: 2, color: 0x5b21b6 });
     g.circle(22, 22, 6).fill(0xffffff);
     return g;
@@ -240,7 +243,7 @@ export class AssetLoader {
    *  character-driven genre rather than the abstract arcade puck. */
   _drawHero() {
     const g = new PIXI.Graphics();
-    g.circle(20, 22, 15).fill(PALETTE.hero);
+    g.circle(20, 22, 15).fill(this.palette.hero);
     g.circle(20, 22, 15).stroke({ width: 3, color: 0x0369a1 });
     g.poly([20, 7, 32, 24, 8, 24]).fill({ color: 0x0369a1, alpha: 0.9 }); // hood
     g.circle(15, 22, 2.5).fill(0x03131d);
@@ -250,7 +253,7 @@ export class AssetLoader {
 
   _drawEnemy() {
     const g = new PIXI.Graphics();
-    g.roundRect(4, 6, 32, 32, 6).fill(PALETTE.enemy);
+    g.roundRect(4, 6, 32, 32, 6).fill(this.palette.enemy);
     g.roundRect(4, 6, 32, 32, 6).stroke({ width: 3, color: 0x7f1d1d });
     g.poly([4, 6, 12, 0, 16, 6]).fill(0x7f1d1d); // horns
     g.poly([24, 6, 28, 0, 36, 6]).fill(0x7f1d1d);
@@ -263,9 +266,9 @@ export class AssetLoader {
   /** Floating "!" marker over an available quest. */
   _drawQuestMarker() {
     const g = new PIXI.Graphics();
-    g.circle(14, 14, 13).fill({ color: PALETTE.npc, alpha: 0.2 });
-    g.roundRect(11, 4, 6, 13, 3).fill(PALETTE.npc);
-    g.circle(14, 22, 3.2).fill(PALETTE.npc);
+    g.circle(14, 14, 13).fill({ color: this.palette.npc, alpha: 0.2 });
+    g.roundRect(11, 4, 6, 13, 3).fill(this.palette.npc);
+    g.circle(14, 22, 3.2).fill(this.palette.npc);
     return g;
   }
 
@@ -298,7 +301,7 @@ export class AssetLoader {
 
   _drawVehicle() {
     const g = new PIXI.Graphics();
-    g.roundRect(10, 4, 24, 44, 7).fill(PALETTE.vehicle);
+    g.roundRect(10, 4, 24, 44, 7).fill(this.palette.vehicle);
     g.roundRect(10, 4, 24, 44, 7).stroke({ width: 2, color: 0x0e7490 });
     g.roundRect(13, 9, 18, 12, 4).fill(0x082f49); // windshield
     g.roundRect(13, 31, 18, 10, 4).fill({ color: 0x082f49, alpha: 0.7 });
@@ -311,7 +314,7 @@ export class AssetLoader {
 
   _drawRoadTile() {
     const g = new PIXI.Graphics();
-    g.rect(0, 0, 64, 64).fill(PALETTE.road);
+    g.rect(0, 0, 64, 64).fill(this.palette.road);
     g.rect(0, 30, 64, 4).fill({ color: 0x475569, alpha: 0.55 }); // lane dashes
     g.rect(30, 0, 4, 64).fill({ color: 0x475569, alpha: 0.55 });
     return g;
@@ -319,7 +322,7 @@ export class AssetLoader {
 
   _drawBlockTile() {
     const g = new PIXI.Graphics();
-    g.rect(0, 0, 64, 64).fill(PALETTE.building);
+    g.rect(0, 0, 64, 64).fill(this.palette.building);
     g.rect(0, 0, 64, 64).stroke({ width: 2, color: 0x0f172a });
     // Lit windows give the city blocks depth from above.
     for (let x = 8; x < 56; x += 16) {
@@ -341,8 +344,8 @@ export class AssetLoader {
   _drawPatrol() {
     const g = new PIXI.Graphics();
     g.roundRect(8, 6, 24, 36, 6).fill(0x1e293b);
-    g.roundRect(8, 6, 24, 36, 6).stroke({ width: 2, color: PALETTE.hazard });
-    g.circle(20, 16, 6).fill(PALETTE.hazard); // light bar
+    g.roundRect(8, 6, 24, 36, 6).stroke({ width: 2, color: this.palette.hazard });
+    g.circle(20, 16, 6).fill(this.palette.hazard); // light bar
     g.circle(20, 16, 3).fill(0xffffff);
     return g;
   }
@@ -363,7 +366,7 @@ export class AssetLoader {
 
   _drawStructure() {
     const g = new PIXI.Graphics();
-    g.rect(4, 16, 40, 28).fill(PALETTE.structure);
+    g.rect(4, 16, 40, 28).fill(this.palette.structure);
     g.rect(4, 16, 40, 28).stroke({ width: 3, color: 0x064e3b });
     g.poly([2, 16, 24, 2, 46, 16]).fill(0x064e3b); // roof
     g.rect(19, 28, 10, 16).fill(0x03271c); // door
@@ -383,17 +386,17 @@ export class AssetLoader {
 
   _drawRunner() {
     const g = new PIXI.Graphics();
-    g.roundRect(10, 6, 20, 26, 8).fill(PALETTE.player);
-    g.roundRect(10, 6, 20, 26, 8).stroke({ width: 3, color: PALETTE.playerRing });
+    g.roundRect(10, 6, 20, 26, 8).fill(this.palette.player);
+    g.roundRect(10, 6, 20, 26, 8).stroke({ width: 3, color: this.palette.playerRing });
     g.circle(25, 15, 3).fill(0x03131d); // forward-facing eye
-    g.roundRect(12, 32, 7, 8, 3).fill(PALETTE.playerRing); // legs
-    g.roundRect(21, 32, 7, 8, 3).fill(PALETTE.playerRing);
+    g.roundRect(12, 32, 7, 8, 3).fill(this.palette.playerRing); // legs
+    g.roundRect(21, 32, 7, 8, 3).fill(this.palette.playerRing);
     return g;
   }
 
   _drawPlatform() {
     const g = new PIXI.Graphics();
-    g.roundRect(0, 0, 64, 20, 5).fill(PALETTE.platform);
+    g.roundRect(0, 0, 64, 20, 5).fill(this.palette.platform);
     g.roundRect(0, 0, 64, 20, 5).stroke({ width: 2, color: 0x64748b });
     g.rect(0, 0, 64, 5).fill({ color: 0x67e8f9, alpha: 0.35 }); // lit top edge
     return g;
@@ -401,8 +404,8 @@ export class AssetLoader {
 
   _drawCoin() {
     const g = new PIXI.Graphics();
-    g.circle(18, 18, 16).fill({ color: PALETTE.coin, alpha: 0.18 });
-    g.circle(18, 18, 12).fill(PALETTE.coin);
+    g.circle(18, 18, 16).fill({ color: this.palette.coin, alpha: 0.18 });
+    g.circle(18, 18, 12).fill(this.palette.coin);
     g.circle(18, 18, 12).stroke({ width: 2, color: 0x92400e });
     g.circle(18, 18, 6).stroke({ width: 2, color: 0x92400e });
     return g;
@@ -410,9 +413,9 @@ export class AssetLoader {
 
   _drawSpike() {
     const g = new PIXI.Graphics();
-    g.poly([0, 32, 12, 4, 24, 32]).fill(PALETTE.spike);
+    g.poly([0, 32, 12, 4, 24, 32]).fill(this.palette.spike);
     g.poly([0, 32, 12, 4, 24, 32]).stroke({ width: 2, color: 0x7f1d1d });
-    g.poly([20, 32, 32, 10, 44, 32]).fill(PALETTE.spike);
+    g.poly([20, 32, 32, 10, 44, 32]).fill(this.palette.spike);
     g.poly([20, 32, 32, 10, 44, 32]).stroke({ width: 2, color: 0x7f1d1d });
     return g;
   }

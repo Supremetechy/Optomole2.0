@@ -123,6 +123,20 @@ export default function WorkstationApp() {
 
   useEffect(() => { refreshModel(); }, [refreshModel]);
 
+  // Live update: the embedded game postMessages when a play session ends. Refresh
+  // the identity model after a short beat so the signals + auto-reflection have
+  // landed on the gateway. Ignores messages for other people / other pages.
+  useEffect(() => {
+    function onMessage(event) {
+      const d = event.data;
+      if (!d || d.source !== 'optomole' || d.type !== 'session_end') return;
+      if (d.personId && d.personId !== personId) return;
+      window.setTimeout(() => refreshModel(), 1200);
+    }
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [personId, refreshModel]);
+
   const readFiles = useCallback(async (fileList) => {
     const files = [...(fileList || [])];
     if (!files.length) return;

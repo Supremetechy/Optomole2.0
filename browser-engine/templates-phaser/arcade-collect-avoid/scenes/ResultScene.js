@@ -19,6 +19,7 @@ export function makeResultScene(Phaser) {
     create() {
       const flow = this.registry.get('flow');
       const state = flow.ctx.state;
+      state.setFlag('experienceComplete', true); // ends the signal session + notifies the embedding page
       const { width, height } = this.scale;
       const cx = width / 2;
 

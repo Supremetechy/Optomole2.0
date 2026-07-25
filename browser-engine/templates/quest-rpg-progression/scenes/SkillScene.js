@@ -14,9 +14,12 @@ import { SKILL_BRANCHES } from '../entity-factory.js';
 const PIXI = window.PIXI;
 
 export class SkillScene {
-  constructor(ctx, { points = 1, onDone }) {
+  constructor(ctx, { points = 1, branches, onDone }) {
     this.ctx = ctx;
     this.points = points;
+    // Campaign-supplied branches carry the manifest's own skillTree names;
+    // the generic SKILL_BRANCHES only back-stop a manifest without one.
+    this.branches = Array.isArray(branches) && branches.length ? branches : SKILL_BRANCHES;
     this.onDone = onDone;
     this.container = new PIXI.Container();
     this._t = 0;
@@ -65,7 +68,7 @@ export class SkillScene {
 
     const skills = this.ctx.state.get('skills') || {};
     const cardW = (pw - 80) / 3;
-    SKILL_BRANCHES.forEach((b, i) => {
+    this.branches.forEach((b, i) => {
       const bx = cx - pw / 2 + 40 + i * cardW;
       const by = top + 110;
       const node = new PIXI.Container();
@@ -155,11 +158,11 @@ export class SkillScene {
     if (this.cta) this.cta.alpha = 0.5 + Math.sin(this._t * 4) * 0.5;
 
     const keys = this.ctx.input.keys;
-    for (let i = 0; i < SKILL_BRANCHES.length; i++) {
+    for (let i = 0; i < this.branches.length; i++) {
       if (keys.has(String(i + 1))) {
         keys.delete(String(i + 1));
         // Re-layout is the simplest way to reflect a keyboard spend.
-        const branch = SKILL_BRANCHES[i];
+        const branch = this.branches[i];
         if (this._spent < this.points) {
           const skills = { ...(this.ctx.state.get('skills') || {}) };
           skills[branch.id] = (skills[branch.id] || 0) + 1;

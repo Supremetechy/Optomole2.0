@@ -44,7 +44,7 @@ export function createOrb(ctx, spec, opts) {
  * share of decoys and power-ups. `difficulty` ramps bad-orb speed/homing per
  * wave so later rounds demand sharper dodging.
  */
-export function buildWaves(specs, { waveSize = 4, title = 'Concept Arena' } = {}) {
+export function buildWaves(specs, { waveSize = 4, title = 'Concept Arena', world = null } = {}) {
   const sorted = [...specs].sort((a, b) => b.priority - a.priority);
   const goods = sorted.filter((s) => classifyOrb(s) === 'good');
   const bads = sorted.filter((s) => classifyOrb(s) === 'bad');
@@ -76,7 +76,8 @@ export function buildWaves(specs, { waveSize = 4, title = 'Concept Arena' } = {}
     waves.push({
       id: `wave-${i + 1}`,
       index: i,
-      title: `Wave ${i + 1}`,
+      title: world ? world.chunkTitle(i, 'Wave', waveGoods[0]?.label) : `Wave ${i + 1}`,
+      flavor: world ? world.chunkDescription(i) : '',
       goods: waveGoods,
       bads: waveBads,
       power: wavePower,

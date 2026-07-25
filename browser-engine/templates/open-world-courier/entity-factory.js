@@ -86,7 +86,7 @@ export function buildCity({ cols = 15, rows = 15 } = {}) {
  * spread walks the road list at a stride so contracts fan out across districts
  * instead of clustering near the spawn.
  */
-export function buildContracts(specs, city, { title = 'The City', districtSize = 4 } = {}) {
+export function buildContracts(specs, city, { title = 'The City', districtSize = 4, world = null } = {}) {
   const sorted = [...specs].sort((a, b) => b.priority - a.priority);
   const contractSpecs = sorted.filter((s) => classifyCourier(s) === 'contract');
   const briefs = sorted.filter((s) => classifyCourier(s) === 'brief');
@@ -138,7 +138,10 @@ export function buildContracts(specs, city, { title = 'The City', districtSize =
     districts.push({
       id: `district-${i + 1}`,
       index: i,
-      title: hubs[i]?.label ? `District ${i + 1}: ${short(hubs[i].label)}` : `District ${i + 1}`,
+      title: world
+        ? world.chunkTitle(i, 'District', hubs[i]?.label)
+        : hubs[i]?.label ? `District ${i + 1}: ${short(hubs[i].label)}` : `District ${i + 1}`,
+      flavor: world ? world.chunkDescription(i) : '',
       dispatcher: hubs[i % Math.max(1, hubs.length)] || null,
       contracts: slice,
       isFinal: i === districtCount - 1,

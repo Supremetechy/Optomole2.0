@@ -23,8 +23,9 @@ export class RunnerTemplateRuntime {
     this.meta = meta;
     this.mapping = new MappingEngine(manifest);
     this.course = buildCourse(this.mapping.specs, {
-      title: meta.title || manifest.title || 'The Gauntlet',
+      title: this.mapping.world.title || meta.title || manifest.title || 'The Gauntlet',
       tokensPerStage: meta.tokensPerStage || 3,
+      world: this.mapping.world,
     });
     this._coachLine = this.course.coach?.description || null;
   }
@@ -84,6 +85,7 @@ export class RunnerTemplateRuntime {
 
   _showResult(win, stats) {
     const ctx = this.runtime.services;
+    ctx.state.setFlag('experienceComplete', true); // ends the signal session + notifies the embedding page
     ctx.scenes.replace(
       new ResultScene(ctx, {
         win,

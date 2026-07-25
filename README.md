@@ -100,3 +100,19 @@ docker compose -f docker/compose.dev.yml up --build
 ## Deprecated Material
 
 Older frontend/runtime experiments, generated build outputs, logs, cache folders, legacy API code, and archived docs were moved into `OptoDeprecated/`. Nothing was deleted during the cleanup.
+
+Browser Engine Reads:
+proceduralMap
+storyboard - narrative-ordered scenes
+world
+skillTree
+knowledgeGraph
+analystChallenge (quest)
+title
+
+
+Browser Engine Writes:
+quests
+characters
+achievements
+inventory

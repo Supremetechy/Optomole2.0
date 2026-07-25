@@ -32,8 +32,9 @@ export class CourierTemplateRuntime {
 
     this.city = buildCity({ cols: span, rows: span });
     this.model = buildContracts(this.mapping.specs, this.city, {
-      title: meta.title || manifest.title || 'The City',
+      title: this.mapping.world.title || meta.title || manifest.title || 'The City',
       districtSize: meta.districtSize || 4,
+      world: this.mapping.world,
     });
     this.model.spawn = spawnPoint(this.city, this.model.contracts[0]?.pickup || null);
 
@@ -99,6 +100,7 @@ export class CourierTemplateRuntime {
 
   _showResult(win, stats) {
     const ctx = this.runtime.services;
+    ctx.state.setFlag('experienceComplete', true); // ends the signal session + notifies the embedding page
     ctx.scenes.replace(
       new ResultScene(ctx, {
         win,

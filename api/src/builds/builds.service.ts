@@ -253,6 +253,9 @@ export class BuildsService {
       ...resolved.mappingManifest,
       engine,
       title: pkg.experience?.title || 'Optimole Experience',
+      // World identity (AI-chosen planet/region) — the runtime's WorldContext
+      // titles the playable world from this before falling back to the title.
+      world: (pkg.experience as any)?.world || null,
       progression: pkg.progression || {},
       runtimeContract: pkg.runtimeContract || {},
       analystChallenge: (pkg.blueprint as any)?.analystChallenge || null,

@@ -40,7 +40,7 @@ export function createTarget(ctx, spec, opts) {
  * bystander, because the whole point of the drill is fire discipline: hitting
  * everything downrange must not be a winning strategy.
  */
-export function buildRounds(specs, { roundSize = 4, title = 'The Range' } = {}) {
+export function buildRounds(specs, { roundSize = 4, title = 'The Range', world = null } = {}) {
   const sorted = [...specs].sort((a, b) => b.priority - a.priority);
   const hostiles = sorted.filter((s) => classifyTarget(s) === 'hostile');
   const bystanders = sorted.filter((s) => classifyTarget(s) === 'bystander');
@@ -76,7 +76,8 @@ export function buildRounds(specs, { roundSize = 4, title = 'The Range' } = {}) 
     rounds.push({
       id: `round-${i + 1}`,
       index: i,
-      title: `Round ${i + 1}`,
+      title: world ? world.chunkTitle(i, 'Round', roundHostiles[0]?.label) : `Round ${i + 1}`,
+      flavor: world ? world.chunkDescription(i) : '',
       hostiles: roundHostiles,
       bystanders: roundBystanders,
       bonus: roundBonus,

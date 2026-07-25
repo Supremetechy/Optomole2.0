@@ -26,6 +26,7 @@ export class SignalEmitter {
     this._timer = null;
     this._unsub = null;
     this._closed = false;
+    this._sessionEnded = false;
   }
 
   /** Subscribe to the StateStore and start batching. */
@@ -86,6 +87,11 @@ export class SignalEmitter {
         this.emit('log', { message });
       }
     }
+    // Experience finished in-play (RewardScene sets this flag): end the session now
+    // and tell the embedding page, rather than waiting for tab teardown.
+    if (state.flags?.experienceComplete && !this._sessionEnded) {
+      this._endSession('completed');
+    }
     this._prev = {
       xp: state.xp,
       level: state.level,
@@ -121,18 +127,49 @@ export class SignalEmitter {
     }
   }
 
-  /** Emit a final session summary and flush. Idempotent. */
-  close() {
-    if (this._closed) return;
+  /** Emit the session summary once, flush, and notify the embedding page. */
+  _endSession(reason) {
+    if (this._sessionEnded) {
+      this.flush();
+      return;
+    }
+    this._sessionEnded = true;
     const last = this._prev || {};
-    this.emit('session_end', {
+    const summary = {
       durationMs: Date.now() - this._start,
       xp: last.xp || 0,
       level: last.level || 1,
       roomsCleared: (last.clearedRooms || []).length,
-    });
-    this._closed = true;
+      reason,
+    };
+    this.emit('session_end', summary);
     this.flush();
+    this._postParent(summary);
+  }
+
+  /**
+   * Tell the embedding page (the Workstation) that a session ended, so it can
+   * refresh the identity model live. Cross-origin, so we target '*'; the parent
+   * validates `source === 'optomole'`. No-op when not embedded.
+   */
+  _postParent(summary) {
+    try {
+      if (typeof window !== 'undefined' && window.parent && window.parent !== window) {
+        window.parent.postMessage(
+          { source: 'optomole', type: 'session_end', personId: this.personId, experienceId: this.experienceId, summary },
+          '*',
+        );
+      }
+    } catch (_) {
+      // Never let messaging break the game.
+    }
+  }
+
+  /** Tear down. Ends the session (if not already) and detaches listeners. Idempotent. */
+  close() {
+    if (this._closed) return;
+    this._endSession('teardown');
+    this._closed = true;
     if (this._timer) clearInterval(this._timer);
     if (this._unsub) this._unsub();
     if (this._onHide) document.removeEventListener('visibilitychange', this._onHide);

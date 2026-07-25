@@ -65,7 +65,7 @@ export function createCheckpoint(ctx, spec, opts) {
  * pace at that point in the run so a jump is always physically clearable:
  * minimum gap = the horizontal distance covered during one full jump arc.
  */
-export function buildCourse(specs, { title = 'The Gauntlet', tokensPerStage = 3 } = {}) {
+export function buildCourse(specs, { title = 'The Gauntlet', tokensPerStage = 3, world = null } = {}) {
   const sorted = [...specs].sort((a, b) => b.priority - a.priority);
   const checkpoints = sorted.filter((s) => classifyRunner(s) === 'checkpoint');
   const tokens = sorted.filter((s) => classifyRunner(s) === 'token');
@@ -133,7 +133,10 @@ export function buildCourse(specs, { title = 'The Gauntlet', tokensPerStage = 3 
     stages.push({
       id: `stage-${i + 1}`,
       index: i,
-      title: cpSpec.label ? `Stage ${i + 1}: ${short(cpSpec.label)}` : `Stage ${i + 1}`,
+      title: world
+        ? world.chunkTitle(i, 'Stage', cpSpec.label)
+        : cpSpec.label ? `Stage ${i + 1}: ${short(cpSpec.label)}` : `Stage ${i + 1}`,
+      flavor: world ? world.chunkDescription(i) : '',
       checkpoint,
       tokens: stageTokens,
       obstacles: stageObstacles,
