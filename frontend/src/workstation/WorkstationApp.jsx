@@ -42,6 +42,45 @@ const ENGINES = [
 
 const ENGINE_BY_VALUE = Object.fromEntries(ENGINES.map((e) => [e.value, e]));
 
+/**
+ * Which compiler turns the source into an experience.
+ *
+ * "Structural" is the gateway's deterministic fallback: it derives quests, cast,
+ * and regions from the extracted knowledge graph, so a build always reflects the
+ * shape of the upload. It cannot write prose, which is why every structural
+ * build reads alike. The AI compilers author the experience from the same
+ * content and are the only path to text that sounds like the source.
+ *
+ * `local` runs against an OpenAI-compatible server on this machine (Ollama /
+ * LM Studio) and needs no key, so it is the one AI option that costs nothing.
+ */
+const COMPILERS = [
+  { value: '', label: 'Structural — no AI, derived from your content', keyless: true },
+  { value: 'local', label: 'Local model — offline (Ollama / LM Studio)', keyless: true, model: 'claude-sonnet-reasoning' },
+  { value: 'openai', label: 'OpenAI', model: 'gpt-4o-mini' },
+  { value: 'claude', label: 'Claude', model: 'claude-3-5-sonnet-latest' },
+  { value: 'gemini', label: 'Gemini', model: 'gemini-3.5-flash' },
+];
+
+const COMPILER_BY_VALUE = Object.fromEntries(COMPILERS.map((c) => [c.value, c]));
+
+/**
+ * The engine-agnostic DSL runtime (the RuntimeCore + Phaser/Pixi adapter
+ * prototype in /Phaser), which plays a compiled bundle from pure data.
+ *
+ * It runs as its own Vite dev server rather than being served by the gateway,
+ * so it is addressed by origin and may simply not be up — every link to it is
+ * therefore an explicit, optional action rather than something the viewport
+ * depends on. Override with VITE_OPTOMOLE_DSL_URL.
+ */
+const DSL_RUNTIME_BASE = (import.meta.env.VITE_OPTOMOLE_DSL_URL || 'http://localhost:5173').replace(/\/$/, '');
+
+/** Point the DSL runtime at this build's bundle. `page` picks the adapter. */
+function dslRuntimeUrl(bundleUrl, page = '/') {
+  if (!bundleUrl) return '';
+  return `${DSL_RUNTIME_BASE}${page}?bundle=${encodeURIComponent(bundleUrl)}`;
+}
+
 const ACCEPT = '.pdf,.txt,.md,.markdown,.html,.htm,.json,.csv,.vtt,.srt,.epub,.mp3,.wav,.m4a,.aac,.ogg,text/*,application/pdf,application/json,audio/*';
 
 function switchToConsole() {
@@ -81,17 +120,35 @@ function getPersonId() {
   }
 }
 
+/** Remembered compiler choice. The API key is deliberately NOT persisted. */
+function storedCompiler() {
+  try {
+    const value = localStorage.getItem('optomole.compiler') || '';
+    return COMPILER_BY_VALUE[value] ? value : '';
+  } catch (_) {
+    return '';
+  }
+}
+
 export default function WorkstationApp() {
   const [sources, setSources] = useState([]);
   const [draft, setDraft] = useState('');
   const [objective, setObjective] = useState('');
   const [style, setStyle] = useState('');
   const [engine, setEngine] = useState('pixi');
+  // Compiler selection. Keys are held in memory for the session only — the same
+  // posture as the classic Console, which sends a key per request and never
+  // writes it to storage.
+  const [compiler, setCompiler] = useState(storedCompiler);
+  const [aiModel, setAiModel] = useState(() => COMPILER_BY_VALUE[storedCompiler()]?.model || '');
+  const [aiKeys, setAiKeys] = useState({ openai: '', claude: '', gemini: '' });
   const [phase, setPhase] = useState('idle'); // idle · reading · constructing · ready · queued · download · error
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [embedUrl, setEmbedUrl] = useState('');
   const [rawUrl, setRawUrl] = useState('');
+  // The DSL projection of the same build, for the engine-agnostic runtime.
+  const [bundleUrl, setBundleUrl] = useState('');
   const [dragging, setDragging] = useState(false);
   // Engine (Unity/Unreal) build tracking: these queue to the worker and finish
   // with a downloadable artifact instead of an embedded playable.
@@ -107,6 +164,29 @@ export default function WorkstationApp() {
 
   const busy = phase === 'reading' || phase === 'constructing';
   const hasData = sources.length > 0 || draft.trim().length > 0;
+  const activeCompiler = COMPILER_BY_VALUE[compiler] || COMPILERS[0];
+  // A hosted provider with no key would 400 on the gateway; block the button
+  // instead, so the failure is a disabled control rather than a failed build.
+  const needsKey = !!compiler && !activeCompiler.keyless && !aiKeys[compiler]?.trim();
+
+  function selectCompiler(value) {
+    setCompiler(value);
+    setAiModel(COMPILER_BY_VALUE[value]?.model || '');
+    try { localStorage.setItem('optomole.compiler', value); } catch (_) { /* ignore */ }
+  }
+
+  /**
+   * The `ai` block the gateway's compiler reads. Absent when no AI compiler is
+   * selected, which is what routes the request to the deterministic fallback.
+   */
+  function aiOptions() {
+    if (!compiler) return undefined;
+    return {
+      provider: compiler,
+      model: aiModel || activeCompiler.model,
+      ...(activeCompiler.keyless ? {} : { apiKeys: { [compiler]: aiKeys[compiler].trim() } }),
+    };
+  }
 
   const refreshModel = useCallback(async () => {
     setModelBusy(true);
@@ -182,6 +262,7 @@ export default function WorkstationApp() {
     setError('');
     setEmbedUrl('');
     setRawUrl('');
+    setBundleUrl('');
     setEngineBuild(null);
     setDownloadUrl('');
     setStatus('Normalizing ingested content on the gateway…');
@@ -203,12 +284,13 @@ export default function WorkstationApp() {
           ...(objective.trim() ? { goals: objective.trim() } : {}),
           ...(style ? { genre: style } : {}),
           ...(selected.engine ? { engine: selected.engine } : {}),
+          ai: aiOptions(),
           publicGatewayUrl: publicGatewayBase(),
         },
         target: selected.target,
       };
       setStatus(selected.embeds
-        ? 'Constructing world, levels, and objectives from your data…'
+        ? `Constructing world, levels, and objectives from your data${compiler ? ` with ${activeCompiler.label.split(' ')[0]}` : ''}…`
         : `Compiling and queuing the ${selected.label.split(' ')[0]} engine build…`);
       const data = await launchExperience(payload);
       const build = data?.build;
@@ -219,6 +301,7 @@ export default function WorkstationApp() {
       if (selected.embeds) {
         if (!build.launchUrl) throw new Error('The engine did not return a playable build.');
         setRawUrl(build.launchUrl);
+        setBundleUrl(build.bundleUrl || '');
         setEmbedUrl(toEmbeddableUrl(build.launchUrl));
         setStatus('');
         setPhase('ready');
@@ -242,6 +325,7 @@ export default function WorkstationApp() {
   function reset() {
     setEmbedUrl('');
     setRawUrl('');
+    setBundleUrl('');
     setEngineBuild(null);
     setDownloadUrl('');
     setPhase('idle');
@@ -264,6 +348,7 @@ export default function WorkstationApp() {
     setError('');
     setEmbedUrl('');
     setRawUrl('');
+    setBundleUrl('');
     setEngineBuild(null);
     setDownloadUrl('');
     setStatus(`Model directive: ${model?.recommendation?.hypothesis || 'building the next experiment…'}`);
@@ -276,7 +361,12 @@ export default function WorkstationApp() {
           text: combined,
           metadata: { submittedFrom: 'optomole-workstation', ...(objective.trim() ? { goals: objective.trim() } : {}) },
         },
-        options: { title, ...(objective.trim() ? { goals: objective.trim() } : {}), publicGatewayUrl: publicGatewayBase() },
+        options: {
+          title,
+          ...(objective.trim() ? { goals: objective.trim() } : {}),
+          ai: aiOptions(),
+          publicGatewayUrl: publicGatewayBase(),
+        },
         target: 'browser',
       });
       const build = data?.build;
@@ -284,6 +374,7 @@ export default function WorkstationApp() {
         throw new Error(build?.error || 'The model could not produce a playable experience.');
       }
       setRawUrl(build.launchUrl);
+      setBundleUrl(build.bundleUrl || '');
       setEmbedUrl(toEmbeddableUrl(build.launchUrl));
       setStatus('');
       setPhase('ready');
@@ -402,6 +493,42 @@ export default function WorkstationApp() {
             </select>
           </div>
 
+          <div className="ws-style-row">
+            <label>COMPILER</label>
+            <select value={compiler} onChange={(e) => selectCompiler(e.target.value)}>
+              {COMPILERS.map((c) => <option key={c.value || 'structural'} value={c.value}>{c.label}</option>)}
+            </select>
+          </div>
+
+          {compiler && (
+            <div className="ws-compiler-detail">
+              <input
+                className="ws-line-input"
+                placeholder="Model"
+                value={aiModel}
+                onChange={(e) => setAiModel(e.target.value)}
+              />
+              {activeCompiler.keyless ? (
+                <p className="ws-hint sm">
+                  Runs offline against your local model server. Nothing leaves this machine.
+                </p>
+              ) : (
+                <>
+                  <input
+                    className="ws-line-input"
+                    type="password"
+                    placeholder={`${compiler} API key — used for this build only`}
+                    value={aiKeys[compiler] || ''}
+                    onChange={(e) => setAiKeys((current) => ({ ...current, [compiler]: e.target.value }))}
+                  />
+                  <p className="ws-hint sm">
+                    Sent to the local gateway per request and never stored by this page.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+
           {sources.length > 0 && (
             <div className="ws-sources">
               {sources.map((s) => (
@@ -413,9 +540,10 @@ export default function WorkstationApp() {
             </div>
           )}
 
-          <button type="button" className="ws-construct" onClick={construct} disabled={busy || !hasData}>
+          <button type="button" className="ws-construct" onClick={construct} disabled={busy || !hasData || needsKey}>
             {phase === 'constructing' ? 'CONSTRUCTING…' : ENGINE_BY_VALUE[engine]?.embeds === false ? 'BUILD PROJECT' : 'CONSTRUCT GAME'}
           </button>
+          {needsKey && <p className="ws-hint sm">Add a {compiler} API key, or switch the compiler to Structural or Local.</p>}
 
           {error && <p className="ws-error">{error}</p>}
         </section>
@@ -439,7 +567,7 @@ export default function WorkstationApp() {
                       <b>{model.recommendation.genre}</b>
                     </div>
                     <p className="ws-hyp">“{model.recommendation.hypothesis}”</p>
-                    <button type="button" className="ws-ghost pick" onClick={buildModelPick} disabled={busy || !hasData}>
+                    <button type="button" className="ws-ghost pick" onClick={buildModelPick} disabled={busy || !hasData || needsKey}>
                       Build the model’s pick →
                     </button>
                     {!hasData && <span className="ws-note">add data first</span>}
@@ -493,7 +621,7 @@ export default function WorkstationApp() {
                     : 'No signals yet. Build a game and play it — the model of who you are, what you prefer, and what to try next appears here.'}
                 </p>
                 {model?.recommendation && hasData && (
-                  <button type="button" className="ws-ghost pick" onClick={buildModelPick} disabled={busy}>
+                  <button type="button" className="ws-ghost pick" onClick={buildModelPick} disabled={busy || needsKey}>
                     Let the model pick your first game →
                   </button>
                 )}
@@ -510,6 +638,17 @@ export default function WorkstationApp() {
             {(phase === 'ready' || phase === 'queued' || phase === 'download') && (
               <div className="ws-view-actions">
                 {phase === 'ready' && rawUrl && <a href={rawUrl} target="_blank" rel="noreferrer" className="ws-ghost sm">Full screen ↗</a>}
+                {phase === 'ready' && bundleUrl && (
+                  <a
+                    href={dslRuntimeUrl(bundleUrl)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="ws-ghost sm"
+                    title={`Play this same build as pure data in the engine-agnostic RuntimeCore at ${DSL_RUNTIME_BASE}. Requires that dev server to be running.`}
+                  >
+                    DSL runtime ↗
+                  </a>
+                )}
                 {phase === 'download' && downloadUrl && <a href={downloadUrl} target="_blank" rel="noreferrer" className="ws-ghost sm">Download ↓</a>}
                 <button type="button" className="ws-ghost sm" onClick={reset}>New build</button>
               </div>

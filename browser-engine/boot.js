@@ -12,6 +12,7 @@ import { mountHud } from './runtime/Hud.js';
 import { attachSignalEmitter } from './runtime/SignalEmitter.js';
 import { resolveTheme } from './runtime/theme.js';
 import { PALETTE } from './runtime/AssetLoader.js';
+import { applyGeneratedAssets } from './runtime/GeneratedAssets.js';
 import { createKeyLockRuntime } from './templates/action-adventure-key-lock/template-runtime.js';
 import { createArcadeRuntime } from './templates/arcade-collect-avoid/template-runtime.js';
 import { createIdleRuntime } from './templates/idle-progress/template-runtime.js';
@@ -97,6 +98,14 @@ async function main() {
   await runtime.init('#game', theme);
   mountHud(runtime.services.state);
 
+  // Generated art/audio replaces the procedural pack BEFORE the template runs:
+  // prefabs capture `assets.get(key)` at construction, so a swap afterwards
+  // would only reach entities spawned later in the session.
+  const assetReport = await applyGeneratedAssets(runtime.services, manifest);
+  if (assetReport.sprites || assetReport.audio || assetReport.music) {
+    console.info('[Optomole] generated assets applied', assetReport);
+  }
+
   const createTemplate = selectTemplate(manifest);
   const template = createTemplate(manifest, meta);
   await runtime.start(template);
@@ -106,7 +115,7 @@ async function main() {
   const signals = attachSignalEmitter(runtime, manifest, meta, 'pixi');
 
   // Debug handle for automated testing / dev-tools inspection. Harmless in prod.
-  window.__optomole = { runtime, template, services: runtime.services, signals, theme };
+  window.__optomole = { runtime, template, services: runtime.services, signals, theme, assetReport };
 
   document.body.classList.add('ready');
 }

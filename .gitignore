@@ -31,3 +31,9 @@ Screen Recording 2026-07-21 at 3.41.12 AM.mov
 silent_render.mp4
 Working.md
 scene_timing.json
+
+# Local design set: the Content-to-Experience Engine specs, schemas, and
+# working checklists. Drafts of where the system is going, not contracts the
+# code reads — the live schema is spec-engine/schemas/. Kept out of the repo
+# for the same reason the individual files were before they moved here.
+design/

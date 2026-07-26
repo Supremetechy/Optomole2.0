@@ -435,4 +435,35 @@ export class AssetLoader {
       return this.get(fallbackKey);
     }
   }
+
+  /**
+   * Swap generated art in over an existing pack key, AT THE PACK KEY'S SIZE.
+   *
+   * The resize is the whole point. Prefabs and scenes were written against the
+   * procedural pack's dimensions — a TilingSprite floor repeats at the tile's
+   * natural size, and several prefabs never set width/height at all. Generated
+   * art arrives at 512x512, so registering it raw would tile a room with four
+   * enormous squares and inflate every unsized sprite. Rendering it down to the
+   * texture it replaces means every existing consumer keeps working untouched.
+   *
+   * Returns true when the swap happened; false leaves the procedural texture in
+   * place, which is always a playable outcome.
+   */
+  async replaceWithImage(key, url) {
+    const existing = this.textures.get(key);
+    if (!existing || !url) return false;
+    try {
+      const loaded = await PIXI.Assets.load(url);
+      const sprite = new PIXI.Sprite(loaded);
+      sprite.width = existing.width;
+      sprite.height = existing.height;
+      const resized = this.renderer.generateTexture(sprite);
+      sprite.destroy();
+      this.textures.set(key, resized);
+      return true;
+    } catch (err) {
+      console.warn('[AssetLoader] generated art failed to load, keeping placeholder', key, url, err);
+      return false;
+    }
+  }
 }

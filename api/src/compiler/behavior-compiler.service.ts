@@ -111,6 +111,8 @@ export interface AssetSpec {
   height: number;
   tint: string;
   palette: string[];
+  /** Emotional tone from the asset directive; drives generated-art prompts. */
+  tone?: string;
 }
 
 /** An enemy the emitter has to place: which machine drives it, and how tough it is. */
@@ -755,6 +757,11 @@ export class BehaviorCompilerService {
       height: num(p.height, 1),
       tint: str(p.tint, '#ffffff'),
       palette: Array.isArray(p.palette) ? (p.palette as string[]) : [],
+      // The emotional tone the asset directive resolved. Carried on the spec
+      // because it is what makes a generated sprite for a tense source differ
+      // from one for a calm source — the placeholder renderer ignores it, but
+      // an image prompt is meaningless without it.
+      tone: str(p.tone) || undefined,
     };
   }
 }

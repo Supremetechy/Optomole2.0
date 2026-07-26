@@ -1,5 +1,11 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { AssetGenerationService } from '../assets/asset-generation.service';
+import { ExperienceAssetsService } from '../assets/experience-assets.service';
+import { BehaviorCompilerService } from '../compiler/behavior-compiler.service';
 import { ExperienceBuildService } from '../compiler/experience-build.service';
+import { ExperienceDirectiveService } from '../compiler/experience-directive.service';
+import { GameplayDslBundle, GameplayDslService } from '../compiler/gameplay-dsl.service';
+import { SemanticModelService } from '../compiler/semantic-model.service';
 import { QueueService } from '../integrations/queue.service';
 import { ObjectStorageService } from '../integrations/object-storage.service';
 import { gatewayConfig } from '../shared/config';
@@ -9,6 +15,7 @@ import { TemplatesService } from '../templates/templates.service';
 
 @Injectable()
 export class BuildsService {
+  private readonly logger = new Logger(BuildsService.name);
   private readonly builds = new Map<string, BuildJob>();
   private readonly artifacts = new Map<string, ArtifactRecord>();
 
@@ -17,6 +24,12 @@ export class BuildsService {
     private readonly storage: ObjectStorageService,
     private readonly templates: TemplatesService,
     private readonly experienceBuild: ExperienceBuildService,
+    private readonly semanticModel: SemanticModelService,
+    private readonly directives: ExperienceDirectiveService,
+    private readonly behaviors: BehaviorCompilerService,
+    private readonly gameplayDsl: GameplayDslService,
+    private readonly experienceAssets: ExperienceAssetsService,
+    private readonly assetGeneration: AssetGenerationService,
   ) {}
 
   async createBuild(input: { package: ExperiencePackage; target: EngineTarget; publicBaseUrl?: string; engine?: string }): Promise<BuildJob> {
@@ -267,12 +280,27 @@ export class BuildsService {
       mappingManifest: resolved.mappingManifest,
       templateId: resolved.template.id,
     });
+    // The same components projected into the engine-neutral Gameplay DSL. Two
+    // consumers need it: the asset pipeline (its `assets` block is the sprite
+    // vocabulary art is generated against) and any RuntimeCore adapter, which
+    // plays the bundle directly from `bundleUrl` instead of this manifest.
+    const dsl = this.compileGameplayBundle(pkg, resolved, projected);
+    // Real art/audio when the pipeline is enabled and keyed; otherwise an
+    // empty block and the runtime's procedural placeholders, exactly as before.
+    const generatedAssets = await this.generateAssetsFor(dsl.bundle, gatewayBaseUrl);
     const manifest = {
       ...resolved.mappingManifest,
       engine,
       components: projected.components,
       loadOrder: projected.loadOrder,
       componentValidation: projected.validation,
+      // Generated assets addressed by role/cue so the runtime can swap them in
+      // over the procedural pack without knowing which vendor produced them.
+      generatedAssets: {
+        sprites: generatedAssets.sprites,
+        audio: generatedAssets.audio,
+        summary: generatedAssets.summary,
+      },
       title: pkg.experience?.title || 'Optimole Experience',
       // World identity (AI-chosen planet/region) — the runtime's WorldContext
       // titles the playable world from this before falling back to the title.
@@ -340,6 +368,7 @@ export class BuildsService {
         componentCoverage: projected.validation.componentCoverage,
         knowledgeGraphStats: ((pkg.blueprint as any)?.knowledgeGraph || (pkg.specification as any)?.knowledgeGraph)?.stats || null,
         storyboardCoverage: ((pkg.blueprint as any)?.storyboard || (pkg.specification as any)?.storyboard)?.coverage || null,
+        generatedAssets: generatedAssets.summary,
       },
     });
 
@@ -348,8 +377,104 @@ export class BuildsService {
       artifactId: artifact.id,
       launchUrl: artifact.launchUrl,
       downloadUrl: artifact.downloadUrl,
-      logs: [...build.logs, `Browser-engine manifest compiled with ${resolved.template.id}.`, 'Playable runtime URL created.'],
+      // The engine-agnostic projection of this same build, for a RuntimeCore
+      // adapter (Phaser/Pixi prototype) pointed at `?bundle=<bundleUrl>`.
+      ...(dsl.bundleId
+        ? { bundleId: dsl.bundleId, bundleUrl: `${gatewayBaseUrl}/v1/compiler/gameplay-dsl/${dsl.bundleId}` }
+        : {}),
+      logs: [
+        ...build.logs,
+        `Browser-engine manifest compiled with ${resolved.template.id}.`,
+        ...(dsl.bundleId ? [`Gameplay DSL bundle ${dsl.bundleId} emitted.`] : [dsl.error ? `Gameplay DSL projection skipped: ${dsl.error}` : '']),
+        generatedAssets.log,
+        'Playable runtime URL created.',
+      ].filter(Boolean),
     });
+  }
+
+  /**
+   * Project this build into a Gameplay DSL bundle (semantic model -> directives
+   * -> behaviors -> bundle), the same chain `POST /v1/compiler/gameplay-dsl`
+   * runs. Never throws: the browser manifest is the primary artifact, and a
+   * bundle is always re-derivable, so a projection failure degrades to "no
+   * bundle for this build" rather than a failed build.
+   */
+  private compileGameplayBundle(
+    pkg: ExperiencePackage,
+    resolved: { mappingManifest: any; template: { id: string } },
+    projected: ReturnType<ExperienceBuildService['project']>,
+  ): { bundle: GameplayDslBundle | null; bundleId: string | null; error?: string } {
+    try {
+      const model = this.semanticModel.project({ package: pkg, mappingManifest: resolved.mappingManifest });
+      const directiveSet = this.directives.resolve({ model, package: pkg as Record<string, any> });
+      const behaviors = this.behaviors.compile({ directives: directiveSet, model });
+      const bundle = this.gameplayDsl.compile({ build: projected, behaviors });
+      return { bundle, bundleId: this.gameplayDsl.remember(bundle) };
+    } catch (caught) {
+      const error = caught instanceof Error ? caught.message : String(caught);
+      this.logger.warn(`Gameplay DSL projection failed for ${pkg.experience?.id || 'experience'}: ${error}`);
+      return { bundle: null, bundleId: null, error };
+    }
+  }
+
+  /**
+   * Generate the art and audio this bundle's own compiler-derived directives
+   * asked for, and return it keyed the way the runtime consumes it.
+   *
+   * Three guarantees, inherited from the pipeline this calls into:
+   *  1. It never fails a build. Disabled, unkeyed, slow, or erroring all resolve
+   *     to an empty block, and the runtime keeps its procedural placeholders.
+   *  2. It costs nothing when off. The plan is not even derived unless the
+   *     pipeline reports itself enabled with at least one configured provider.
+   *  3. Prompts are not authored here — they come from the palette and tone the
+   *     content compiler already derived, so two sources produce two looks.
+   */
+  private async generateAssetsFor(
+    bundle: GameplayDslBundle | null,
+    publicBaseUrl: string,
+  ): Promise<{ sprites: Record<string, string>; audio: Record<string, string>; summary: Record<string, number> | null; log: string }> {
+    const empty = { sprites: {}, audio: {}, summary: null as Record<string, number> | null };
+    if (!bundle) return { ...empty, log: 'Asset generation skipped: no gameplay bundle to derive assets from.' };
+
+    const status = this.assetGeneration.status();
+    if (!status.enabled || !status.configuredCount) {
+      return { ...empty, log: `Asset generation skipped: ${status.reason || 'no configured providers'}.` };
+    }
+
+    try {
+      const plan = this.experienceAssets.plan({ bundle, kinds: ['sprite', 'music', 'sfx'] });
+      if (!plan.requests.length) return { ...empty, log: 'Asset generation produced no requests for this bundle.' };
+
+      const { assets, summary } = await this.assetGeneration.generateAll(plan.requests, { publicBaseUrl });
+      const upgraded = this.experienceAssets.apply(bundle, assets);
+
+      // Sprites are keyed by ROLE, not sprite id: the browser-engine's templates
+      // draw from a fixed procedural pack ('player', 'enemy', 'npc'...), so a
+      // per-id map would never match anything it asks for. First success per
+      // role wins; the rest stay procedural.
+      const sprites: Record<string, string> = {};
+      for (const spec of upgraded.assets || []) {
+        const role = String((spec as any).role || '');
+        const url = String((spec as any).url || '');
+        if (role && url && !sprites[role]) sprites[role] = url;
+      }
+      const audio: Record<string, string> = {};
+      for (const asset of assets) {
+        if (asset.status !== 'succeeded' || !asset.url) continue;
+        if (asset.kind === 'music' || asset.kind === 'sfx') audio[asset.requestId] = asset.url;
+      }
+
+      return {
+        sprites,
+        audio,
+        summary,
+        log: `Asset generation: ${summary.succeeded}/${summary.requested} succeeded (${summary.failed} failed, ${summary.skipped} skipped, ${summary.cached} cached).`,
+      };
+    } catch (caught) {
+      const error = caught instanceof Error ? caught.message : String(caught);
+      this.logger.warn(`Asset generation failed; falling back to placeholder art: ${error}`);
+      return { ...empty, log: `Asset generation failed, using placeholder art: ${error}` };
+    }
   }
 
   /**

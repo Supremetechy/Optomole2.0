@@ -52,6 +52,9 @@ export interface BuildJob {
   artifactId?: string;
   launchUrl?: string;
   downloadUrl?: string;
+  /** Gameplay DSL projection of this build, for RuntimeCore adapters (`?bundle=`). */
+  bundleId?: string;
+  bundleUrl?: string;
   error?: string;
   workerId?: string;
   createdAt: string;

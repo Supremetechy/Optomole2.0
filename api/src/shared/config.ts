@@ -41,6 +41,21 @@ export interface GatewayConfig {
   azureSpeechRegion: string;
   azureSpeechEndpoint: string;
   azureSpeechLanguage: string;
+  // ---- asset generation providers (see api/src/assets) ----
+  meshyApiKey: string;
+  lumaApiKey: string;
+  sketchfabApiToken: string;
+  falApiKey: string;
+  replicateApiKey: string;
+  huggingfaceApiKey: string;
+  openaiSpeechModel: string;
+  openaiCodeModel: string;
+  falModels: string;
+  replicateModels: string;
+  huggingfaceModels: string;
+  assetProviderOrder: string;
+  assetGenerationEnabled: boolean;
+  assetJobTimeoutMs: number;
 }
 
 function value(name: string, fallback: string): string {
@@ -117,5 +132,25 @@ export function gatewayConfig(): GatewayConfig {
     azureSpeechRegion: value('AZURE_SPEECH_REGION', ''),
     azureSpeechEndpoint: value('AZURE_SPEECH_ENDPOINT', ''),
     azureSpeechLanguage: value('AZURE_SPEECH_LANGUAGE', 'en-US'),
+    // Asset providers. Every one is optional: with no keys the pipeline still
+    // builds, falling back to the procedural placeholder art it has always
+    // emitted. See AssetProviderRegistry for how routing degrades.
+    meshyApiKey: value('MESHY_API_KEY', ''),
+    lumaApiKey: value('LUMA_API_KEY', ''),
+    sketchfabApiToken: value('SKETCHFAB_API_TOKEN', ''),
+    falApiKey: value('FAL_KEY', ''),
+    replicateApiKey: value('REPLICATE_API_TOKEN', ''),
+    huggingfaceApiKey: value('HF_TOKEN', '') || value('HUGGINGFACE_API_KEY', ''),
+    openaiSpeechModel: value('OPENAI_SPEECH_MODEL', 'gpt-4o-mini-tts'),
+    openaiCodeModel: value('OPENAI_CODE_MODEL', 'gpt-4.1-mini'),
+    // "sprite=owner/model,music=owner/other"
+    falModels: value('FAL_MODELS', ''),
+    replicateModels: value('REPLICATE_MODELS', ''),
+    huggingfaceModels: value('HUGGINGFACE_MODELS', ''),
+    // "sprite:fal,replicate;model3d:sketchfab"
+    assetProviderOrder: value('ASSET_PROVIDER_ORDER', ''),
+    // Generation costs money per call, so it is opt-in even when keys exist.
+    assetGenerationEnabled: value('ASSET_GENERATION_ENABLED', 'false') === 'true',
+    assetJobTimeoutMs: Number(value('ASSET_JOB_TIMEOUT_MS', '120000')),
   };
 }

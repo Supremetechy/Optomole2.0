@@ -159,6 +159,17 @@
   font-size: 12px;
 }
 
+/* Compiler credentials, revealed only when an AI compiler is selected. Indented
+   against the left rule so it reads as detail belonging to the COMPILER row. */
+.ws-compiler-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-left: 10px;
+  padding-left: 12px;
+  border-left: 1px solid var(--ws-edge);
+}
+
 .ws-sources { display: flex; flex-wrap: wrap; gap: 6px; }
 .ws-chip {
   display: inline-flex;
@@ -305,6 +316,7 @@
 }
 .ws-status { margin: 0; font-family: var(--ws-mono); font-size: 13px; color: var(--ws-ink); letter-spacing: 1px; }
 .ws-hint { margin: 0; font-size: 12px; color: var(--ws-ink-dim); max-width: 420px; }
+.ws-hint.sm { font-size: 11px; line-height: 1.45; }
 
 .ws-spinner {
   width: 46px;

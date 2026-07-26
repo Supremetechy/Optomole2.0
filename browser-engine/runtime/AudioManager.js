@@ -26,15 +26,19 @@ export class AudioManager {
     this.ctx = null;
     this.enabled = true;
     this.howls = new Map();
+    this.music = null;
+    this._musicPlaying = false;
   }
 
   unlock() {
     if (this.ctx) {
       if (this.ctx.state === 'suspended') this.ctx.resume();
+      this.startMusic();
       return;
     }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (AC) this.ctx = new AC();
+    this.startMusic();
   }
 
   setEnabled(on) {
@@ -45,6 +49,28 @@ export class AudioManager {
   register(name, url) {
     if (!url || !Howl) return;
     this.howls.set(name, new Howl({ src: [url], preload: true, volume: 0.7 }));
+  }
+
+  /**
+   * Register a looping background track. Kept separate from `register` because
+   * a cue is a one-shot fired by gameplay while music is a lifecycle the
+   * runtime owns: it cannot start until the autoplay gesture lands, so
+   * `unlock()` is what actually plays it.
+   */
+  registerMusic(url) {
+    if (!url || !Howl) return;
+    this.music = new Howl({ src: [url], preload: true, loop: true, volume: 0.35 });
+    if (this.ctx) this.startMusic();
+  }
+
+  startMusic() {
+    if (!this.music || !this.enabled || this._musicPlaying) return;
+    try {
+      this.music.play();
+      this._musicPlaying = true;
+    } catch (_) {
+      /* autoplay still blocked; the next unlock retries */
+    }
   }
 
   play(name) {

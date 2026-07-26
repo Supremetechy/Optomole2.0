@@ -6,7 +6,7 @@
  * and Reflection layers (steps #3-#6) consume that accumulating stream.
  *
  * **One stream, many sensors.** Gameplay telemetry was the first producer, but
- * it is not the only one: the EmailStream design (see EmailStreamEngine.md)
+ * it is not the only one: the EmailStream design (see design/EmailStreamEngine.md)
  * adds life-event observations extracted from an inbox, and they belong in the
  * same log — they are observations about the same person, folded by the same
  * graph. `source` is what keeps them distinguishable. Without it, two sensors

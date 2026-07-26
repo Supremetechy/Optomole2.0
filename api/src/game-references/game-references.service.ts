@@ -71,6 +71,7 @@ const HINT_TO_MAPPING: Array<{ tokens: string[]; mapping: GameReferenceMapping }
   { tokens: ['platformer', 'platform'], mapping: { genreFamily: 'action-adventure', templateId: 'action-adventure-key-lock', archetype: 'adventure', mechanics: ['platforming', 'collectibles', 'keys-and-locks'] } },
   { tokens: ['casual', 'relaxing', 'zen', 'peaceful'], mapping: { genreFamily: 'idle', templateId: 'idle-progress', archetype: 'adventure', mechanics: ['light-touch', 'progress', 'collect'] } },
   { tokens: ['action', 'adventure'], mapping: { genreFamily: 'action-adventure', templateId: 'action-adventure-key-lock', archetype: 'adventure', mechanics: ['exploration', 'keys-and-locks', 'items'] } },
+  
 ];
 
 const DEFAULT_MAPPING: GameReferenceMapping = { genreFamily: 'action-adventure', templateId: 'action-adventure-key-lock', archetype: 'adventure', mechanics: ['exploration', 'objectives'] };
