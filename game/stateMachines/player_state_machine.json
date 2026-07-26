@@ -1,0 +1,156 @@
+{
+  "id": "player_state_machine",
+  "initialState": "Idle",
+  "states": [
+    {
+      "id": "Idle",
+      "onEnterActions": [
+        {
+          "id": "play_idle",
+          "type": "PlayAnimation",
+          "parameters": { "entityId": "player", "animationId": "player_idle" }
+        }
+      ],
+      "onUpdateActions": [
+        {
+          "id": "idle_move",
+          "type": "ApplyHorizontalMovementFromInput",
+          "parameters": { "entityId": "player", "speedVar": "moveSpeed" }
+        }
+      ]
+    },
+    {
+      "id": "Running",
+      "onEnterActions": [
+        {
+          "id": "play_run",
+          "type": "PlayAnimation",
+          "parameters": { "entityId": "player", "animationId": "player_run" }
+        }
+      ],
+      "onUpdateActions": [
+        {
+          "id": "run_move",
+          "type": "ApplyHorizontalMovementFromInput",
+          "parameters": { "entityId": "player", "speedVar": "moveSpeed" }
+        }
+      ]
+    },
+    {
+      "id": "Jumping",
+      "onEnterActions": [
+        {
+          "id": "jump_impulse",
+          "type": "ApplyImpulse",
+          "parameters": {
+            "entityId": "player",
+            "forceVar": "jumpForce",
+            "direction": { "x": 0, "y": 1 }
+          }
+        },
+        {
+          "id": "leave_ground",
+          "type": "SetVariable",
+          "parameters": { "entityId": "player", "var": "isGrounded", "value": false }
+        },
+        {
+          "id": "play_jump",
+          "type": "PlayAnimation",
+          "parameters": { "entityId": "player", "animationId": "player_jump" }
+        }
+      ],
+      "onUpdateActions": [
+        {
+          "id": "air_move",
+          "type": "ApplyHorizontalMovementFromInput",
+          "parameters": { "entityId": "player", "speedVar": "moveSpeed" }
+        }
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "fromStateId": "Idle",
+      "toStateId": "Jumping",
+      "eventType": "OnInput",
+      "priority": 10,
+      "conditions": [
+        {
+          "id": "jump_pressed_idle",
+          "type": "InputIsPressed",
+          "parameters": { "actions": ["Jump"] }
+        },
+        {
+          "id": "grounded_idle",
+          "type": "VariableEquals",
+          "parameters": { "entityId": "player", "var": "isGrounded", "value": true }
+        }
+      ]
+    },
+    {
+      "fromStateId": "Running",
+      "toStateId": "Jumping",
+      "eventType": "OnInput",
+      "priority": 10,
+      "conditions": [
+        {
+          "id": "jump_pressed_running",
+          "type": "InputIsPressed",
+          "parameters": { "actions": ["Jump"] }
+        },
+        {
+          "id": "grounded_running",
+          "type": "VariableEquals",
+          "parameters": { "entityId": "player", "var": "isGrounded", "value": true }
+        }
+      ]
+    },
+    {
+      "fromStateId": "Idle",
+      "toStateId": "Running",
+      "eventType": "OnInput",
+      "conditions": [
+        {
+          "id": "move_pressed",
+          "type": "InputIsPressed",
+          "parameters": { "actions": ["MoveLeft", "MoveRight"] }
+        }
+      ]
+    },
+    {
+      "fromStateId": "Running",
+      "toStateId": "Idle",
+      "eventType": "OnInput",
+      "conditions": [
+        {
+          "id": "move_released",
+          "type": "InputReleasedAll",
+          "parameters": { "actions": ["MoveLeft", "MoveRight"] }
+        }
+      ]
+    },
+    {
+      "fromStateId": "Jumping",
+      "toStateId": "Idle",
+      "eventType": "OnCollision",
+      "conditions": [
+        {
+          "id": "landed_on_ground",
+          "type": "CollisionWithTag",
+          "parameters": {
+            "entityId": "player",
+            "tag": "ground",
+            "contactNormalYGreaterThan": 0.7
+          }
+        }
+      ],
+      "actions": [
+        {
+          "id": "set_grounded",
+          "type": "SetVariable",
+          "parameters": { "entityId": "player", "var": "isGrounded", "value": true }
+        }
+      ]
+    }
+  ]
+}

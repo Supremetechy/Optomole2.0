@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { SignalStore } from './signals.store';
-import { StoredSignal } from './signal.types';
+import { SIGNAL_SOURCES, SignalSource, StoredSignal, sourceOf } from './signal.types';
 
 /**
  * PersonGraphService — folds a person's observation stream into a compounding,
@@ -12,16 +12,65 @@ import { StoredSignal } from './signal.types';
  * is a function of its evidence weighted by recency, evaluated at `asOf`. Replay
  * the same signals → identical graph; add signals → the graph compounds.
  *
- * Confidence model (per node):
- *   support   = Σ evidence_i.weight · decay(age_i)        // frequency × recency
+ * Confidence model (per node, per sensor):
+ *   support_s = Σ evidence_i.weight · sourceWeight_s · decay(age_i)
  *   decay(a)  = 2 ^ (−ageDays / halfLifeDays)             // exponential, half-life
- *   confidence= support / (support + K)                   // saturating, 0..1
+ *   c_s       = support_s / (support_s + K · kMultiplier_s)   // saturating, 0..1
+ *   confidence= 1 − Π_s (1 − c_s)                         // noisy-OR across sensors
  * K is the support that yields 0.5 confidence; larger K = more skeptical.
  *
  * Nodes are typed by the five depth levels from the design:
  *   explicit | behavioral | contextual | relational | emergent
  * (explicit comes from uploaded profile data, not signals, so none appear here yet.)
  */
+
+/**
+ * Per-sensor calibration — the thing that keeps one stream from becoming one
+ * sensor's opinion.
+ *
+ * Two independent knobs, because volume and informativeness are different
+ * problems:
+ *
+ *   weight       how much one observation from this sensor tells us. A choice
+ *                made inside a game is a deliberate act; a shipping
+ *                confirmation landing in a mailbox is mostly not about the
+ *                person at all.
+ *   kMultiplier  volume normalization. Confidence saturates at `support ≈ K`,
+ *                so a sensor emitting ~25× more evidence needs ~25× more of it
+ *                to claim the same belief. Without this, the noisiest sensor
+ *                reaches certainty first and every distribution the World Model
+ *                samples is really a readout of emission rate.
+ *
+ * Confidences combine by noisy-OR, so sensors *corroborate* rather than
+ * outvote: two weak agreeing sources beat one, and no single source can drag a
+ * belief down. Crucially, a graph built from one sensor collapses to exactly
+ * `support / (support + K)` — the original model — so existing graphs are
+ * unchanged, bit for bit.
+ *
+ * These numbers are estimates, not measurements. Revisit them once real inbox
+ * volume exists; `stats.signalsBySource` on every graph is there to make the
+ * true ratio observable rather than assumed.
+ */
+export interface SourceCalibration {
+  weight: number;
+  kMultiplier: number;
+}
+
+const SOURCE_CALIBRATION: Record<SignalSource, SourceCalibration> = {
+  // The reference sensor. Deliberate acts, low volume — calibration is 1:1 by
+  // definition, and every other sensor is expressed relative to it.
+  runtime: { weight: 1, kMultiplier: 1 },
+  // Derived conclusions from ReflectionService (#6), already deliberately
+  // weighted by how strongly an experiment confirmed its hypothesis. Emitted
+  // at most once per played experience, so no volume correction.
+  reflection: { weight: 1, kMultiplier: 1 },
+  // High volume, mostly incidental: most mail is machine-generated and says
+  // more about who mails this person than who they are.
+  inbox: { weight: 0.4, kMultiplier: 25 },
+  // Fewer, more intentional events than mail — someone chose to book them —
+  // but still not the person acting on the thing.
+  calendar: { weight: 0.6, kMultiplier: 8 },
+};
 @Injectable()
 export class PersonGraphService {
   constructor(private readonly store: SignalStore) {}
@@ -46,18 +95,55 @@ export class PersonGraphService {
     };
 
     const reinforce = (spec: NodeSpec, signal: StoredSignal, weight: number) => {
-      if (weight <= 0) return;
+      const source = sourceOf(signal);
+      // Evidence is scaled by its sensor before it ever reaches a node, so a
+      // node's support is always in one comparable unit.
+      const calibrated = weight * SOURCE_CALIBRATION[source].weight;
+      if (calibrated <= 0) return;
       const node = nodes.get(spec.id) || newNode(spec);
       const recency = decay(signal.ts);
-      node.support += weight * recency;
+      const contribution = calibrated * recency;
+      node.support += contribution;
+      node.bySource.set(source, (node.bySource.get(source) || 0) + contribution);
       node.frequency += 1;
       node.firstSeen = node.firstSeen ? Math.min(node.firstSeen, signal.ts) : signal.ts;
       node.lastSeen = Math.max(node.lastSeen, signal.ts);
       if (node.evidence.length < 20) {
-        node.evidence.push({ type: signal.type, ts: signal.ts, weight: round(weight * recency, 4) });
+        node.evidence.push({ type: signal.type, ts: signal.ts, source, weight: round(contribution, 4) });
       }
       if (spec.label && !node.label) node.label = spec.label;
       nodes.set(spec.id, node);
+    };
+
+    const kFor = (source: SignalSource) => K * SOURCE_CALIBRATION[source].kMultiplier;
+
+    /**
+     * Noisy-OR over independently-saturating sensors.
+     *
+     * The single-sensor case returns `support / (support + k)` directly rather
+     * than as `1 − (1 − c)`. Both agree on today's data to the 4dp the graph
+     * publishes — that was measured, not assumed — but the direct form is the
+     * original expression rather than a round-trip through two subtractions,
+     * so single-sensor graphs are identical by construction and not by luck.
+     * Every graph on disk today has exactly one sensor.
+     *
+     * The multi-sensor case accumulates in log space: once several weak
+     * sensors are involved, the complement product tends to 1 and `expm1`
+     * keeps precision in the regime where plain subtraction loses it.
+     */
+    const confidenceOf = (bySource: Map<SignalSource, number>): number => {
+      const entries = [...bySource];
+      if (entries.length === 0) return 0;
+      if (entries.length === 1) {
+        const [source, support] = entries[0];
+        return support / (support + kFor(source));
+      }
+      let logComplement = 0;
+      for (const [source, support] of entries) {
+        const k = kFor(source);
+        logComplement += Math.log(k) - Math.log(support + k);
+      }
+      return -Math.expm1(logComplement);
     };
 
     for (const signal of signals) {
@@ -125,8 +211,11 @@ export class PersonGraphService {
       level: node.level,
       kind: node.kind,
       label: node.label || node.id,
-      confidence: round(node.support / (node.support + K), 4),
+      confidence: round(confidenceOf(node.bySource), 4),
       support: round(node.support, 4),
+      // Which sensors built this belief, so a node's provenance is inspectable
+      // rather than inferred from its label.
+      bySource: sourceBreakdown(node.bySource),
       frequency: node.frequency,
       firstSeen: node.firstSeen ? new Date(node.firstSeen).toISOString() : null,
       lastSeen: node.lastSeen ? new Date(node.lastSeen).toISOString() : null,
@@ -140,9 +229,14 @@ export class PersonGraphService {
     return {
       personId: id,
       asOf: new Date(asOf).toISOString(),
-      params: { halfLifeDays, k: K },
+      params: { halfLifeDays, k: K, sourceCalibration: SOURCE_CALIBRATION },
       stats: {
         signalCount: signals.length,
+        // Received per sensor — including sensors whose types this fold does
+        // not model yet. A sensor delivering thousands of signals that produce
+        // zero nodes is a wiring gap, and it should be visible here rather
+        // than looking like an absence of data.
+        signalsBySource: countBySource(signals),
         sessionCount: experienceCounts.size,
         nodeCount: allNodes.length,
         edgeCount: edges.length,
@@ -190,26 +284,54 @@ export class PersonGraphService {
 
 export type Level = 'explicit' | 'behavioral' | 'contextual' | 'relational' | 'emergent';
 interface NodeSpec { id: string; level: Level; label?: string; kind?: string }
-export interface Evidence { type: string; ts: number; weight: number }
-interface GraphNode { id: string; level: Level; kind?: string; label?: string; support: number; frequency: number; firstSeen: number; lastSeen: number; evidence: Evidence[] }
-export interface PersonGraphNode { id: string; level: Level; kind?: string; label: string; confidence: number; support: number; frequency: number; firstSeen: string | null; lastSeen: string | null; evidence: Evidence[] }
+export interface Evidence { type: string; ts: number; source: SignalSource; weight: number }
+/** Calibrated support per sensor; sensors that contributed nothing are omitted. */
+export type SourceBreakdown = Partial<Record<SignalSource, number>>;
+interface GraphNode { id: string; level: Level; kind?: string; label?: string; support: number; bySource: Map<SignalSource, number>; frequency: number; firstSeen: number; lastSeen: number; evidence: Evidence[] }
+export interface PersonGraphNode { id: string; level: Level; kind?: string; label: string; confidence: number; support: number; bySource: SourceBreakdown; frequency: number; firstSeen: string | null; lastSeen: string | null; evidence: Evidence[] }
 export interface PersonGraphEdge { from: string; to: string; relation: string; confidence: number }
 export interface PersonGraph {
   personId: string;
   asOf: string;
-  params: { halfLifeDays: number; k: number };
-  stats: { signalCount: number; sessionCount: number; nodeCount: number; edgeCount: number };
+  params: { halfLifeDays: number; k: number; sourceCalibration: Record<SignalSource, SourceCalibration> };
+  stats: {
+    signalCount: number;
+    signalsBySource: SourceBreakdown;
+    sessionCount: number;
+    nodeCount: number;
+    edgeCount: number;
+  };
   nodes: PersonGraphNode[];
   edges: PersonGraphEdge[];
 }
 
 function newNode(spec: NodeSpec): GraphNode {
-  return { id: spec.id, level: spec.level, kind: spec.kind, label: spec.label, support: 0, frequency: 0, firstSeen: 0, lastSeen: 0, evidence: [] };
+  return { id: spec.id, level: spec.level, kind: spec.kind, label: spec.label, support: 0, bySource: new Map(), frequency: 0, firstSeen: 0, lastSeen: 0, evidence: [] };
 }
 
 function emergentNode(id: string, label: string, confidence: number, asOf: number, kind: string): PersonGraphNode {
   const c = round(clamp(confidence, 0, 1), 4);
-  return { id, level: 'emergent', kind, label, confidence: c, support: c, frequency: 1, firstSeen: null, lastSeen: new Date(asOf).toISOString(), evidence: [] };
+  // Derived from the folded graph rather than from evidence, so it has no
+  // sensor of its own — its provenance is whatever built the nodes beneath it.
+  return { id, level: 'emergent', kind, label, confidence: c, support: c, bySource: {}, frequency: 1, firstSeen: null, lastSeen: new Date(asOf).toISOString(), evidence: [] };
+}
+
+function sourceBreakdown(bySource: Map<SignalSource, number>): SourceBreakdown {
+  const out: SourceBreakdown = {};
+  for (const [source, support] of bySource) out[source] = round(support, 4);
+  return out;
+}
+
+function countBySource(signals: StoredSignal[]): SourceBreakdown {
+  const out: SourceBreakdown = {};
+  for (const signal of signals) {
+    const source = sourceOf(signal);
+    out[source] = (out[source] || 0) + 1;
+  }
+  // Stable key order for readable diffs between two graph reads.
+  return Object.fromEntries(
+    SIGNAL_SOURCES.filter((s) => out[s] !== undefined).map((s) => [s, out[s]]),
+  ) as SourceBreakdown;
 }
 
 function activeContext(ts: number, asOf: number): NodeSpec {

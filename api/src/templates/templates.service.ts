@@ -3,7 +3,7 @@ import path from 'node:path';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { gatewayConfig } from '../shared/config';
 import { id } from '../shared/ids';
-import { plainText, shortLabel } from '../shared/text';
+import { phraseLabel, plainText, shortLabel } from '../shared/text';
 import { EngineTarget, ExperiencePackage } from '../shared/types';
 
 export interface RegistryEntry {
@@ -222,7 +222,10 @@ export class TemplatesService {
         // (a client may POST one straight to /v1/builds), so an objective may still
         // be a bare string. plainText handles both shapes.
         const description = plainText(objective) || plainText(quest.summary);
-        const label = shortLabel(objective?.title) || shortLabel(description) || `Objective ${objectiveIndex + 1}`;
+        // A package can reach here without compiler normalization (a client may
+        // POST one straight to /v1/builds), so the sentence may still be raw.
+        // Naming it here too means the binding label is a name on every path.
+        const label = phraseLabel(objective?.title) || phraseLabel(description) || `Objective ${objectiveIndex + 1}`;
         const text = `${objective.title || ''} ${objective.prompt || ''} ${quest.title || ''} ${quest.summary || ''}`;
         const rule = this.matchRule(mappingRules.rules, text, 'procedure-step');
         return this.binding(rule, {
@@ -235,7 +238,7 @@ export class TemplatesService {
 
       const evidenceBindings = this.arrayOf(quest.evidence).map((evidence, evidenceIndex) => {
         const description = plainText(evidence);
-        const label = shortLabel(evidence?.label) || shortLabel(description) || `Evidence ${evidenceIndex + 1}`;
+        const label = phraseLabel(evidence?.label) || phraseLabel(description) || `Evidence ${evidenceIndex + 1}`;
         const text = `${evidence.kind || ''} ${evidence.text || ''} ${quest.title || ''}`;
         const fallback = evidence.correct === false ? 'hazard' : 'evidence';
         const rule = this.matchRule(mappingRules.rules, text, fallback);

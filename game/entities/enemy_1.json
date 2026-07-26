@@ -1,0 +1,34 @@
+{
+  "id": "enemy_1",
+  "archetype": "walker",
+  "tags": ["enemy"],
+  "components": [
+    {
+      "type": "TransformComponent",
+      "position": { "x": 6, "y": 2, "z": 0 },
+      "scale": { "x": 1, "y": 1, "z": 1 }
+    },
+    {
+      "type": "RenderComponent",
+      "spriteId": "enemy_idle",
+      "layer": "characters"
+    },
+    {
+      "type": "PhysicsComponent",
+      "bodyType": "dynamic",
+      "mass": 1,
+      "colliderShape": { "type": "box", "width": 0.8, "height": 1.6 },
+      "collisionTags": ["player", "ground"]
+    },
+    {
+      "type": "StateComponent",
+      "stateMachineId": "enemy_state_machine",
+      "initialState": "Patrol",
+      "variables": {
+        "moveSpeed": 2,
+        "patrolLeftX": 5,
+        "patrolRightX": 8
+      }
+    }
+  ]
+}

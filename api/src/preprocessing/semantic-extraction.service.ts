@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { id } from '../shared/ids';
+import { documentSentences, keyPhrases, phraseLabel, SCAFFOLDING_WORDS } from '../shared/text';
 import type { SanitizedContentItem } from './content-sanitization.service';
 
 export interface SemanticExtractionInput {
@@ -179,25 +180,131 @@ export class SemanticExtractionService {
     };
   }
 
+  /**
+   * Concepts, ranked by how much they actually say.
+   *
+   * Counting occurrences and sorting by the count surfaces whatever generic
+   * noun the document repeats most — a real run over an architecture doc
+   * returned "layer", "inbox", "source", "person" as its top concepts, which
+   * then became region names and collectible labels. Frequency measures how
+   * often a word appears, not how much it identifies.
+   *
+   * So three things happen here that raw counting did not do:
+   *
+   *  1. SINGULAR AND PLURAL ARE ONE CONCEPT. "signal" and "signals" competed as
+   *     separate entries and split their own frequency.
+   *  2. A PHRASE SUBSUMES ITS PARTS. If "signal extraction" was extracted, the
+   *     bare "signal" is not also a concept — the longer phrase is what the
+   *     document is about, and it makes a legible label.
+   *  3. SALIENCE IS A 0-1 SCORE, NOT A TALLY. Every other producer in this
+   *     service emits salience in 0-1 and downstream layers treat it as one:
+   *     the knowledge graph passes it straight through as edge confidence, so a
+   *     phrase seen ten times was scoring an edge at 10. Specificity is blended
+   *     in, so a precise phrase outranks a common word that appears twice as often.
+   */
   private extractConcepts(sentences: string[], sourceId: string) {
-    const concepts = new Map<string, any>();
+    const found = new Map<string, {
+      id: string; text: string; tokens: string[]; occurrences: number;
+      sentenceIndex: number; context: string;
+    }>();
+
     sentences.forEach((sentence, sentenceIndex) => {
-      this.keyPhrases(sentence).forEach((phrase) => {
-        const key = phrase.toLowerCase();
-        const current = concepts.get(key);
-        concepts.set(key, {
-          id: current?.id || id('concept'),
+      keyPhrases(sentence).forEach((phrase) => {
+        const tokens = this.conceptTokens(phrase);
+        if (!tokens.length) return;
+        if (tokens.length === 1 && SCAFFOLDING_WORDS.has(tokens[0])) return;
+        const key = tokens.join(' ');
+        const current = found.get(key);
+        if (current) {
+          current.occurrences += 1;
+          // Keep the surface form that reads best: prefer one carrying real
+          // capitalization ("Signal Extraction" over "signal extraction").
+          if (/[A-Z]/.test(phrase) && !/[A-Z]/.test(current.text)) current.text = phrase;
+          return;
+        }
+        found.set(key, {
+          id: id('concept'),
           text: phrase,
-          type: 'CONCEPT',
-          sourceId,
-          sentenceIndex: current?.sentenceIndex ?? sentenceIndex,
-          confidence: Math.min(0.95, (current?.confidence || 0.58) + 0.04),
-          salience: (current?.salience || 0) + 1,
-          context: current?.context || sentence,
+          tokens,
+          occurrences: 1,
+          sentenceIndex,
+          context: sentence,
         });
       });
     });
-    return [...concepts.values()].sort((a, b) => b.salience - a.salience).slice(0, 36);
+
+    const surviving = this.dropSubsumedPhrases([...found.values()]);
+    // A phrase seen once in a long document is usually a passing turn of
+    // phrase, not a topic. Repeats are preferred when the document supplies
+    // enough of them; a short document keeps everything rather than emptying.
+    const repeated = surviving.filter((entry) => entry.occurrences > 1);
+    const kept = repeated.length >= 12 ? repeated : surviving;
+    const maxOccurrences = kept.reduce((most, entry) => Math.max(most, entry.occurrences), 1);
+
+    return kept
+      .map((entry) => {
+        // Log-scaled so one runaway word cannot flatten everything below it.
+        // Frequency carries most of the weight: specificity is a tie-breaker
+        // between comparably common phrases, and when it led instead, a
+        // four-word fragment seen once outranked the document's actual subject.
+        const frequency = Math.log1p(entry.occurrences) / Math.log1p(maxOccurrences);
+        const specificity = Math.min(1, 0.3 + 0.25 * (entry.tokens.length - 1));
+        return {
+          id: entry.id,
+          text: entry.text,
+          type: 'CONCEPT',
+          sourceId,
+          sentenceIndex: entry.sentenceIndex,
+          confidence: Math.min(0.95, 0.58 + entry.occurrences * 0.04),
+          salience: Number((0.7 * frequency + 0.3 * specificity).toFixed(3)),
+          occurrences: entry.occurrences,
+          context: entry.context,
+        };
+      })
+      .sort((a, b) => b.salience - a.salience || b.occurrences - a.occurrences)
+      .slice(0, 36);
+  }
+
+  /** Lowercase tokens with the plural collapsed, so "Signals" and "signal" match. */
+  private conceptTokens(phrase: string): string[] {
+    return phrase
+      .toLowerCase()
+      .split(/\s+/)
+      .map((token) => token.replace(/[^a-z0-9-]/g, ''))
+      .filter(Boolean)
+      .map((token) => this.singular(token));
+  }
+
+  /** Crude but predictable: only strip an -s that is really a plural marker. */
+  private singular(token: string): string {
+    if (token.length <= 3) return token;
+    if (/(?:ss|us|is|as|os|ics)$/.test(token)) return token;
+    if (/ies$/.test(token)) return `${token.slice(0, -3)}y`;
+    return token.replace(/s$/, '');
+  }
+
+  /**
+   * Drop a phrase whose tokens appear, in order, inside a longer phrase that is
+   * not markedly rarer. "signal" goes when "signal extraction" is present;
+   * "layer" survives if nothing longer ever contained it.
+   */
+  private dropSubsumedPhrases<T extends { tokens: string[]; occurrences: number }>(entries: T[]): T[] {
+    const longestFirst = [...entries].sort((a, b) => b.tokens.length - a.tokens.length);
+    return entries.filter((entry) =>
+      !longestFirst.some((other) =>
+        other !== entry
+        && other.tokens.length > entry.tokens.length
+        // A parent seen far less often than its part is the rarer coinage, and
+        // dropping the part on its account would lose the real topic.
+        && other.occurrences >= entry.occurrences * 0.5
+        && this.containsSequence(other.tokens, entry.tokens)));
+  }
+
+  private containsSequence(haystack: string[], needle: string[]): boolean {
+    for (let start = 0; start + needle.length <= haystack.length; start += 1) {
+      if (needle.every((token, offset) => haystack[start + offset] === token)) return true;
+    }
+    return false;
   }
 
   private extractActions(sentences: string[], sourceId: string) {
@@ -209,6 +316,13 @@ export class SemanticExtractionService {
       .map((entry, order) => ({
         id: id('action'),
         text: entry.sentence,
+        // An action is a whole sentence on purpose — it is the instruction. But
+        // downstream it also has to NAME things (an enemy, a collectible, a
+        // quest step), and a sentence makes a terrible name: a hazard once
+        // reached the screen as "Without it, adding the second consumer later
+        // means a second scoring model…". `label` is the noun phrase the
+        // sentence is about, so callers have something to display.
+        label: phraseLabel(entry.sentence),
         verb: entry.match?.[1]?.toLowerCase(),
         type: /\b(avoid|warning|risk|mistake|fail|threat)\b/i.test(entry.sentence) ? 'MISTAKE_OR_RISK' : 'ACTION',
         sourceId,
@@ -226,6 +340,7 @@ export class SemanticExtractionService {
         id: id('impact'),
         type: 'Impact',
         statement: sentence,
+        label: phraseLabel(sentence),
         sourceId,
         order: index,
         polarity: /\b(reduc\w*|decreas\w*|risk|fail\w*|loss|cost)\b/i.test(sentence) ? 'negative-or-mitigating' : 'positive-or-causal',
@@ -388,175 +503,6 @@ export class SemanticExtractionService {
         confidence: 0.62,
       }));
   }
-
-  /** Determiners and quantifiers. A word right after one of these opens a noun phrase. */
-  private static readonly DETERMINERS = [
-    'a', 'an', 'the', 'this', 'that', 'these', 'those', 'each', 'every', 'some', 'any', 'no', 'all',
-    'both', 'either', 'neither', 'much', 'many', 'more', 'most', 'few', 'several', 'such', 'own',
-    'my', 'your', 'his', 'her', 'its', 'our', 'their',
-  ];
-
-  private static readonly PREPOSITIONS = [
-    'of', 'in', 'on', 'at', 'to', 'from', 'by', 'for', 'with', 'without', 'into', 'onto', 'upon',
-    'about', 'across', 'after', 'before', 'during', 'through', 'between', 'among', 'against',
-    'over', 'under', 'above', 'below', 'within', 'inside', 'outside', 'toward', 'towards', 'via', 'per',
-    // participial prepositions — they head a modifier clause, not a concept
-    'using', 'including', 'regarding', 'concerning', 'following', 'based', 'given', 'despite',
-  ];
-
-  private static readonly SUBORDINATORS = [
-    'and', 'or', 'but', 'nor', 'so', 'yet', 'as', 'than', 'because', 'if', 'unless', 'while',
-    'when', 'where', 'whether', 'though', 'although', 'since', 'until',
-  ];
-
-  /**
-   * Words after which a lone following word is almost certainly a verb, not a
-   * concept: modals, the infinitive marker, copulas, do-support, negation, and
-   * the adverbs that introduce an imperative step ("First, isolate the host").
-   */
-  private static readonly VERB_LEAD = new Set([
-    'to', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'am', 'do', 'does', 'did',
-    'have', 'has', 'had', 'will', 'would', 'shall', 'should', 'can', 'could', 'may', 'might',
-    'must', 'need', 'ought', 'let', 'not', 'never', 'also', 'then', 'first', 'second', 'third',
-    'next', 'finally', 'likely', 'probably', 'typically', 'generally', 'simply', 'actually',
-    'really', 'clearly', 'certainly', 'often', 'usually', 'always',
-  ]);
-
-  /**
-   * Words that end a noun phrase rather than belong to one. A phrase is never
-   * allowed to start or end on one of these, which is what keeps concepts from
-   * coming out as mid-sentence fragments.
-   */
-  private static readonly PHRASE_BOUNDARY = new Set([
-    ...SemanticExtractionService.DETERMINERS,
-    ...SemanticExtractionService.PREPOSITIONS,
-    ...SemanticExtractionService.SUBORDINATORS,
-    // pronouns / wh-words
-    'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'us', 'them',
-    'who', 'whom', 'whose', 'which', 'what', 'there', 'here',
-    // auxiliaries / modals / copulas
-    'is', 'are', 'was', 'were', 'be', 'been', 'being', 'am', 'do', 'does', 'did', 'done',
-    'have', 'has', 'had', 'having', 'will', 'would', 'shall', 'should', 'can', 'could',
-    'may', 'might', 'must', 'need', 'ought', 'let',
-    // sequence / discourse / manner adverbs — these surfaced as standalone "concepts"
-    'first', 'second', 'third', 'next', 'then', 'finally', 'also', 'however', 'therefore',
-    'thus', 'meanwhile', 'furthermore', 'moreover', 'instead', 'rather', 'again', 'once',
-    'very', 'just', 'only', 'even', 'still', 'not', 'never', 'always', 'often', 'usually',
-    'likely', 'probably', 'typically', 'generally', 'simply', 'actually', 'really', 'clearly',
-    'certainly',
-    // high-frequency verbs — splitting on these leaves the noun phrases on either side
-    'get', 'gets', 'got', 'make', 'makes', 'made', 'take', 'takes', 'took', 'give', 'gives',
-    'use', 'uses', 'used', 'show', 'shows', 'showed', 'know', 'knows', 'knew', 'see', 'sees',
-    'come', 'comes', 'came', 'go', 'goes', 'went', 'say', 'says', 'said', 'find', 'finds',
-    'found', 'keep', 'keeps', 'kept', 'put', 'puts', 'call', 'calls', 'called', 'become',
-    'becomes', 'became', 'includes', 'include', 'included', 'contains', 'contain', 'allows',
-    'allow', 'produces', 'produce', 'produced', 'requires', 'require', 'required', 'means',
-    'converts', 'convert', 'absorbs', 'absorb', 'splits', 'split', 'fixes', 'fix', 'hosts',
-    'host', 'regulates', 'regulate', 'catalyzes', 'catalyze', 'releases', 'release',
-    'identify', 'identifies', 'review', 'reviews', 'avoid', 'avoids', 'complete', 'completes',
-    'build', 'builds', 'create', 'creates', 'verify', 'verifies', 'compare', 'compares',
-    'analyze', 'analyzes', 'configure', 'configures', 'select', 'selects', 'improve',
-    'improves', 'increase', 'increases', 'explain', 'explains', 'learn', 'learns',
-    'holds', 'hold', 'wants', 'want', 'remains', 'remain', 'depends', 'depend', 'rise', 'rises',
-    'encrypt', 'encrypts', 'revoke', 'revokes', 'rotate', 'rotates', 'isolate', 'isolates',
-    'restart', 'restarts', 'decide', 'decides', 'enter', 'enters', 'capture', 'captures',
-  ]);
-
-  /** Longest phrase we keep. English noun phrases are head-final, so we trim the front. */
-  private static readonly MAX_PHRASE_TOKENS = 4;
-
-  /** A third-person verb form ("holds", "reviews") rather than a plural noun ("logs", "class"). */
-  private looksThirdPerson(word: string): boolean {
-    return /s$/.test(word) && !/(?:ss|us|is|as|os)$/.test(word) && word.length > 3;
-  }
-
-  /**
-   * Extract noun-phrase-shaped concepts from one sentence.
-   *
-   * The previous implementation slid a non-overlapping 1-3 word window across the
-   * sentence, which chopped clauses at arbitrary points: "Chlorophyll absorbs blue
-   * and red light inside the chloroplast" became "Chlorophyll absorbs blue" /
-   * "and red light" / "inside the chloroplast". Those fragments became gameplay
-   * atom labels, entity captions, and world location names.
-   *
-   * Instead, split on function words and punctuation and keep the content-word
-   * runs between them, then use the surrounding function words to tell a noun
-   * phrase from a bare verb — a single word after a modal ("must decide") or
-   * before a determiner ("isolate the endpoint") is the predicate, not a concept.
-   * Phrases are sliced from the original sentence so real capitalization survives.
-   */
-  private keyPhrases(sentence: string) {
-    const tokens: Array<{ lower: string; start: number; end: number }> = [];
-    const wordPattern = /[A-Za-z][A-Za-z0-9-]*/g;
-    let match: RegExpExecArray | null;
-    while ((match = wordPattern.exec(sentence)) !== null) {
-      tokens.push({ lower: match[0].toLowerCase(), start: match.index, end: match.index + match[0].length });
-    }
-
-    const phrases: string[] = [];
-    const seen = new Set<string>();
-    let run: typeof tokens = [];
-    // The function words bracketing the current run; '' means punctuation or
-    // the sentence edge, which carries no part-of-speech evidence.
-    let leading = '';
-
-    const flush = (trailing: string) => {
-      const candidate = run;
-      run = [];
-      if (!candidate.length) return;
-
-      // "The forensic analyst reviews the logs" -> drop the trailing verb.
-      const trailingIsDeterminer = SemanticExtractionService.DETERMINERS.includes(trailing);
-      let kept = candidate;
-      if (kept.length > 1 && trailingIsDeterminer && this.looksThirdPerson(kept[kept.length - 1].lower)) {
-        kept = kept.slice(0, -1);
-      }
-      // Head-final: "the primary electron transport chain" -> "electron transport chain".
-      if (kept.length > SemanticExtractionService.MAX_PHRASE_TOKENS) {
-        kept = kept.slice(-SemanticExtractionService.MAX_PHRASE_TOKENS);
-      }
-      if (!kept.length) return;
-
-      if (kept.length === 1) {
-        const word = kept[0];
-        // A lone short word ("red", "gas") is noise, not a concept.
-        if (word.end - word.start < 5) return;
-        // Positional verb test: "must decide whether", "isolate the endpoint".
-        const followsVerbLead = SemanticExtractionService.VERB_LEAD.has(leading);
-        const precedesFunctionWord = trailingIsDeterminer
-          || SemanticExtractionService.PREPOSITIONS.includes(trailing)
-          || SemanticExtractionService.SUBORDINATORS.includes(trailing);
-        if (followsVerbLead && precedesFunctionWord) return;
-        if (trailingIsDeterminer && !SemanticExtractionService.DETERMINERS.includes(leading)) return;
-      }
-
-      const phrase = sentence.slice(kept[0].start, kept[kept.length - 1].end).trim();
-      const key = phrase.toLowerCase();
-      if (seen.has(key)) return;
-      seen.add(key);
-      phrases.push(phrase);
-    };
-
-    for (const token of tokens) {
-      if (SemanticExtractionService.PHRASE_BOUNDARY.has(token.lower)) {
-        flush(token.lower);
-        leading = token.lower;
-        continue;
-      }
-      // Punctuation between two words also ends the phrase — a comma or dash is
-      // a clause boundary, not part of the concept.
-      const previous = run[run.length - 1];
-      if (previous && /[^\s]/.test(sentence.slice(previous.end, token.start))) {
-        flush('');
-        leading = '';
-      }
-      run.push(token);
-    }
-    flush('');
-
-    return phrases.slice(0, 8);
-  }
-
   private salience(text: string, order: number) {
     const lengthScore = Math.min(0.4, String(text || '').length / 6000);
     return Number((0.55 + lengthScore - order * 0.02).toFixed(3));
@@ -572,12 +518,8 @@ export class SemanticExtractionService {
     });
   }
 
+  /** Structure-aware segmentation, shared with IRX and emotional intelligence. */
   private sentences(text: string): string[] {
-    return String(text || '')
-      .replace(/<[^>]*>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .split(/(?<=[.!?])\s+/)
-      .map((sentence) => sentence.trim())
-      .filter(Boolean);
+    return documentSentences(text);
   }
 }

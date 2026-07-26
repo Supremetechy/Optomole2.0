@@ -19,6 +19,9 @@
  * into rooms so the template can lay out a room graph.
  */
 
+import { createChallengeBook } from './ChallengeBook.js';
+import { createKnowledgeIndex } from './KnowledgeIndex.js';
+import { createQuestBook } from './QuestBook.js';
 import { createWorldContext } from './WorldContext.js';
 
 let _seq = 0;
@@ -55,7 +58,7 @@ export function bindingToEntitySpec(binding = {}) {
  * we chunk objectives/keys/hazards so every room has something to do and a gate
  * to leave through.
  */
-export function buildRoomGraph(specs, { roomSize = 6, title = 'Training Facility', world = null } = {}) {
+export function buildRoomGraph(specs, { roomSize = 6, title = 'Training Facility', world = null, questBook = null, knowledge = null } = {}) {
   const sorted = [...specs].sort((a, b) => b.priority - a.priority);
 
   const gates = sorted.filter((s) => s.entityType === 'lock' || s.entityType === 'exit-gate');
@@ -85,22 +88,40 @@ export function buildRoomGraph(specs, { roomSize = 6, title = 'Training Facility
   }));
   const contents = [...playable, ...demoted].sort((a, b) => b.priority - a.priority);
 
+  // A compiled questline defines the rooms when it has real structure; the
+  // fixed-size chunking below is the fallback for unstructured content.
+  const questRooms = questBook?.usable
+    ? questBook.quests
+      .map((quest) => ({ quest, entities: quest.specs.filter((spec) => contents.includes(spec)) }))
+      .filter((entry) => entry.entities.length)
+    : [];
+  const useQuests = questRooms.length >= 2;
+  if (useQuests) {
+    const claimed = new Set(questRooms.flatMap((entry) => entry.entities));
+    contents.filter((spec) => !claimed.has(spec))
+      .forEach((spec, i) => questRooms[i % questRooms.length].entities.push(spec));
+  }
+
   const rooms = [];
-  const chunkCount = Math.max(1, Math.ceil(contents.length / roomSize) || 1);
+  const chunkCount = useQuests ? questRooms.length : Math.max(1, Math.ceil(contents.length / roomSize) || 1);
   for (let i = 0; i < chunkCount; i++) {
-    const chunk = contents.slice(i * roomSize, (i + 1) * roomSize);
+    const quest = useQuests ? questRooms[i].quest : null;
+    const chunk = useQuests ? questRooms[i].entities : contents.slice(i * roomSize, (i + 1) * roomSize);
     // Ensure every room has at least one collectible key to open its gate.
     const keys = chunk.filter((s) => s.entityType === 'key-item');
     const requiredKeys = keys.map((k) => k.id);
     rooms.push({
-      id: `room-${i + 1}`,
+      id: quest ? quest.id : `room-${i + 1}`,
       index: i,
-      // World-derived room identity: the compiled proceduralMap/storyboard names
-      // this chunk of content; the first entity's label is only the fallback.
-      title: world
-        ? world.chunkTitle(i, 'Room', chunk[0]?.label)
-        : chunk[0]?.label ? `Room ${i + 1}: ${short(chunk[0].label)}` : `Room ${i + 1}`,
-      flavor: world ? world.chunkDescription(i) : '',
+      // Room identity, most specific first: the compiled quest that owns this
+      // content, then the world map's region name, then the first entity label.
+      title: quest
+        ? `Room ${i + 1}: ${short(quest.title)}`
+        : world
+          ? world.chunkTitle(i, 'Room', chunk[0]?.label)
+          : chunk[0]?.label ? `Room ${i + 1}: ${short(chunk[0].label)}` : `Room ${i + 1}`,
+      flavor: quest?.summary || (world ? world.chunkDescription(i) : ''),
+      questId: quest?.id || null,
       entities: chunk,
       npc: npcs[i] || npcs[0] || null,
       door: doors[i] || {
@@ -126,7 +147,45 @@ export function buildRoomGraph(specs, { roomSize = 6, title = 'Training Facility
       }
     });
   }
+  annotatePrerequisites(rooms, knowledge);
   return { title, rooms };
+}
+
+/**
+ * Tell the player what a chunk builds on.
+ *
+ * Prerequisite ordering already put foundational content in earlier chunks
+ * (KnowledgeIndex.applyOrdering raises its priority), so by the time a chunk is
+ * reached its prerequisites have been met. Naming them turns that invisible
+ * ordering into something the player can see: "Builds on: containment".
+ *
+ * Deliberately NOT folded into `requiredKeys` — those resolve through
+ * `state.hasKey`, so a prerequisite that isn't a collectible key-item would lock
+ * the door forever. Ordering is the enforcement; this is the explanation.
+ */
+export function annotatePrerequisites(chunks, knowledge, entitiesOf = (chunk) => chunk.entities) {
+  if (!knowledge?.usable) return chunks;
+  const chunkOf = new Map();
+  chunks.forEach((chunk, index) => {
+    for (const spec of entitiesOf(chunk) || []) chunkOf.set(String(spec.id), index);
+  });
+
+  chunks.forEach((chunk, index) => {
+    const names = new Set();
+    for (const spec of entitiesOf(chunk) || []) {
+      for (const prereq of knowledge.prerequisites(spec.id)) {
+        // Only cite prerequisites the player has actually already passed.
+        const at = chunkOf.get(String(prereq.id));
+        if (at === undefined || at >= index) continue;
+        if (prereq.label) names.add(short(prereq.label, 28));
+      }
+    }
+    chunk.buildsOn = [...names].slice(0, 3);
+    if (chunk.buildsOn.length && chunk.door) {
+      chunk.door = { ...chunk.door, buildsOn: chunk.buildsOn };
+    }
+  });
+  return chunks;
 }
 
 function short(text, max = 34) {
@@ -144,6 +203,17 @@ export class MappingEngine {
     // World-building layers (proceduralMap / storyboard / world / skillTree)
     // projected once so every genre names its chunks from the person's content.
     this.world = createWorldContext(manifest);
+    // The compiled questline, rejoined to its bindings. `usable` is false when
+    // the content has no real quest structure, and callers keep chunking.
+    this.questBook = createQuestBook(manifest, this.specs);
+    // How the content relates to itself: drives related quiz distractors and
+    // prerequisite ordering. applyOrdering folds prerequisite depth into
+    // priority, so every genre's layout honours it without builder changes.
+    this.knowledge = createKnowledgeIndex(manifest, this.specs);
+    this.knowledge.applyOrdering(this.specs);
+    // The analyst challenge, resolved to real specs. Distractors are synthesized
+    // from the person's content when the compiler supplied none.
+    this.challenges = createChallengeBook(manifest, this.specs, this.knowledge);
   }
 
   /** Resolve an asset slot's fallback/url for a given slot id. */
@@ -156,6 +226,8 @@ export class MappingEngine {
       title: this.world.title || this.manifest.title || options.title || 'Training Facility',
       roomSize: options.roomSize || 6,
       world: this.world,
+      questBook: this.questBook,
+      knowledge: this.knowledge,
     });
   }
 }

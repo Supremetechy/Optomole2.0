@@ -83,8 +83,23 @@ export class KnowledgeGraphService {
         id: action.id,
         type: action.type === 'MISTAKE_OR_RISK' ? 'common_mistake' : 'action',
         layer: 'semantic',
-        label: action.verb || action.text,
+        label: action.label || action.verb || action.text,
         properties: action,
+      })),
+      // Impacts are the "why" of the source — the consequences that make a
+      // narrative more than a list of topics. `semanticEdges` has always
+      // emitted `produces_impact` edges pointing at these ids, but no node was
+      // ever created for them: every such edge dangled, the storyboard reported
+      // "references unknown node impact_…" thirteen times on a real document,
+      // and pathfinding could not route through a single consequence.
+      ...(semantic.impacts || []).map((impact: any) => ({
+        '@id': `kg:${impact.id}`,
+        '@type': 'sem:Impact',
+        id: impact.id,
+        type: 'impact',
+        layer: 'semantic',
+        label: impact.label || impact.statement,
+        properties: impact,
       })),
     ];
   }

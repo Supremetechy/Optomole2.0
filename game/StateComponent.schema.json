@@ -1,0 +1,14 @@
+{
+  "$id": "StateComponent.schema.json",
+  "type": "object",
+  "required": ["type", "stateMachineId", "initialState", "variables"],
+  "properties": {
+    "type": { "const": "StateComponent" },
+    "stateMachineId": { "type": "string" },
+    "initialState": { "type": "string" },
+    "variables": {
+      "type": "object",
+      "additionalProperties": { "type": ["number", "boolean", "string"] }
+    }
+  }
+}

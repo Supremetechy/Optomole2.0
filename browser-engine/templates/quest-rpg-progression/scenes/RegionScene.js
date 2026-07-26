@@ -84,6 +84,10 @@ export class RegionScene {
         : 'Walk over the glowing facts to log them. Press E near a threat to engage.',
     });
     ctx.state.logEvent(`${this.chapter.title} — region entered`);
+    // What the knowledge graph says this region depends on, already cleared.
+    if (this.chapter.buildsOn?.length) {
+      ctx.state.logEvent(`↳ builds on ${this.chapter.buildsOn.join(', ')}`);
+    }
   }
 
   _buildFloor() {

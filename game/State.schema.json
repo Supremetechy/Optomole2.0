@@ -1,0 +1,20 @@
+{
+  "$id": "State.schema.json",
+  "type": "object",
+  "required": ["id"],
+  "properties": {
+    "id": { "type": "string" },
+    "onEnterActions": {
+      "type": "array",
+      "items": { "$ref": "Action.schema.json" }
+    },
+    "onExitActions": {
+      "type": "array",
+      "items": { "$ref": "Action.schema.json" }
+    },
+    "onUpdateActions": {
+      "type": "array",
+      "items": { "$ref": "Action.schema.json" }
+    }
+  }
+}

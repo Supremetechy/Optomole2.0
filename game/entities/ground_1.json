@@ -1,0 +1,23 @@
+{
+  "id": "ground_1",
+  "archetype": "platform",
+  "tags": ["ground"],
+  "components": [
+    {
+      "type": "TransformComponent",
+      "position": { "x": 0, "y": 0, "z": 0 },
+      "scale": { "x": 10, "y": 1, "z": 1 }
+    },
+    {
+      "type": "RenderComponent",
+      "spriteId": "ground_tile",
+      "layer": "terrain"
+    },
+    {
+      "type": "PhysicsComponent",
+      "bodyType": "static",
+      "colliderShape": { "type": "box", "width": 1, "height": 1 },
+      "collisionTags": ["player", "enemy"]
+    }
+  ]
+}

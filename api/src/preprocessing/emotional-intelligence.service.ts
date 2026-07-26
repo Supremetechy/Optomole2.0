@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { id } from '../shared/ids';
 import { HUMAN_EXPERIENCES } from '../shared/human-experiences';
+import { documentSentences } from '../shared/text';
 import type { SanitizedContentItem } from './content-sanitization.service';
 
 export interface EmotionalIntelligenceInput {
@@ -248,12 +249,8 @@ export class EmotionalIntelligenceService {
     return emotion.charAt(0).toUpperCase() + emotion.slice(1);
   }
 
+  /** Structure-aware segmentation, shared with the other extraction layers. */
   private sentences(text: string): string[] {
-    return String(text || '')
-      .replace(/<[^>]*>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .split(/(?<=[.!?])\s+/)
-      .map((sentence) => sentence.trim())
-      .filter(Boolean);
+    return documentSentences(text);
   }
 }

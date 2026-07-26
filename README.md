@@ -101,18 +101,24 @@ docker compose -f docker/compose.dev.yml up --build
 
 Older frontend/runtime experiments, generated build outputs, logs, cache folders, legacy API code, and archived docs were moved into `OptoDeprecated/`. Nothing was deleted during the cleanup.
 
-Browser Engine Reads:
-proceduralMap
-storyboard - narrative-ordered scenes
-world
-skillTree
-knowledgeGraph
-analystChallenge (quest)
-title
+1. TemplatesService.buildMappingManifest (templates.service.ts:188) flattens everything into a list of bindings. Structure is destroyed here: quests become loose objective and evidence bindings.
+ builds.service.completeBrowserBuild (builds.service.ts:252) bolts world layers on as ad-hoc top-level keys. The manifest has 26 top-level keys, and 8 of them (analystChallenge, knowledgeGraph, runtimeContract, semanticExtraction, gameplayNormalization, preprocessing, experienceOutputType, outputExperience) are read by zero lines of runtime code. Three of the layers you listed — quests, characters, achievements — never reach the manifest at all, and inventory doesn't exist anywhere in the pipeline
+ 3. worker/project-generator.extractGameSpec (project-generator.js:31) re-derives a completely separate GameSpec for Unity/Unreal/Blender, reading pkg.blueprint.* directly. It gets quests and characters that the browser never sees, but misses storyboard, knowledge graph, and the analyst challenge.
+ Components carry data, not just paths. The browser gets them inline in one fetch; the native generator writes each one to disk as the engine's data file. Same document, two serializations.
 
+Optomole as the content to experience engines core function is to
+assemble various values produced from the data sources, into an assembled composed result.
 
-Browser Engine Writes:
-quests
-characters
-achievements
-inventory
+For USD
+ Objects
+ Stage
+ Prims
+ Properties
+ Metadata 
+
+For USDZ
+Composition Operators
+Layering
+Inheritance
+Variant Sets
+Referencing

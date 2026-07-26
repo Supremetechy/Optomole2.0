@@ -1,0 +1,22 @@
+{
+  "id": "enemy_state_machine",
+  "initialState": "Patrol",
+  "states": [
+    {
+      "id": "Patrol",
+      "onUpdateActions": [
+        {
+          "id": "patrol_walk",
+          "type": "PatrolBetweenPoints",
+          "parameters": {
+            "entityId": "enemy_1",
+            "leftVar": "patrolLeftX",
+            "rightVar": "patrolRightX",
+            "speedVar": "moveSpeed"
+          }
+        }
+      ]
+    }
+  ],
+  "transitions": []
+}

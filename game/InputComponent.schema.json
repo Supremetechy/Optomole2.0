@@ -1,0 +1,19 @@
+{
+  "$id": "InputComponent.schema.json",
+  "type": "object",
+  "required": ["type", "bindings"],
+  "properties": {
+    "type": { "const": "InputComponent" },
+    "bindings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["action", "keys"],
+        "properties": {
+          "action": { "type": "string" },
+          "keys": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

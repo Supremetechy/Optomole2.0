@@ -1,0 +1,42 @@
+[
+  {
+    "id": "on_scene_start",
+    "scope": "scene",
+    "eventType": "OnSceneEnter",
+    "conditions": [],
+    "actions": [
+      {
+        "id": "welcome_message",
+        "type": "ShowMessage",
+        "parameters": { "text": "Reach the flag to win!" }
+      }
+    ]
+  },
+  {
+    "id": "on_player_reaches_goal",
+    "scope": "global",
+    "eventType": "OnCollision",
+    "conditions": [
+      {
+        "id": "player_touches_goal",
+        "type": "CollisionPair",
+        "parameters": { "entityAId": "player", "entityBId": "goal_flag" }
+      }
+    ],
+    "actions": [
+      {
+        "id": "emit_scene_complete",
+        "type": "EmitEvent",
+        "parameters": {
+          "eventType": "OnSceneComplete",
+          "payload": { "sceneId": "level_1" }
+        }
+      },
+      {
+        "id": "win_message",
+        "type": "ShowMessage",
+        "parameters": { "text": "Level Complete!" }
+      }
+    ]
+  }
+]

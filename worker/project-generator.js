@@ -35,15 +35,38 @@ export function extractGameSpec(command) {
   const progression = pkg.progression || {};
   const mapping = command.mappingManifest || {};
   const bindings = Array.isArray(mapping.bindings) ? mapping.bindings : [];
+  // The gateway's projection (ExperienceBuildService) is authoritative when
+  // present: it is the same component set the browser runtime plays, so a
+  // pipeline layer wired once reaches the native engines too. Older queued
+  // commands have no components block, so the local derivation stays as the
+  // fallback rather than failing the build.
+  const components = command.experienceBuild?.components || null;
 
-  const quests = arr(blueprint.quests).map((quest, index) => ({
-    id: str(quest.id || `quest-${index + 1}`),
-    title: str(quest.title || `Quest ${index + 1}`),
-    summary: str(quest.summary || ""),
-    objectives: arr(quest.objectives).map((o) => str(o.title || o.prompt || o)),
-    evidence: arr(quest.evidence).map((e) => ({ text: str(e.text || e), correct: e.correct !== false })),
-    xp: num(quest.reward?.xp, 100 + index * 25),
-  }));
+  const quests = components?.quests?.quests?.length
+    ? components.quests.quests.map((quest, index) => ({
+      id: str(quest.id || `quest-${index + 1}`),
+      title: str(quest.title || `Quest ${index + 1}`),
+      summary: str(quest.summary || ""),
+      // Component quests reference bindings by id; resolve to labels so the
+      // engine templates keep receiving displayable strings.
+      objectives: arr(quest.objectiveIds).map((id) => labelForBinding(bindings, id)).filter(Boolean),
+      evidence: arr(quest.evidenceIds).map((id) => ({ text: labelForBinding(bindings, id), correct: true })).filter((e) => e.text),
+      objectiveIds: arr(quest.objectiveIds).map(str),
+      evidenceIds: arr(quest.evidenceIds).map(str),
+      completion: quest.completion || null,
+      xp: num(quest.reward?.xp, 100 + index * 25),
+    }))
+    : arr(blueprint.quests).map((quest, index) => ({
+      id: str(quest.id || `quest-${index + 1}`),
+      title: str(quest.title || `Quest ${index + 1}`),
+      summary: str(quest.summary || ""),
+      objectives: arr(quest.objectives).map((o) => str(o.title || o.prompt || o)),
+      evidence: arr(quest.evidence).map((e) => ({ text: str(e.text || e), correct: e.correct !== false })),
+      objectiveIds: [],
+      evidenceIds: [],
+      completion: null,
+      xp: num(quest.reward?.xp, 100 + index * 25),
+    }));
 
   // Bindings -> spawnable entities with a deterministic grid layout so every
   // engine places them identically without an RNG.
@@ -91,13 +114,27 @@ export function extractGameSpec(command) {
     assetSlots: arr(mapping.assetSlots),
     quests,
     entities,
-    characters: arr(blueprint.characters),
-    achievements: arr(blueprint.achievements),
+    characters: components?.cast?.characters?.length ? components.cast.characters : arr(blueprint.characters),
+    achievements: components?.progression?.achievements?.length ? components.progression.achievements : arr(blueprint.achievements),
     goals: arr(blueprint.goals).map(String),
-    skillTree: arr(blueprint.skillTree),
+    skillTree: components?.progression?.branches?.length ? components.progression.branches : arr(blueprint.skillTree),
     proceduralMap: blueprint.proceduralMap || null,
+    // Layers the native path previously never received at all.
+    world: components?.world || null,
+    narrative: components?.narrative || null,
+    knowledge: components?.knowledge || null,
+    inventory: components?.inventory || null,
+    challenges: components?.challenges || null,
+    componentCoverage: command.experienceBuild?.validation?.componentCoverage || null,
     counts: { quests: quests.length, entities: entities.length },
   };
+}
+
+/** Resolve a binding id to its display label. Components reference; they don't copy. */
+function labelForBinding(bindings, bindingId) {
+  const binding = bindings.find((candidate) => String(candidate.id) === String(bindingId));
+  if (!binding) return "";
+  return str(binding.label || binding.sourceElement?.label || "");
 }
 
 /**

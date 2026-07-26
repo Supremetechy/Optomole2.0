@@ -1,0 +1,24 @@
+{
+  "$id": "Action.schema.json",
+  "type": "object",
+  "required": ["id", "type", "parameters"],
+  "properties": {
+    "id": { "type": "string" },
+    "type": {
+      "type": "string",
+      "enum": [
+        "PlayAnimation",
+        "ApplyImpulse",
+        "ApplyHorizontalMovementFromInput",
+        "SetVariable",
+        "SpawnEntity",
+        "DespawnEntity",
+        "EmitEvent",
+        "LoadScene",
+        "ShowMessage",
+        "PatrolBetweenPoints"
+      ]
+    },
+    "parameters": { "type": "object" }
+  }
+}

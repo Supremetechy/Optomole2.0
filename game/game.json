@@ -1,0 +1,11 @@
+{
+  "id": "sky_run",
+  "title": "Sky Run",
+  "version": "1.0.0",
+  "config": {
+    "gravity": { "x": 0, "y": -9.81, "z": 0 },
+    "pixelPerUnit": 100
+  },
+  "scenes": ["level_1"],
+  "globalSystems": ["physics", "input", "ui"]
+}

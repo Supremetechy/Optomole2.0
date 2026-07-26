@@ -1,0 +1,9 @@
+{
+  "$id": "ScriptComponent.schema.json",
+  "type": "object",
+  "required": ["type", "scripts"],
+  "properties": {
+    "type": { "const": "ScriptComponent" },
+    "scripts": { "type": "array", "items": { "type": "string" } }
+  }
+}

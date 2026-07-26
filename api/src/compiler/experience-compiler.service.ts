@@ -4,7 +4,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { classifyExperienceOutputType, EXPERIENCE_OUTPUT_TYPES } from '../shared/experience-output-types';
 import { id } from '../shared/ids';
 import { HUMAN_EXPERIENCES } from '../shared/human-experiences';
-import { plainText, shortLabel } from '../shared/text';
+import { phraseLabel, plainText, shortLabel } from '../shared/text';
 import { ExperiencePackage, SourcePayload } from '../shared/types';
 import { gatewayConfig } from '../shared/config';
 import { GameReferencesService } from '../game-references/game-references.service';
@@ -315,12 +315,17 @@ export class ExperienceCompilerService {
       // strings. In the string case both fields used to collapse to the same raw
       // excerpt, so every downstream label became a 200-char markdown blob. Keep
       // the full text as the prompt and derive a short display title from it.
+      //
+      // IRX supplies objectives as whole sentences (they are instructions), and
+      // truncating one is not a title: "The compiler extracts meaning, models
+      // the person current…" reached the screen as a collectible's name.
+      // phraseLabel names the sentence instead, and leaves a real title alone.
       objectives: this.array(quest.objectives).map((objective: any, objectiveIndex: number) => {
         const prompt = plainText(objective?.prompt ?? objective?.description ?? objective);
         const declaredTitle = typeof objective === 'object' && objective
           ? plainText(objective.title ?? objective.label)
           : '';
-        const title = shortLabel(declaredTitle || prompt) || `Objective ${objectiveIndex + 1}`;
+        const title = phraseLabel(declaredTitle || prompt) || `Objective ${objectiveIndex + 1}`;
         return {
           id: String(objective?.id || `objective-${index + 1}-${objectiveIndex + 1}`),
           title,
@@ -333,7 +338,7 @@ export class ExperienceCompilerService {
         const text = plainText(evidence?.text ?? evidence?.label ?? evidence);
         const declaredLabel = typeof evidence === 'object' && evidence ? plainText(evidence.label) : '';
         return {
-          label: shortLabel(declaredLabel || text) || `Evidence ${evidenceIndex + 1}`,
+          label: phraseLabel(declaredLabel || text) || `Evidence ${evidenceIndex + 1}`,
           text,
           correct: evidence?.correct !== false,
         };

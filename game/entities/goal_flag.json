@@ -1,0 +1,23 @@
+{
+  "id": "goal_flag",
+  "archetype": "goal",
+  "tags": ["goal"],
+  "components": [
+    {
+      "type": "TransformComponent",
+      "position": { "x": 12, "y": 2, "z": 0 },
+      "scale": { "x": 1, "y": 1, "z": 1 }
+    },
+    {
+      "type": "RenderComponent",
+      "spriteId": "goal_flag",
+      "layer": "foreground"
+    },
+    {
+      "type": "PhysicsComponent",
+      "bodyType": "static",
+      "colliderShape": { "type": "box", "width": 1, "height": 2 },
+      "collisionTags": ["player"]
+    }
+  ]
+}

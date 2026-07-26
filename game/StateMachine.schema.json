@@ -1,0 +1,17 @@
+{
+  "$id": "StateMachine.schema.json",
+  "type": "object",
+  "required": ["id", "states", "transitions", "initialState"],
+  "properties": {
+    "id": { "type": "string" },
+    "states": {
+      "type": "array",
+      "items": { "$ref": "State.schema.json" }
+    },
+    "transitions": {
+      "type": "array",
+      "items": { "$ref": "Transition.schema.json" }
+    },
+    "initialState": { "type": "string" }
+  }
+}

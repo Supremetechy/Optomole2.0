@@ -1,0 +1,10 @@
+{
+  "$id": "Vector3.schema.json",
+  "type": "object",
+  "required": ["x", "y", "z"],
+  "properties": {
+    "x": { "type": "number" },
+    "y": { "type": "number" },
+    "z": { "type": "number" }
+  }
+}

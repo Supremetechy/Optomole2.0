@@ -1,0 +1,10 @@
+{
+  "$id": "RenderComponent.schema.json",
+  "type": "object",
+  "required": ["type", "spriteId", "layer"],
+  "properties": {
+    "type": { "const": "RenderComponent" },
+    "spriteId": { "type": "string" },
+    "layer": { "type": "string" }
+  }
+}

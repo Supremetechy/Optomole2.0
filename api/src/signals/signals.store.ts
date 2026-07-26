@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Injectable } from '@nestjs/common';
 import { gatewayConfig } from '../shared/config';
-import { PersonSignalLog, StoredSignal } from './signal.types';
+import { PersonSignalLog, StoredSignal, sourceOf } from './signal.types';
 
 /**
  * SignalStore — append-only persistence for player observation signals, one JSON
@@ -72,11 +72,25 @@ export class SignalStore {
       if (!file.endsWith('.json')) continue;
       try {
         const log = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8')) as PersonSignalLog;
-        if (log?.personId) this.logs.set(log.personId, log);
+        if (log?.personId) this.logs.set(log.personId, this.backfillSources(log));
       } catch {
         // Skip corrupt logs rather than failing ingestion for every person.
       }
     }
+  }
+
+  /**
+   * Logs written before `source` existed came entirely from the playable
+   * runtime. Stamp them on read so every consumer can treat `source` as
+   * present, and so the graph fold never has to guess. The corrected log is
+   * persisted by the next append — no migration step, and a person who never
+   * emits again still reads back correctly forever.
+   */
+  private backfillSources(log: PersonSignalLog): PersonSignalLog {
+    for (const signal of log.signals || []) {
+      if (signal.source === undefined) signal.source = sourceOf(signal);
+    }
+    return log;
   }
 
   private writeFile(log: PersonSignalLog): void {

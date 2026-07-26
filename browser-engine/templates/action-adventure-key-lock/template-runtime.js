@@ -16,6 +16,7 @@ import { DialogueEngine } from '../../engines/DialogueEngine.js';
 import { BootScene } from './scenes/BootScene.js';
 import { RoomScene } from './scenes/RoomScene.js';
 import { DialogueScene } from './scenes/DialogueScene.js';
+import { ChallengeScene } from '../../scenes/ChallengeScene.js';
 import { RewardScene } from './scenes/RewardScene.js';
 
 export class KeyLockTemplateRuntime {
@@ -86,8 +87,18 @@ export class KeyLockTemplateRuntime {
     ctx.scenes.push(new DialogueScene(ctx, { tree, onClose: () => ctx.scenes.pop() }));
   }
 
+  /**
+   * Capstone: verify the briefing against the source once every room is clear,
+   * then show the reward card.
+   */
   _showReward() {
     const ctx = this.runtime.services;
+    const challenge = this._challengeDone ? null : this.mapping.challenges.first();
+    if (challenge) {
+      this._challengeDone = true;
+      ctx.scenes.replace(new ChallengeScene(ctx, { challenge, onDone: () => this._showReward() }));
+      return;
+    }
     ctx.scenes.replace(
       new RewardScene(ctx, {
         roomCount: this.graph.rooms.length,
@@ -102,6 +113,7 @@ export class KeyLockTemplateRuntime {
     ctx.state.set(JSON.parse(JSON.stringify(this._snapshot)));
     ctx.quests = new QuestEngine(ctx.state, ctx.audio);
     ctx.dialogue = new DialogueEngine({ state: ctx.state, quests: ctx.quests, audio: ctx.audio });
+    this._challengeDone = false;
     this._enterRoom(0);
   }
 }

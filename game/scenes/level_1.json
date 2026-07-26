@@ -1,0 +1,8 @@
+{
+  "id": "level_1",
+  "name": "Level 1 - Rooftops",
+  "systems": ["physics", "combat"],
+  "entities": ["player", "ground_1", "ground_2", "enemy_1", "goal_flag"],
+  "entryTriggers": ["on_scene_start"],
+  "exitTriggers": ["on_scene_complete"]
+}

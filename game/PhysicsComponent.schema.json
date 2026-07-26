@@ -1,0 +1,12 @@
+{
+  "$id": "PhysicsComponent.schema.json",
+  "type": "object",
+  "required": ["type", "bodyType", "colliderShape", "collisionTags"],
+  "properties": {
+    "type": { "const": "PhysicsComponent" },
+    "bodyType": { "enum": ["static", "dynamic", "kinematic"] },
+    "mass": { "type": "number" },
+    "colliderShape": { "$ref": "ColliderShape.schema.json" },
+    "collisionTags": { "type": "array", "items": { "type": "string" } }
+  }
+}

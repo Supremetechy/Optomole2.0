@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { ExperienceBuildService } from '../compiler/experience-build.service';
 import { QueueService } from '../integrations/queue.service';
 import { ObjectStorageService } from '../integrations/object-storage.service';
 import { gatewayConfig } from '../shared/config';
@@ -15,6 +16,7 @@ export class BuildsService {
     private readonly queue: QueueService,
     private readonly storage: ObjectStorageService,
     private readonly templates: TemplatesService,
+    private readonly experienceBuild: ExperienceBuildService,
   ) {}
 
   async createBuild(input: { package: ExperiencePackage; target: EngineTarget; publicBaseUrl?: string; engine?: string }): Promise<BuildJob> {
@@ -44,6 +46,13 @@ export class BuildsService {
     // (browser) in that case so build creation never fails on a target the
     // template registry doesn't enumerate. The job still queues as input.target.
     const resolvedTemplate = this.resolveMappingForTarget(input.package, input.target);
+    // Native engines build from the same projected component set the browser
+    // plays, so a layer wired once reaches every renderer.
+    const experienceBuild = this.experienceBuild.project({
+      package: input.package,
+      mappingManifest: resolvedTemplate.mappingManifest,
+      templateId: resolvedTemplate.template.id,
+    });
 
     await this.queue.publishBuild({
       jobId: build.id,
@@ -52,6 +61,7 @@ export class BuildsService {
       package: input.package,
       template: resolvedTemplate.template,
       mappingManifest: resolvedTemplate.mappingManifest,
+      experienceBuild,
       callbackUrl: `${gatewayConfig().publicGatewayUrl.replace(/\/$/, '')}/v1/workers/${encodeURIComponent(input.target)}/callback`,
       requestedAt: now,
     });
@@ -249,9 +259,20 @@ export class BuildsService {
     // Rendering engine for the browser-engine runtime: 'pixi' (default) or
     // 'phaser'. boot.js reads it from manifest.engine (and the ?engine= param).
     const engine = this.normalizeEngine(engineChoice);
+    // The engine-neutral component set (world, narrative, quests, cast,
+    // knowledge, inventory, progression, challenges). Components reference
+    // binding ids rather than copying content, so this adds structure, not bulk.
+    const projected = this.experienceBuild.project({
+      package: pkg,
+      mappingManifest: resolved.mappingManifest,
+      templateId: resolved.template.id,
+    });
     const manifest = {
       ...resolved.mappingManifest,
       engine,
+      components: projected.components,
+      loadOrder: projected.loadOrder,
+      componentValidation: projected.validation,
       title: pkg.experience?.title || 'Optimole Experience',
       // World identity (AI-chosen planet/region) — the runtime's WorldContext
       // titles the playable world from this before falling back to the title.
@@ -316,6 +337,7 @@ export class BuildsService {
         xpReward: (pkg.progression as any)?.xpReward || null,
         experienceOutputType: (pkg.experience as any)?.outputType || (pkg.specification as any)?.experienceOutputType || null,
         mechanics: (pkg.runtimeContract as any)?.template?.mechanics || [],
+        componentCoverage: projected.validation.componentCoverage,
         knowledgeGraphStats: ((pkg.blueprint as any)?.knowledgeGraph || (pkg.specification as any)?.knowledgeGraph)?.stats || null,
         storyboardCoverage: ((pkg.blueprint as any)?.storyboard || (pkg.specification as any)?.storyboard)?.coverage || null,
       },

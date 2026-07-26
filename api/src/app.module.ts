@@ -8,8 +8,13 @@ import { ArtifactsController } from './artifacts/artifacts.controller';
 import { ArtifactsService } from './artifacts/artifacts.service';
 import { BuildsController } from './builds/builds.controller';
 import { BuildsService } from './builds/builds.service';
+import { BehaviorCompilerService } from './compiler/behavior-compiler.service';
 import { CompilerController } from './compiler/compiler.controller';
+import { ExperienceDirectiveService } from './compiler/experience-directive.service';
+import { SemanticModelService } from './compiler/semantic-model.service';
+import { ExperienceBuildService } from './compiler/experience-build.service';
 import { ExperienceCompilerService } from './compiler/experience-compiler.service';
+import { GameplayDslService } from './compiler/gameplay-dsl.service';
 import { EmailController } from './email/email.controller';
 import { EmailService } from './email/email.service';
 import { ExperienceController } from './experience/experience.controller';
@@ -49,6 +54,6 @@ import { PersonExperienceController } from './signals/person-experience.controll
 
 @Module({
   controllers: [HealthController, ExperienceController, EmailController, GdpController, BuildsController, WorkersController, ArtifactsController, TemplatesController, IrxController, TranscriptionController, CompilerController, PreprocessingController, AccountsController, GameReferencesController, SignalsController, PersonExperienceController],
-  providers: [ExperienceService, EmailService, GdpService, BuildsService, AiGenerationService, QueueService, ObjectStorageService, ArtifactsService, TemplatesService, IrxService, TranscriptionService, ExperienceCompilerService, PreprocessingPipelineService, ContentSanitizationService, SemanticExtractionService, EmotionalIntelligenceService, GameplayNormalizationService, StoryboardService, KnowledgeGraphService, AccountsService, AccountStore, PersonNodeAdapterService, AdminGuard, GameReferencesService, SignalsService, SignalStore, PersonGraphService, WorldModelService, NextExperienceService, ReflectionService, ExperimentStore],
+  providers: [ExperienceService, EmailService, GdpService, BuildsService, AiGenerationService, QueueService, ObjectStorageService, ArtifactsService, TemplatesService, IrxService, TranscriptionService, ExperienceCompilerService, ExperienceBuildService, SemanticModelService, ExperienceDirectiveService, BehaviorCompilerService, GameplayDslService, PreprocessingPipelineService, ContentSanitizationService, SemanticExtractionService, EmotionalIntelligenceService, GameplayNormalizationService, StoryboardService, KnowledgeGraphService, AccountsService, AccountStore, PersonNodeAdapterService, AdminGuard, GameReferencesService, SignalsService, SignalStore, PersonGraphService, WorldModelService, NextExperienceService, ReflectionService, ExperimentStore],
 })
 export class AppModule {}

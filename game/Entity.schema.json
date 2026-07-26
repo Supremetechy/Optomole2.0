@@ -1,0 +1,27 @@
+{
+  "$id": "Entity.schema.json",
+  "type": "object",
+  "required": ["id", "archetype", "tags", "components"],
+  "properties": {
+    "id": { "type": "string" },
+    "archetype": { "type": "string" },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          { "$ref": "TransformComponent.schema.json" },
+          { "$ref": "RenderComponent.schema.json" },
+          { "$ref": "PhysicsComponent.schema.json" },
+          { "$ref": "InputComponent.schema.json" },
+          { "$ref": "StateComponent.schema.json" },
+          { "$ref": "ScriptComponent.schema.json" },
+          { "$ref": "UIComponent.schema.json" }
+        ]
+      }
+    }
+  }
+}

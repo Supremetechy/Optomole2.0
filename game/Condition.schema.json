@@ -1,0 +1,20 @@
+{
+  "$id": "Condition.schema.json",
+  "type": "object",
+  "required": ["id", "type", "parameters"],
+  "properties": {
+    "id": { "type": "string" },
+    "type": {
+      "type": "string",
+      "enum": [
+        "InputIsPressed",
+        "InputReleasedAll",
+        "VariableEquals",
+        "CollisionWithTag",
+        "CollisionPair",
+        "Expression"
+      ]
+    },
+    "parameters": { "type": "object" }
+  }
+}

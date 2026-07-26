@@ -1,0 +1,11 @@
+{
+  "$id": "TransformComponent.schema.json",
+  "type": "object",
+  "required": ["type", "position"],
+  "properties": {
+    "type": { "type": "string", "const": "TransformComponent" },
+    "position": { "$ref": "Vector3.schema.json" },
+    "rotation": { "$ref": "Vector3.schema.json" },
+    "scale": { "$ref": "Vector3.schema.json" }
+  }
+}

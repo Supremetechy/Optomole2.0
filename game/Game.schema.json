@@ -1,0 +1,18 @@
+{
+  "$id": "Game.schema.json",
+  "type": "object",
+  "required": ["id", "title", "version", "config", "scenes", "globalSystems"],
+  "properties": {
+    "id": { "type": "string" },
+    "title": { "type": "string" },
+    "version": { "type": "string" },
+    "config": { "$ref": "GameConfig.schema.json" },
+    "scenes": { "type": "array", "items": { "type": "string" } },
+    "globalSystems": {
+      "type": "array",
+      "items": {
+        "enum": ["physics", "input", "combat", "ui", "animation", "audio"]
+      }
+    }
+  }
+}

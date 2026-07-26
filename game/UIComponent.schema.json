@@ -1,0 +1,11 @@
+{
+  "$id": "UIComponent.schema.json",
+  "type": "object",
+  "required": ["type", "widgetType"],
+  "properties": {
+    "type": { "const": "UIComponent" },
+    "widgetType": { "type": "string" },
+    "layout": {},
+    "bindings": {}
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "$id": "Trigger.schema.json",
+  "type": "object",
+  "required": ["id", "scope", "eventType", "conditions", "actions"],
+  "properties": {
+    "id": { "type": "string" },
+    "scope": { "type": "string", "enum": ["scene", "entity", "global"] },
+    "eventType": { "type": "string" },
+    "conditions": {
+      "type": "array",
+      "items": { "$ref": "Condition.schema.json" }
+    },
+    "actions": {
+      "type": "array",
+      "items": { "$ref": "Action.schema.json" }
+    },
+    "priority": { "type": "number" }
+  }
+}

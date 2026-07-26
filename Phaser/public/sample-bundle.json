@@ -1,0 +1,1089 @@
+{
+  "schemaVersion": "1.0.0",
+  "kind": "optomole.GameplayDslBundle",
+  "experienceId": "exp_demo",
+  "game": {
+    "id": "exp_demo",
+    "title": "Q3 Revenue Review",
+    "version": "1.0.0",
+    "config": {
+      "gravity": {
+        "x": 0,
+        "y": -9.81,
+        "z": 0
+      },
+      "pixelPerUnit": 100
+    },
+    "scenes": [
+      "scene-1",
+      "scene-2"
+    ],
+    "globalSystems": [
+      "physics",
+      "input",
+      "ui"
+    ]
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Pipeline Ridge",
+      "regionId": "region-1",
+      "systems": [
+        "physics",
+        "input"
+      ],
+      "entities": [
+        "scene-1-player",
+        "scene-1-ground",
+        "scene-1-item-1",
+        "scene-1-item-2",
+        "scene-1-npc-3",
+        "scene-1-goal"
+      ],
+      "entryTriggers": [
+        "scene-1-start"
+      ],
+      "exitTriggers": [
+        "scene-1-goal"
+      ]
+    },
+    {
+      "id": "scene-2",
+      "name": "Churn Hollow",
+      "regionId": "region-2",
+      "systems": [
+        "physics",
+        "input"
+      ],
+      "entities": [
+        "scene-2-player",
+        "scene-2-ground",
+        "scene-2-item-1",
+        "scene-2-npc-2",
+        "scene-2-goal"
+      ],
+      "entryTriggers": [
+        "scene-2-start"
+      ],
+      "exitTriggers": [
+        "scene-2-goal"
+      ]
+    }
+  ],
+  "entities": [
+    {
+      "id": "scene-1-player",
+      "archetype": "hero",
+      "tags": [
+        "player",
+        "controllable"
+      ],
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "player_idle",
+          "layer": "characters"
+        },
+        {
+          "type": "PhysicsComponent",
+          "bodyType": "dynamic",
+          "mass": 1,
+          "colliderShape": {
+            "type": "box",
+            "width": 0.8,
+            "height": 1.8
+          },
+          "collisionTags": [
+            "ground",
+            "collectible",
+            "npc",
+            "goal"
+          ]
+        },
+        {
+          "type": "InputComponent",
+          "bindings": [
+            {
+              "action": "MoveLeft",
+              "keys": [
+                "A",
+                "LeftArrow"
+              ]
+            },
+            {
+              "action": "MoveRight",
+              "keys": [
+                "D",
+                "RightArrow"
+              ]
+            },
+            {
+              "action": "Jump",
+              "keys": [
+                "Space",
+                "W",
+                "UpArrow"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "StateComponent",
+          "stateMachineId": "player_state_machine",
+          "initialState": "Idle",
+          "variables": {
+            "isGrounded": true,
+            "moveSpeed": 5,
+            "jumpForce": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "scene-1-ground",
+      "archetype": "platform",
+      "tags": [
+        "ground"
+      ],
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 8,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 20,
+            "y": 1,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "ground_tile",
+          "layer": "terrain"
+        },
+        {
+          "type": "PhysicsComponent",
+          "bodyType": "static",
+          "colliderShape": {
+            "type": "box",
+            "width": 1,
+            "height": 1
+          },
+          "collisionTags": [
+            "player"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scene-1-item-1",
+      "archetype": "collectible",
+      "tags": [
+        "collectible"
+      ],
+      "bindingId": "b1",
+      "label": "Renewal Ledger",
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 4,
+            "y": 1.5,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "collectible",
+          "layer": "foreground"
+        },
+        {
+          "type": "PhysicsComponent",
+          "bodyType": "static",
+          "colliderShape": {
+            "type": "box",
+            "width": 0.6,
+            "height": 0.6
+          },
+          "collisionTags": [
+            "player"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scene-1-item-2",
+      "archetype": "collectible",
+      "tags": [
+        "collectible"
+      ],
+      "bindingId": "b3",
+      "label": "Win/Loss Deck",
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 7,
+            "y": 1.5,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "collectible",
+          "layer": "foreground"
+        },
+        {
+          "type": "PhysicsComponent",
+          "bodyType": "static",
+          "colliderShape": {
+            "type": "box",
+            "width": 0.6,
+            "height": 0.6
+          },
+          "collisionTags": [
+            "player"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scene-1-npc-3",
+      "archetype": "npc",
+      "tags": [
+        "npc"
+      ],
+      "bindingId": "c1",
+      "label": "Ops Lead",
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 10,
+            "y": 1.9,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "npc",
+          "layer": "characters"
+        },
+        {
+          "type": "PhysicsComponent",
+          "bodyType": "static",
+          "colliderShape": {
+            "type": "box",
+            "width": 0.8,
+            "height": 1.8
+          },
+          "collisionTags": [
+            "player"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scene-1-goal",
+      "archetype": "goal",
+      "tags": [
+        "goal"
+      ],
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 16,
+            "y": 2,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "goal_flag",
+          "layer": "foreground"
+        },
+        {
+          "type": "PhysicsComponent",
+          "bodyType": "static",
+          "colliderShape": {
+            "type": "box",
+            "width": 1,
+            "height": 2
+          },
+          "collisionTags": [
+            "player"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scene-2-player",
+      "archetype": "hero",
+      "tags": [
+        "player",
+        "controllable"
+      ],
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "player_idle",
+          "layer": "characters"
+        },
+        {
+          "type": "PhysicsComponent",
+          "bodyType": "dynamic",
+          "mass": 1,
+          "colliderShape": {
+            "type": "box",
+            "width": 0.8,
+            "height": 1.8
+          },
+          "collisionTags": [
+            "ground",
+            "collectible",
+            "npc",
+            "goal"
+          ]
+        },
+        {
+          "type": "InputComponent",
+          "bindings": [
+            {
+              "action": "MoveLeft",
+              "keys": [
+                "A",
+                "LeftArrow"
+              ]
+            },
+            {
+              "action": "MoveRight",
+              "keys": [
+                "D",
+                "RightArrow"
+              ]
+            },
+            {
+              "action": "Jump",
+              "keys": [
+                "Space",
+                "W",
+                "UpArrow"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "StateComponent",
+          "stateMachineId": "player_state_machine",
+          "initialState": "Idle",
+          "variables": {
+            "isGrounded": true,
+            "moveSpeed": 5,
+            "jumpForce": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "scene-2-ground",
+      "archetype": "platform",
+      "tags": [
+        "ground"
+      ],
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 6.5,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 17,
+            "y": 1,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "ground_tile",
+          "layer": "terrain"
+        },
+        {
+          "type": "PhysicsComponent",
+          "bodyType": "static",
+          "colliderShape": {
+            "type": "box",
+            "width": 1,
+            "height": 1
+          },
+          "collisionTags": [
+            "player"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scene-2-item-1",
+      "archetype": "collectible",
+      "tags": [
+        "collectible"
+      ],
+      "bindingId": "b2",
+      "label": "Discount Memo",
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 4,
+            "y": 1.5,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "collectible",
+          "layer": "foreground"
+        },
+        {
+          "type": "PhysicsComponent",
+          "bodyType": "static",
+          "colliderShape": {
+            "type": "box",
+            "width": 0.6,
+            "height": 0.6
+          },
+          "collisionTags": [
+            "player"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scene-2-npc-2",
+      "archetype": "npc",
+      "tags": [
+        "npc"
+      ],
+      "bindingId": "c2",
+      "label": "Field Rep",
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 7,
+            "y": 1.9,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "npc",
+          "layer": "characters"
+        },
+        {
+          "type": "PhysicsComponent",
+          "bodyType": "static",
+          "colliderShape": {
+            "type": "box",
+            "width": 0.8,
+            "height": 1.8
+          },
+          "collisionTags": [
+            "player"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scene-2-goal",
+      "archetype": "goal",
+      "tags": [
+        "goal"
+      ],
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 13,
+            "y": 2,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "goal_flag",
+          "layer": "foreground"
+        },
+        {
+          "type": "PhysicsComponent",
+          "bodyType": "static",
+          "colliderShape": {
+            "type": "box",
+            "width": 1,
+            "height": 2
+          },
+          "collisionTags": [
+            "player"
+          ]
+        }
+      ]
+    }
+  ],
+  "stateMachines": [
+    {
+      "id": "player_state_machine",
+      "initialState": "Idle",
+      "states": [
+        {
+          "id": "Idle",
+          "onUpdateActions": [
+            {
+              "id": "idle-move",
+              "type": "ApplyHorizontalMovementFromInput",
+              "parameters": {
+                "speedVar": "moveSpeed"
+              }
+            }
+          ]
+        },
+        {
+          "id": "Running",
+          "onUpdateActions": [
+            {
+              "id": "run-move",
+              "type": "ApplyHorizontalMovementFromInput",
+              "parameters": {
+                "speedVar": "moveSpeed"
+              }
+            }
+          ]
+        },
+        {
+          "id": "Jumping",
+          "onEnterActions": [
+            {
+              "id": "jump-impulse",
+              "type": "ApplyImpulse",
+              "parameters": {
+                "forceVar": "jumpForce",
+                "direction": {
+                  "x": 0,
+                  "y": 1
+                }
+              }
+            },
+            {
+              "id": "leave-ground",
+              "type": "SetVariable",
+              "parameters": {
+                "var": "isGrounded",
+                "value": false
+              }
+            }
+          ],
+          "onUpdateActions": [
+            {
+              "id": "air-move",
+              "type": "ApplyHorizontalMovementFromInput",
+              "parameters": {
+                "speedVar": "moveSpeed"
+              }
+            }
+          ]
+        }
+      ],
+      "transitions": [
+        {
+          "fromStateId": "Idle",
+          "toStateId": "Jumping",
+          "eventType": "OnInput",
+          "priority": 10,
+          "conditions": [
+            {
+              "id": "jump-pressed",
+              "type": "InputIsPressed",
+              "parameters": {
+                "actions": [
+                  "Jump"
+                ]
+              }
+            },
+            {
+              "id": "grounded",
+              "type": "VariableEquals",
+              "parameters": {
+                "var": "isGrounded",
+                "value": true
+              }
+            }
+          ]
+        },
+        {
+          "fromStateId": "Running",
+          "toStateId": "Jumping",
+          "eventType": "OnInput",
+          "priority": 10,
+          "conditions": [
+            {
+              "id": "jump-pressed-run",
+              "type": "InputIsPressed",
+              "parameters": {
+                "actions": [
+                  "Jump"
+                ]
+              }
+            },
+            {
+              "id": "grounded-run",
+              "type": "VariableEquals",
+              "parameters": {
+                "var": "isGrounded",
+                "value": true
+              }
+            }
+          ]
+        },
+        {
+          "fromStateId": "Idle",
+          "toStateId": "Running",
+          "eventType": "OnInput",
+          "conditions": [
+            {
+              "id": "move-pressed",
+              "type": "InputIsPressed",
+              "parameters": {
+                "actions": [
+                  "MoveLeft",
+                  "MoveRight"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "fromStateId": "Running",
+          "toStateId": "Idle",
+          "eventType": "OnInput",
+          "conditions": [
+            {
+              "id": "move-released",
+              "type": "InputReleasedAll",
+              "parameters": {
+                "actions": [
+                  "MoveLeft",
+                  "MoveRight"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "fromStateId": "Jumping",
+          "toStateId": "Idle",
+          "eventType": "OnCollision",
+          "conditions": [
+            {
+              "id": "landed",
+              "type": "CollisionWithTag",
+              "parameters": {
+                "tag": "ground",
+                "contactNormalYGreaterThan": 0.7
+              }
+            }
+          ],
+          "actions": [
+            {
+              "id": "set-grounded",
+              "type": "SetVariable",
+              "parameters": {
+                "var": "isGrounded",
+                "value": true
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "triggers": [
+    {
+      "id": "scene-1-item-1-collect",
+      "scope": "scene",
+      "eventType": "OnCollision",
+      "conditions": [
+        {
+          "id": "scene-1-item-1-touch",
+          "type": "CollisionPair",
+          "parameters": {
+            "entityAId": "scene-1-player",
+            "entityBId": "scene-1-item-1"
+          }
+        }
+      ],
+      "actions": [
+        {
+          "id": "scene-1-item-1-despawn",
+          "type": "DespawnEntity",
+          "parameters": {
+            "entityId": "scene-1-item-1"
+          }
+        },
+        {
+          "id": "scene-1-item-1-signal",
+          "type": "EmitEvent",
+          "parameters": {
+            "eventType": "OnCustom",
+            "payload": {
+              "kind": "collected",
+              "entityId": "scene-1-item-1",
+              "bindingId": "b1",
+              "label": "Renewal Ledger"
+            }
+          }
+        },
+        {
+          "id": "scene-1-item-1-message",
+          "type": "ShowMessage",
+          "parameters": {
+            "text": "Collected: Renewal Ledger"
+          }
+        }
+      ]
+    },
+    {
+      "id": "scene-1-item-2-collect",
+      "scope": "scene",
+      "eventType": "OnCollision",
+      "conditions": [
+        {
+          "id": "scene-1-item-2-touch",
+          "type": "CollisionPair",
+          "parameters": {
+            "entityAId": "scene-1-player",
+            "entityBId": "scene-1-item-2"
+          }
+        }
+      ],
+      "actions": [
+        {
+          "id": "scene-1-item-2-despawn",
+          "type": "DespawnEntity",
+          "parameters": {
+            "entityId": "scene-1-item-2"
+          }
+        },
+        {
+          "id": "scene-1-item-2-signal",
+          "type": "EmitEvent",
+          "parameters": {
+            "eventType": "OnCustom",
+            "payload": {
+              "kind": "collected",
+              "entityId": "scene-1-item-2",
+              "bindingId": "b3",
+              "label": "Win/Loss Deck"
+            }
+          }
+        },
+        {
+          "id": "scene-1-item-2-message",
+          "type": "ShowMessage",
+          "parameters": {
+            "text": "Collected: Win/Loss Deck"
+          }
+        }
+      ]
+    },
+    {
+      "id": "scene-1-npc-3-dialogue",
+      "scope": "scene",
+      "eventType": "OnCollision",
+      "conditions": [
+        {
+          "id": "scene-1-npc-3-touch",
+          "type": "CollisionPair",
+          "parameters": {
+            "entityAId": "scene-1-player",
+            "entityBId": "scene-1-npc-3"
+          }
+        }
+      ],
+      "actions": [
+        {
+          "id": "scene-1-npc-3-say",
+          "type": "ShowMessage",
+          "parameters": {
+            "text": "Ops Lead: Margins slipped in month two."
+          }
+        },
+        {
+          "id": "scene-1-npc-3-signal",
+          "type": "EmitEvent",
+          "parameters": {
+            "eventType": "OnCustom",
+            "payload": {
+              "kind": "npc_met",
+              "entityId": "scene-1-npc-3",
+              "bindingId": "c1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "scene-1-start",
+      "scope": "scene",
+      "eventType": "OnSceneEnter",
+      "conditions": [],
+      "actions": [
+        {
+          "id": "scene-1-start-message",
+          "type": "ShowMessage",
+          "parameters": {
+            "text": "Entering Pipeline Ridge — reach the flag!"
+          }
+        }
+      ]
+    },
+    {
+      "id": "scene-1-goal",
+      "scope": "global",
+      "eventType": "OnCollision",
+      "conditions": [
+        {
+          "id": "scene-1-goal-touch",
+          "type": "CollisionPair",
+          "parameters": {
+            "entityAId": "scene-1-player",
+            "entityBId": "scene-1-goal"
+          }
+        }
+      ],
+      "actions": [
+        {
+          "id": "scene-1-complete",
+          "type": "EmitEvent",
+          "parameters": {
+            "eventType": "OnSceneComplete",
+            "payload": {
+              "sceneId": "scene-1"
+            }
+          }
+        },
+        {
+          "id": "scene-1-advance",
+          "type": "LoadScene",
+          "parameters": {
+            "sceneId": "scene-2"
+          }
+        }
+      ]
+    },
+    {
+      "id": "scene-2-item-1-collect",
+      "scope": "scene",
+      "eventType": "OnCollision",
+      "conditions": [
+        {
+          "id": "scene-2-item-1-touch",
+          "type": "CollisionPair",
+          "parameters": {
+            "entityAId": "scene-2-player",
+            "entityBId": "scene-2-item-1"
+          }
+        }
+      ],
+      "actions": [
+        {
+          "id": "scene-2-item-1-despawn",
+          "type": "DespawnEntity",
+          "parameters": {
+            "entityId": "scene-2-item-1"
+          }
+        },
+        {
+          "id": "scene-2-item-1-signal",
+          "type": "EmitEvent",
+          "parameters": {
+            "eventType": "OnCustom",
+            "payload": {
+              "kind": "collected",
+              "entityId": "scene-2-item-1",
+              "bindingId": "b2",
+              "label": "Discount Memo"
+            }
+          }
+        },
+        {
+          "id": "scene-2-item-1-message",
+          "type": "ShowMessage",
+          "parameters": {
+            "text": "Collected: Discount Memo"
+          }
+        }
+      ]
+    },
+    {
+      "id": "scene-2-npc-2-dialogue",
+      "scope": "scene",
+      "eventType": "OnCollision",
+      "conditions": [
+        {
+          "id": "scene-2-npc-2-touch",
+          "type": "CollisionPair",
+          "parameters": {
+            "entityAId": "scene-2-player",
+            "entityBId": "scene-2-npc-2"
+          }
+        }
+      ],
+      "actions": [
+        {
+          "id": "scene-2-npc-2-say",
+          "type": "ShowMessage",
+          "parameters": {
+            "text": "Field Rep: Hello, I'm Field Rep."
+          }
+        },
+        {
+          "id": "scene-2-npc-2-signal",
+          "type": "EmitEvent",
+          "parameters": {
+            "eventType": "OnCustom",
+            "payload": {
+              "kind": "npc_met",
+              "entityId": "scene-2-npc-2",
+              "bindingId": "c2"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "scene-2-start",
+      "scope": "scene",
+      "eventType": "OnSceneEnter",
+      "conditions": [],
+      "actions": [
+        {
+          "id": "scene-2-start-message",
+          "type": "ShowMessage",
+          "parameters": {
+            "text": "Entering Churn Hollow — reach the flag!"
+          }
+        }
+      ]
+    },
+    {
+      "id": "scene-2-goal",
+      "scope": "global",
+      "eventType": "OnCollision",
+      "conditions": [
+        {
+          "id": "scene-2-goal-touch",
+          "type": "CollisionPair",
+          "parameters": {
+            "entityAId": "scene-2-player",
+            "entityBId": "scene-2-goal"
+          }
+        }
+      ],
+      "actions": [
+        {
+          "id": "scene-2-complete",
+          "type": "EmitEvent",
+          "parameters": {
+            "eventType": "OnSceneComplete",
+            "payload": {
+              "sceneId": "scene-2"
+            }
+          }
+        },
+        {
+          "id": "scene-2-finish-message",
+          "type": "ShowMessage",
+          "parameters": {
+            "text": "Experience Complete!"
+          }
+        }
+      ]
+    }
+  ],
+  "validation": {
+    "sceneCount": 2,
+    "entityCount": 11,
+    "triggerCount": 9,
+    "contributions": {
+      "regions": 2,
+      "inventoryItems": 3,
+      "castCharacters": 2
+    }
+  }
+}

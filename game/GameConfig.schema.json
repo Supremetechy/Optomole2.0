@@ -1,0 +1,9 @@
+{
+  "$id": "GameConfig.schema.json",
+  "type": "object",
+  "required": ["gravity"],
+  "properties": {
+    "gravity": { "$ref": "Vector3.schema.json" },
+    "pixelPerUnit": { "type": "number" }
+  }
+}

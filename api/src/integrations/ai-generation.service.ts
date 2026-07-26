@@ -3,6 +3,7 @@ import { ExperienceCompilerService } from '../compiler/experience-compiler.servi
 import { IrxService } from '../irx/irx.service';
 import { gatewayConfig } from '../shared/config';
 import { classifyExperienceOutputType } from '../shared/experience-output-types';
+import { phraseLabel } from '../shared/text';
 import { ExperiencePackage, SourcePayload } from '../shared/types';
 import { buildRuntimeContract, displayGenre, heuristicArchetype, RUNTIME_ARCHETYPES } from '../shared/runtime-archetypes';
 
@@ -191,16 +192,23 @@ export class AiGenerationService {
       const evidenceCandidates = Array.isArray(block.evidenceCandidates) ? block.evidenceCandidates : [];
       const objectives = Array.isArray(block.objectives) ? block.objectives : [];
       const evidence = evidenceCandidates.length
-        ? evidenceCandidates.map((candidate: any) => ({ text: candidate.text || candidate.label || String(candidate), correct: true }))
+        ? evidenceCandidates.map((candidate: any) => {
+          const text = candidate.text || candidate.label || String(candidate);
+          return { label: phraseLabel(text), text, correct: true };
+        })
         : [{ text: block.summary || block.title || source.text || 'Review the source material.', correct: true }];
 
       return {
         id: `quest-${index + 1}`,
         title: block.title || `${irx.title || 'IRX'} Objective ${index + 1}`,
         summary: block.summary || objectives.join(' ') || source.text || 'Complete the generated mission.',
+        // IRX objectives arrive as whole sentences — they are instructions. The
+        // prompt keeps the instruction; the title has to be a NAME, because it
+        // is what a quest log and every derived binding label displays. Setting
+        // both to the same sentence is what put a paragraph on a collectible.
         objectives: objectives.map((objective: string, objectiveIndex: number) => ({
           id: `objective-${index + 1}-${objectiveIndex + 1}`,
-          title: objective,
+          title: phraseLabel(objective) || `Objective ${objectiveIndex + 1}`,
           prompt: objective,
         })),
         reward: { xp: 100 + index * 25 },

@@ -9,7 +9,7 @@
     "start:dev": "nest start --watch",
     "build": "nest build",
     "lint": "eslint \"src/**/*.ts\"",
-    "test": "node --test"
+    "test": "nest build && node --test test/*.test.js"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.15",

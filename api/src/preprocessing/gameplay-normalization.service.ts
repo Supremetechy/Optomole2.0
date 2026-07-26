@@ -49,7 +49,9 @@ export class GameplayNormalizationService {
       inventoryItems: gameplayAtoms.filter((atom) => atom.gameplayType === 'inventory_item'),
       bosses: hazards.slice(0, 3).map((hazard: any, index: number) => ({
         id: id('boss'),
-        name: this.titleCase(hazard.verb || 'Knowledge Hazard'),
+        // A boss named from the bare verb of its sentence produced "Avoid".
+        // The hazard's noun phrase is what the player is actually facing.
+        name: this.titleCase(hazard.label || hazard.verb || 'Knowledge Hazard'),
         sourceActionId: hazard.id,
         challenge: hazard.text,
         defeatCondition: 'Select the corrective evidence or action.',
@@ -75,7 +77,12 @@ export class GameplayNormalizationService {
       id: id('atom'),
       sourceId: item.id,
       sourceKind: kind,
-      label: item.text || item.goalStatement || `${kind} ${index + 1}`,
+      // `label` names the atom; `text` is the full statement behind it. Actions
+      // and impacts are whole sentences, so preferring their extracted noun
+      // phrase is the difference between an enemy called "Stale credentials"
+      // and one called "Without it, adding the second consumer later means…".
+      label: item.label || item.text || item.goalStatement || `${kind} ${index + 1}`,
+      statement: item.text || item.statement || '',
       gameplayType,
       interactionType: this.interactionFor(gameplayType),
       salience: item.salience || item.confidence || 0.6,

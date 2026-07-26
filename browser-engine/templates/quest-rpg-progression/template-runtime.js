@@ -20,6 +20,7 @@ import { RegionScene } from './scenes/RegionScene.js';
 import { EncounterScene } from './scenes/EncounterScene.js';
 import { BriefingScene } from './scenes/BriefingScene.js';
 import { SkillScene } from './scenes/SkillScene.js';
+import { ChallengeScene } from '../../scenes/ChallengeScene.js';
 import { CompletionScene } from './scenes/CompletionScene.js';
 
 export class QuestRpgTemplateRuntime {
@@ -31,6 +32,8 @@ export class QuestRpgTemplateRuntime {
       chapterSize: meta.chapterSize || 5,
       title: this.mapping.world.title || meta.title || manifest.title || 'The Campaign',
       world: this.mapping.world,
+      questBook: this.mapping.questBook,
+      knowledge: this.mapping.knowledge,
     });
     // The mentor/author line frames the boot card.
     const mentor = this.mapping.specs.find((s) => s.entityType === 'npc');
@@ -91,9 +94,13 @@ export class QuestRpgTemplateRuntime {
       chapter,
       chapterIndex: index,
       chapterCount: this.campaign.chapters.length,
-      // Distractors are drawn from the whole campaign, so recall checks stay
+      // Distractors are drawn from content the knowledge graph relates to this
+      // enemy, falling back to the whole campaign, so recall checks stay
       // on-topic no matter which chapter the encounter happens in.
-      quiz: (enemySpec) => buildEncounterQuiz(enemySpec, this.mapping.specs, { choices: 3 }),
+      quiz: (enemySpec) => buildEncounterQuiz(enemySpec, this.mapping.specs, {
+        choices: 3,
+        knowledge: this.mapping.knowledge,
+      }),
       onChapterClear: () => this._afterChapter(index),
       onFail: () => this._showCompletion(false),
       onBriefing: (giverSpec, done) => {
@@ -146,7 +153,23 @@ export class QuestRpgTemplateRuntime {
     }
   }
 
+  /**
+   * Capstone: on a winning run, verify the briefing against the source before
+   * the completion card. Only on a win — failing the campaign then being asked
+   * to prove recall reads as punishment, and the challenge is a reward beat.
+   */
   _showCompletion(win) {
+    const challenge = win && !this._challengeDone ? this.mapping.challenges.first() : null;
+    if (challenge) {
+      this._challengeDone = true;
+      const ctx = this.runtime.services;
+      ctx.scenes.replace(new ChallengeScene(ctx, { challenge, onDone: () => this._finish(win) }));
+      return;
+    }
+    this._finish(win);
+  }
+
+  _finish(win) {
     const ctx = this.runtime.services;
     ctx.state.setFlag('experienceComplete', true); // ends the signal session + notifies the embedding page
     const factCount = this.campaign.chapters.reduce((n, c) => n + c.objectives.length, 0);
@@ -166,6 +189,7 @@ export class QuestRpgTemplateRuntime {
     const ctx = this.runtime.services;
     ctx.state.set(JSON.parse(JSON.stringify(this._snapshot)));
     ctx.quests = new QuestEngine(ctx.state, ctx.audio);
+    this._challengeDone = false;
     this._enterChapter(0);
   }
 }

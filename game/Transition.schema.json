@@ -1,0 +1,19 @@
+{
+  "$id": "Transition.schema.json",
+  "type": "object",
+  "required": ["fromStateId", "toStateId", "eventType", "conditions"],
+  "properties": {
+    "fromStateId": { "type": "string" },
+    "toStateId": { "type": "string" },
+    "eventType": { "type": "string" },
+    "conditions": {
+      "type": "array",
+      "items": { "$ref": "Condition.schema.json" }
+    },
+    "actions": {
+      "type": "array",
+      "items": { "$ref": "Action.schema.json" }
+    },
+    "priority": { "type": "number" }
+  }
+}

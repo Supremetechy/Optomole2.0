@@ -68,6 +68,8 @@ export interface BuildCommand {
   requestedAt: string;
   template?: unknown;
   mappingManifest?: unknown;
+  /** Engine-neutral component set (see ExperienceBuildService) the worker builds from. */
+  experienceBuild?: unknown;
 }
 
 export interface ArtifactRecord {

@@ -1,0 +1,26 @@
+{
+  "$id": "Scene.schema.json",
+  "type": "object",
+  "required": ["id", "name", "systems", "entities", "entryTriggers",
+"exitTriggers"],
+  "properties": {
+    "id": { "type": "string" },
+    "name": { "type": "string" },
+    "systems": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "entities": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "entryTriggers": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "exitTriggers": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

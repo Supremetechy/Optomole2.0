@@ -67,6 +67,10 @@ export class ReflectionService {
         type: 'reflection',
         ts: nowMs,
         receivedAt: nowIso,
+        // Derived, not observed: reflection's conclusions re-enter the stream
+        // as their own sensor so the graph can calibrate them separately from
+        // the gameplay evidence they were drawn from.
+        source: 'reflection',
         experienceId: exp.experienceId,
         template: exp.templateId,
         engine: 'reflection',

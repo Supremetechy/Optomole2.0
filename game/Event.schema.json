@@ -1,0 +1,17 @@
+{
+  "$id": "Event.schema.json",
+  "type": "object",
+  "required": ["id", "type"],
+  "properties": {
+    "id": { "type": "string" },
+    "type": {
+      "type": "string",
+      "enum": ["OnInput", "OnCollision", "OnSceneEnter",
+"OnSceneExit", "OnSceneComplete", "OnTimer", "OnCustom"]
+    },
+    "payload": {},
+    "sourceEntityId": { "type": "string" },
+    "targetEntityId": { "type": "string" },
+    "timestamp": { "type": "number" }
+  }
+}

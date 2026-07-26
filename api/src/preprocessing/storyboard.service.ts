@@ -59,7 +59,6 @@ export class StoryboardService {
     const semantic = input.semanticExtraction || {};
     const maxHops = input.maxHops ?? 3;
     const maxConflictPaths = input.maxConflictPaths ?? 3;
-    const maxBranches = input.maxBranches ?? 3;
 
     const nodeById = new Map(nodes.map((node) => [node.id, node]));
     const adjacency = this.buildUndirectedAdjacency(nodes, edges);
@@ -91,7 +90,20 @@ export class StoryboardService {
 
     const primary = scoredPaths[0] ?? null;
     const secondary = scoredPaths.slice(1);
-    const woven = primary ? this.weavePaths(primary, secondary, adjacency, maxBranches) : null;
+    // Conflict and character paths are the long, interesting routes through the
+    // material (a real document produced 14- and 9-node ones while every
+    // shortest path was 2-4). They were computed, reported, and then never
+    // woven into the trajectory the scenes are built from. They are weave
+    // candidates only — `narrativePaths` still reports each path under its own
+    // kind, so folding them in here would list them twice.
+    const weaveCandidates = [...secondary, ...conflictPaths, ...characterPaths]
+      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    const woven = primary
+      ? this.weavePaths(primary, weaveCandidates, adjacency, {
+        maxBranches: input.maxBranches ?? null,
+        targetNodeCount: this.trajectoryTarget(nodes.length),
+      })
+      : null;
 
     // Phase 2 -------------------------------------------------------------
     const scenes = woven ? this.decomposeToScenes(woven, nodeById, edges, semantic) : [];
@@ -460,6 +472,19 @@ export class StoryboardService {
     ];
   }
 
+  /**
+   * How much of the graph the selected trajectory should try to cover.
+   *
+   * A share rather than a constant, so a one-paragraph source still gets a
+   * short arc and a long document gets a proportionally longer one. Bounded at
+   * both ends: below ten nodes there are not enough beats to shape, and beyond
+   * forty the experience is a slog rather than a story. At a segment size of
+   * five this yields roughly two to eight scenes.
+   */
+  private trajectoryTarget(nodeCount: number): number {
+    return Math.max(10, Math.min(40, Math.round(nodeCount * 0.3)));
+  }
+
   private bucketize<T>(items: T[], bucketCount: number): T[][] {
     const buckets: T[][] = Array.from({ length: bucketCount }, () => []);
     items.forEach((item, index) => {
@@ -469,36 +494,65 @@ export class StoryboardService {
     return buckets;
   }
 
+  /**
+   * Weave secondary paths into the primary trajectory until it covers enough of
+   * the material to tell a story.
+   *
+   * The primary path is the SHORTEST route from an anchor to the goal, so it is
+   * two to four nodes by construction. Attaching a fixed three branches left a
+   * 102-node graph with an eight-node trajectory, which segmented into a single
+   * scene: everything the extractor found was thrown away at the last step, and
+   * the narrative layer compiled to one beat.
+   *
+   * So coverage drives the weave, not a branch count. Secondary paths are taken
+   * best-scoring first and attached where they already touch the trajectory,
+   * which keeps the result a connected walk rather than a pile of fragments.
+   * `maxBranches` still caps it when a caller asks for a specific shape.
+   */
   private weavePaths(
     primary: { nodeIds: string[]; rhetoric: any[]; score: number },
     secondary: Array<{ nodeIds: string[]; rhetoric: any[]; score: number }>,
     adjacency: Map<string, Array<{ to: string; edge: GraphEdge }>>,
-    maxBranches: number,
+    options: { maxBranches: number | null; targetNodeCount: number },
   ) {
     const degree = (nodeId: string) => (adjacency.get(nodeId) || []).length;
-    const branchPoints = [...primary.nodeIds]
-      .filter((nodeId) => degree(nodeId) > 1)
-      .sort((a, b) => degree(b) - degree(a))
-      .slice(0, maxBranches);
-
     const branches: Array<{ atNodeId: string; secondaryNodeIds: string[] }> = [];
-    for (const branchPoint of branchPoints) {
-      const match = secondary.find((path) => path.nodeIds.includes(branchPoint));
-      if (match) branches.push({ atNodeId: branchPoint, secondaryNodeIds: match.nodeIds });
-      if (branches.length >= maxBranches) break;
+    const covered = new Set(primary.nodeIds);
+
+    for (const path of secondary) {
+      if (covered.size >= options.targetNodeCount) break;
+      if (options.maxBranches !== null && branches.length >= options.maxBranches) break;
+      // Only weave a path that adds something and connects to what we have.
+      const fresh = path.nodeIds.filter((nodeId) => !covered.has(nodeId));
+      if (!fresh.length) continue;
+      const attachPoint = path.nodeIds.find((nodeId) => covered.has(nodeId))
+        // No shared node: hang it off the busiest node already in the walk, so
+        // the trajectory stays traversable rather than splitting in two.
+        ?? [...covered].sort((a, b) => degree(b) - degree(a))[0];
+      if (!attachPoint) continue;
+      branches.push({ atNodeId: attachPoint, secondaryNodeIds: fresh });
+      fresh.forEach((nodeId) => covered.add(nodeId));
     }
 
     // Insert branch node sequences immediately after their attach point, deduped.
     const nodeIds: string[] = [];
-    for (const nodeId of primary.nodeIds) {
+    const emitted = new Set<string>();
+    const push = (nodeId: string) => {
+      if (emitted.has(nodeId)) return;
+      emitted.add(nodeId);
       nodeIds.push(nodeId);
-      const branch = branches.find((entry) => entry.atNodeId === nodeId);
-      if (branch) {
-        branch.secondaryNodeIds.filter((branchNodeId) => !nodeIds.includes(branchNodeId)).forEach((branchNodeId) => nodeIds.push(branchNodeId));
+    };
+    for (const nodeId of primary.nodeIds) {
+      push(nodeId);
+      for (const branch of branches.filter((entry) => entry.atNodeId === nodeId)) {
+        branch.secondaryNodeIds.forEach(push);
       }
     }
+    // Branches attached to a node that is itself inside a branch still belong in
+    // the walk; append whatever the pass above did not reach.
+    for (const branch of branches) branch.secondaryNodeIds.forEach(push);
 
-    return { nodeIds: [...new Set(nodeIds)], branches, primaryRhetoric: primary.rhetoric };
+    return { nodeIds, branches, primaryRhetoric: primary.rhetoric };
   }
 
   // ---- Phase 2: Scene Construction --------------------------------------
@@ -544,13 +598,31 @@ export class StoryboardService {
     if (index === total - 1) return 'resolution';
     if (nodes.some((node) => node.type === 'common_mistake')) return 'conflict';
     if (nodes.some((node) => node.type === 'action')) return 'challenge';
+    // A scene built around consequences is the payoff of what came before, not
+    // more browsing. Impacts only became reachable once they were given graph
+    // nodes, so until now every such scene fell through to 'exploration'.
+    if (nodes.filter((node) => node.type === 'impact').length > 1) return 'consequence';
     return 'exploration';
   }
 
+  /**
+   * Tension follows the things that raise stakes: mistakes to avoid and adverse
+   * consequences. Counting mistakes alone left every scene 'neutral' on sources
+   * that state their risks as outcomes ("this leads to duplicated scoring")
+   * rather than as warnings.
+   */
   private tensionForScene(nodes: GraphNode[]): 'rising' | 'peak' | 'falling' | 'neutral' {
     const mistakeCount = nodes.filter((node) => node.type === 'common_mistake').length;
-    if (mistakeCount > 1) return 'peak';
-    if (mistakeCount === 1) return 'rising';
+    const adverseImpacts = nodes.filter((node) =>
+      node.type === 'impact' && String(node.properties?.polarity || '').startsWith('negative')).length;
+    const positiveImpacts = nodes.filter((node) =>
+      node.type === 'impact' && String(node.properties?.polarity || '').startsWith('positive')).length;
+
+    const stakes = mistakeCount * 2 + adverseImpacts;
+    if (stakes > 2) return 'peak';
+    if (stakes > 0) return 'rising';
+    // Consequences that resolved well read as the tension coming back down.
+    if (positiveImpacts > 1) return 'falling';
     return 'neutral';
   }
 

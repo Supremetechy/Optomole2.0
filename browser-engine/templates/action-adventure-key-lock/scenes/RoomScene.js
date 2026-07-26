@@ -70,6 +70,10 @@ export class RoomScene {
       hint: 'Move with WASD / arrows or the joystick. Press E to talk & unlock.',
     });
     ctx.state.logEvent(`Entered ${this.room.title}`);
+    // What the knowledge graph says this room depends on, already cleared.
+    if (this.room.buildsOn?.length) {
+      ctx.state.logEvent(`↳ builds on ${this.room.buildsOn.join(', ')}`);
+    }
   }
 
   _buildFloor() {

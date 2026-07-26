@@ -3,6 +3,7 @@ import type { SanitizedContentItem } from '../preprocessing/content-sanitization
 import { PreprocessingPipelineService } from '../preprocessing/preprocessing-pipeline.service';
 import { classifyExperienceOutputType } from '../shared/experience-output-types';
 import { id } from '../shared/ids';
+import { documentSentences } from '../shared/text';
 import { SourcePayload } from '../shared/types';
 
 export interface IngestedContentItem {
@@ -174,12 +175,13 @@ export class IrxService {
     return this.sentences(text).slice(0, 3).join(' ').slice(0, 600);
   }
 
+  /**
+   * Structure-aware segmentation. This used to collapse newlines before
+   * splitting, so a diagram or table arrived as one "sentence" and went on to
+   * become a quest objective, then a binding, then a collectible's name.
+   */
   private sentences(text: string): string[] {
-    return String(text || '')
-      .replace(/\s+/g, ' ')
-      .split(/(?<=[.!?])\s+/)
-      .map((sentence) => sentence.trim())
-      .filter(Boolean);
+    return documentSentences(text);
   }
 
   private keywords(text: string): string[] {

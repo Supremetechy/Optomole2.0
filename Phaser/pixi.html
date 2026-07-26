@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gameplay DSL — Pixi Adapter</title>
+    <style>
+      body {
+        margin: 0;
+        background: #10142b;
+        color: #9fb0d6;
+        font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+        display: grid;
+        place-items: center;
+        align-content: center;
+        gap: 12px;
+        min-height: 100vh;
+      }
+      canvas { box-shadow: 0 0 40px rgba(0, 0, 0, 0.6); }
+      #status { max-width: 800px; text-align: center; word-break: break-all; }
+      #status.error { color: #f5a3a3; }
+      nav a { color: #6fa8ff; }
+    </style>
+  </head>
+  <body>
+    <div id="status">loading…</div>
+    <div id="stage"></div>
+    <script type="module" src="/main-pixi.ts"></script>
+    <nav>same DSL, other engine: <a href="/index.html">Phaser adapter →</a></nav>
+  </body>
+</html>
