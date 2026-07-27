@@ -105,6 +105,7 @@ export class SignalsService {
       source,
       sessionId: batch.sessionId ? String(batch.sessionId) : undefined,
       experienceId: batch.experienceId ? String(batch.experienceId) : undefined,
+      buildId: batch.buildId ? String(batch.buildId) : undefined,
       template: batch.template ? String(batch.template) : undefined,
       engine: batch.engine ? String(batch.engine) : undefined,
       ...(data && Object.keys(data).length ? { data } : {}),

@@ -21,6 +21,7 @@ const { TemplatesService } = require('../dist/templates/templates.service');
 const { ExperienceBuildService } = require('../dist/compiler/experience-build.service');
 const { SemanticModelService } = require('../dist/compiler/semantic-model.service');
 const { ExperienceDirectiveService } = require('../dist/compiler/experience-directive.service');
+const { FormSynthesisService } = require('../dist/compiler/form-synthesis.service');
 const { BehaviorCompilerService } = require('../dist/compiler/behavior-compiler.service');
 const { GameplayDslService } = require('../dist/compiler/gameplay-dsl.service');
 const { ExperienceAssetsService } = require('../dist/assets/experience-assets.service');
@@ -105,6 +106,7 @@ function buildsServiceWith(generation) {
     new ExperienceBuildService(),
     new SemanticModelService(),
     new ExperienceDirectiveService(),
+    new FormSynthesisService(),
     new BehaviorCompilerService(),
     new GameplayDslService(),
     new ExperienceAssetsService(),

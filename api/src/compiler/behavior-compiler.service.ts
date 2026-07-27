@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { DirectiveSet, ExperienceDirective } from './experience-directive.service';
+import { DirectiveSet, ExperienceDirective, LevelBeat, LevelBeatType } from './experience-directive.service';
+import { ExperienceForm } from './form-synthesis.service';
 import { SemanticModel, SemanticNode } from './semantic-model.service';
 
 /**
@@ -72,6 +73,12 @@ export interface DirectorProgram {
   tickIntervalSeconds: number;
   onTickActions: BehaviorAction[];
   scheduledActions: Array<BehaviorAction & { repeatEverySeconds: number }>;
+  /**
+   * The beat plan a pacing director walks. The runtime advances it on its own
+   * clock and spends each beat's `enemyDensity`; the geometry half of the same
+   * beats was already spent by the environment compiler.
+   */
+  beats?: LevelBeat[];
 }
 
 export interface SequenceBeat {
@@ -97,9 +104,41 @@ export interface EnvironmentPlan {
   palette: string[];
   ambientIntensity: number;
   props: Array<{ id: string; spriteId: string; kind: string; width: number; height: number }>;
-  platforms: Array<{ id: string; width: number; height: number; gapAfter: number; rise: number }>;
+  /**
+   * The run the player crosses. `beat` records which pacing beat shaped this
+   * stretch, so a level's geometry is traceable to the moment it serves rather
+   * than being one flat strip with the same gap everywhere.
+   */
+  platforms: Array<{
+    id: string;
+    width: number;
+    height: number;
+    gapAfter: number;
+    rise: number;
+    beat: LevelBeatType;
+    traversalComplexity: number;
+  }>;
   hazardNodeIds: string[];
   itemNodeIds: string[];
+  /**
+   * Environmental danger the region carries: risks the source named that are
+   * NOT already embodied here as an enemy. Capped by the traversal directive's
+   * `hazardBudget`, so a region's geometry cannot carry more danger than its
+   * layout was sized for.
+   */
+  hazards: Array<{
+    id: string;
+    nodeId: string;
+    label: string;
+    spriteId: string;
+    damage: number;
+    width: number;
+    height: number;
+    bindingId: string | null;
+    beat: LevelBeatType;
+  }>;
+  /** Collectibles this region owns, resolved from its own semantic item nodes. */
+  items: Array<{ id: string; nodeId: string; label: string; bindingId: string | null; xp: number }>;
 }
 
 /** One sprite id, declared once, resolved identically by every renderer. */
@@ -123,6 +162,8 @@ export interface EnemyPlan {
   stateMachineId: string;
   health: number;
   preferredRange: string;
+  /** Which behavior family shaped its tree: pressure, aggression or zoning. */
+  family: 'pressure' | 'aggression' | 'zoning';
   squadId: string | null;
   bindingId: string | null;
   spriteId: string;
@@ -162,7 +203,7 @@ const str = (value: unknown, fallback = '') => (typeof value === 'string' && val
 
 @Injectable()
 export class BehaviorCompilerService {
-  compile(input: { directives: DirectiveSet; model?: SemanticModel }): CompiledBehaviors {
+  compile(input: { directives: DirectiveSet; model?: SemanticModel; form?: ExperienceForm }): CompiledBehaviors {
     const directives = input.directives?.directives || [];
     const model = input.model;
 
@@ -201,7 +242,14 @@ export class BehaviorCompilerService {
       byFamily[directive.family] = (byFamily[directive.family] || 0) + 1;
       switch (directive.family) {
         case 'movement':
-          stateMachines.push(this.buildMovementStateMachine(directive));
+          // Which player machine depends on whether the form's world pulls: a
+          // jump state in a gravity-free topology is a state the player can
+          // enter and never leave, because nothing lands them again.
+          stateMachines.push(
+            input.form && input.form.topology.gravity === false
+              ? this.buildPlanarMovementStateMachine(directive)
+              : this.buildMovementStateMachine(directive),
+          );
           break;
         // Traversal has no standalone runtime shape: it parameterizes its
         // region's EnvironmentPlan (platform runs, gaps, verticality), which is
@@ -218,6 +266,7 @@ export class BehaviorCompilerService {
             stateMachineId: `${directive.targetId}_combat_sm`,
             health: num(directive.parameters.health, 80),
             preferredRange: str(directive.parameters.preferredRange, 'melee'),
+            family: this.familyOf(directive),
             squadId: squadIdFor(index),
             bindingId: str(directive.parameters.bindingId) || null,
             spriteId: 'enemy_idle',
@@ -235,7 +284,7 @@ export class BehaviorCompilerService {
           sequences.push(this.buildNarrativeSequence(directive, model));
           break;
         case 'environment':
-          environments.push(this.buildEnvironmentPlan(directive, directives));
+          environments.push(this.buildEnvironmentPlan(directive, directives, model));
           break;
         case 'asset':
           assets.push(this.buildAssetSpec(directive));
@@ -277,6 +326,42 @@ export class BehaviorCompilerService {
    * The player machine. Speed/jump come from the movement directive, so a tense
    * source produces a faster, floatier player than a contemplative one.
    */
+  /**
+   * The planar player machine, for topologies with no gravity. Two states
+   * rather than three: there is no Jumping, because there is nothing to fall
+   * back from, and `isGrounded` is meaningless where nothing is ground.
+   *
+   * Speed still comes from the movement directive, so a tense source steers
+   * faster here exactly as it runs faster in a side-scroller — the form changed
+   * what the player does, not what the content said about how it should feel.
+   */
+  buildPlanarMovementStateMachine(directive: ExperienceDirective): StateMachine {
+    const move = (id: string) => ({ id, type: 'ApplyPlanarMovementFromInput', parameters: { speedVar: 'moveSpeed' } });
+    const directions = ['MoveLeft', 'MoveRight', 'MoveUp', 'MoveDown'];
+    return {
+      id: 'player_state_machine',
+      initialState: 'Idle',
+      states: [
+        { id: 'Idle', onUpdateActions: [move('idle-move')] },
+        { id: 'Moving', onUpdateActions: [move('steer-move')] },
+      ],
+      transitions: [
+        {
+          fromStateId: 'Idle',
+          toStateId: 'Moving',
+          eventType: 'OnInput',
+          conditions: [{ id: 'steer-pressed', type: 'InputIsPressed', parameters: { actions: directions } }],
+        },
+        {
+          fromStateId: 'Moving',
+          toStateId: 'Idle',
+          eventType: 'OnInput',
+          conditions: [{ id: 'steer-released', type: 'InputReleasedAll', parameters: { actions: directions } }],
+        },
+      ],
+    };
+  }
+
   buildMovementStateMachine(directive: ExperienceDirective): StateMachine {
     const move = (id: string) => ({ id, type: 'ApplyHorizontalMovementFromInput', parameters: { speedVar: 'moveSpeed' } });
     return {
@@ -346,6 +431,10 @@ export class BehaviorCompilerService {
       jumpForce: num(directive?.parameters.jumpForce, 12),
       airControl: num(directive?.parameters.airControl, 0.7),
       coyoteTime: num(directive?.parameters.coyoteTime, 0.1),
+      // The world's pull, not just the player's. The emitter reads it back out
+      // to set game.config.gravity, because jumpForce was derived through it —
+      // if the two disagree, every authored apex height is wrong.
+      gravityScale: num(directive?.parameters.gravityScale, 1),
       // The player is a combat participant: without health, an enemy's
       // ApplyAttack would resolve to a target it can never affect.
       health: 100,
@@ -370,6 +459,7 @@ export class BehaviorCompilerService {
     const preferredRange = str(p.preferredRange, 'melee');
     const retreatThreshold = num(p.retreatThreshold, 0);
     const engageRange = preferredRange === 'melee' ? 1.5 : 6;
+    const family = this.familyOf(directive);
 
     /**
      * Where the enemy decides to swing.
@@ -389,6 +479,12 @@ export class BehaviorCompilerService {
     /** Keep closing past the commit point, so the bet is made with margin in hand. */
     const stopDistance = Number(Math.max(0.4, commitRange * 0.6).toFixed(2));
 
+    // The state an enemy engages FROM is what distinguishes the three families:
+    // pressure and aggression close the gap, zoning refuses to. Everything after
+    // the commit — telegraph, strike, cooldown — is shared, because a fair tell
+    // is fair whatever produced it.
+    const engageStateId = family === 'zoning' ? 'MaintainDistance' : 'Approaching';
+
     const states: BehaviorState[] = [
       {
         id: 'Idle',
@@ -400,24 +496,43 @@ export class BehaviorCompilerService {
           { id: 'start_reaction_timer', type: 'StartTimer', parameters: { timerId: 'reaction', duration: num(p.reactionTime, 0.6) } },
         ],
       },
-      {
-        id: 'Approaching',
-        onUpdateActions: [
-          {
-            id: 'approach_move',
-            type: 'ApplyMovementTowardTarget',
-            parameters: {
-              targetTag: 'player',
-              // effectiveAggression is broadcast by the squad coordinator; it
-              // falls back to the compiled value when the enemy is unsquadded.
-              speedVar: 'effectiveSpeed',
-              speed: Number((3 + aggression * 4).toFixed(2)),
-              preferredRange,
-              stopDistance,
+      family === 'zoning'
+        ? {
+          // Zoning holds a band: close enough to threaten, far enough that the
+          // player has to spend something to answer it.
+          id: 'MaintainDistance',
+          onUpdateActions: [
+            {
+              id: 'standoff_move',
+              type: 'ApplyStandoffMovement',
+              parameters: {
+                targetTag: 'player',
+                speedVar: 'effectiveSpeed',
+                speed: Number((3 + aggression * 4).toFixed(2)),
+                minRange: Number((engageRange * 0.6).toFixed(2)),
+                maxRange: engageRange,
+              },
             },
-          },
-        ],
-      },
+          ],
+        }
+        : {
+          id: 'Approaching',
+          onUpdateActions: [
+            {
+              id: 'approach_move',
+              type: 'ApplyMovementTowardTarget',
+              parameters: {
+                targetTag: 'player',
+                // effectiveAggression is broadcast by the squad coordinator; it
+                // falls back to the compiled value when the enemy is unsquadded.
+                speedVar: 'effectiveSpeed',
+                speed: Number((3 + aggression * 4).toFixed(2)),
+                preferredRange,
+                stopDistance,
+              },
+            },
+          ],
+        },
       {
         id: 'Holding',
         onEnterActions: [{ id: 'play_hold', type: 'PlayAnimation', parameters: { animationId: 'enemy_circle' } }],
@@ -439,19 +554,32 @@ export class BehaviorCompilerService {
       {
         id: 'Attacking',
         onEnterActions: [
-          {
-            id: 'apply_attack',
-            type: 'ApplyAttack',
-            // Reach MUST match the range this enemy commits at. A ranged
-            // attacker telegraphs from `engageRange` metres away, so leaving
-            // reach to the runtime's melee-sized default made every ranged
-            // enemy swing at empty air forever.
-            parameters: {
-              targetTag: 'player',
-              damage: Math.round(5 + aggression * 15),
-              range: Number((engageRange + 0.5).toFixed(2)),
+          family === 'zoning'
+            ? {
+              // A shot is resolved on arrival, not on release, so the distance
+              // this enemy fought to keep is distance the player can use.
+              id: 'fire_projectile',
+              type: 'FireProjectile',
+              parameters: {
+                targetTag: 'player',
+                damage: Math.round(5 + aggression * 15),
+                range: Number((engageRange + 0.5).toFixed(2)),
+                projectileSpeed: Number((8 + aggression * 6).toFixed(2)),
+              },
+            }
+            : {
+              id: 'apply_attack',
+              type: 'ApplyAttack',
+              // Reach MUST match the range this enemy commits at. A ranged
+              // attacker telegraphs from `engageRange` metres away, so leaving
+              // reach to the runtime's melee-sized default made every ranged
+              // enemy swing at empty air forever.
+              parameters: {
+                targetTag: 'player',
+                damage: Math.round(5 + aggression * 15),
+                range: Number((engageRange + 0.5).toFixed(2)),
+              },
             },
-          },
           { id: 'start_cooldown', type: 'StartTimer', parameters: { timerId: 'cooldown', duration: num(p.attackCooldown, 1.2) } },
           { id: 'release_slot', type: 'EmitEvent', parameters: { eventType: 'OnCustom', payload: { kind: 'attack_released' } } },
         ],
@@ -464,6 +592,27 @@ export class BehaviorCompilerService {
       },
     ];
 
+    // What an aggression enemy pays for its burst: a window where it is doing
+    // nothing and can be punished. Without it, "commits harder" would only ever
+    // mean "hits more often", which is not a different feel — just a worse one.
+    if (family === 'aggression') {
+      states.push({
+        id: 'Recovering',
+        onEnterActions: [
+          { id: 'play_recover', type: 'PlayAnimation', parameters: { animationId: 'enemy_idle' } },
+          {
+            id: 'start_recovery',
+            type: 'StartTimer',
+            parameters: { timerId: 'recovery', duration: Number((0.35 + aggression * 0.5).toFixed(2)) },
+          },
+        ],
+      });
+    }
+
+    // Zoning commits at the edge of its band; the closing families commit where
+    // the windup's drift still lands the hit.
+    const commitAt = family === 'zoning' ? engageRange : commitRange;
+
     const transitions: BehaviorTransition[] = [
       {
         fromStateId: 'Idle',
@@ -473,28 +622,28 @@ export class BehaviorCompilerService {
       },
       {
         fromStateId: 'Alert',
-        toStateId: 'Approaching',
+        toStateId: engageStateId,
         eventType: 'OnTimerElapsed',
         conditions: [{ id: 'reaction_done', type: 'TimerElapsed', parameters: { timerId: 'reaction' } }],
       },
       // The squad coordinator grants or denies the commit. An unsquadded enemy
       // is granted by default (see RuntimeCore: no arbiter => always granted).
       {
-        fromStateId: 'Approaching',
+        fromStateId: engageStateId,
         toStateId: 'Telegraphing',
         eventType: 'OnDistanceCheck',
         priority: 10,
         conditions: [
-          { id: 'in_range', type: 'WithinRange', parameters: { targetTag: 'player', range: commitRange } },
+          { id: 'in_range', type: 'WithinRange', parameters: { targetTag: 'player', range: commitAt } },
           { id: 'slot_granted', type: 'AttackSlotGranted', parameters: {} },
         ],
       },
       {
-        fromStateId: 'Approaching',
+        fromStateId: engageStateId,
         toStateId: 'Holding',
         eventType: 'OnDistanceCheck',
         conditions: [
-          { id: 'in_range_denied', type: 'WithinRange', parameters: { targetTag: 'player', range: commitRange } },
+          { id: 'in_range_denied', type: 'WithinRange', parameters: { targetTag: 'player', range: commitAt } },
           { id: 'slot_denied', type: 'AttackSlotDenied', parameters: {} },
         ],
       },
@@ -512,14 +661,25 @@ export class BehaviorCompilerService {
       },
       {
         fromStateId: 'Attacking',
-        toStateId: 'Approaching',
+        toStateId: family === 'aggression' ? 'Recovering' : engageStateId,
         eventType: 'OnTimerElapsed',
         conditions: [{ id: 'cooldown_done', type: 'TimerElapsed', parameters: { timerId: 'cooldown' } }],
       },
     ];
 
+    if (family === 'aggression') {
+      transitions.push({
+        fromStateId: 'Recovering',
+        toStateId: engageStateId,
+        eventType: 'OnTimerElapsed',
+        conditions: [{ id: 'recovery_done', type: 'TimerElapsed', parameters: { timerId: 'recovery' } }],
+      });
+    }
+
     if (retreatThreshold > 0) {
-      for (const from of ['Approaching', 'Telegraphing', 'Attacking', 'Holding']) {
+      const retreatFrom = [engageStateId, 'Telegraphing', 'Attacking', 'Holding'];
+      if (family === 'aggression') retreatFrom.push('Recovering');
+      for (const from of retreatFrom) {
         transitions.push({
           fromStateId: from,
           toStateId: 'Retreating',
@@ -531,6 +691,18 @@ export class BehaviorCompilerService {
     }
 
     return { id: `${directive.targetId}_combat_sm`, initialState: 'Idle', states, transitions };
+  }
+
+  /**
+   * The behavior family this directive selects. Stage 2 names it; a directive
+   * compiled before families existed is classified the same way Stage 2 would
+   * have, so an older package still gets a shaped tree rather than a default.
+   */
+  familyOf(directive: ExperienceDirective): 'pressure' | 'aggression' | 'zoning' {
+    const declared = str(directive.parameters.family);
+    if (declared === 'pressure' || declared === 'aggression' || declared === 'zoning') return declared;
+    if (str(directive.parameters.preferredRange, 'melee') === 'ranged') return 'zoning';
+    return num(directive.parameters.aggression, 0.5) >= 0.65 ? 'aggression' : 'pressure';
   }
 
   /** Starting variables for an enemy driven by a combat directive. */
@@ -565,6 +737,7 @@ export class BehaviorCompilerService {
       scope: 'region',
       targetId: directive.targetId,
       tickIntervalSeconds: 1,
+      beats: this.beatsOf(directive),
       onTickActions: [
         {
           id: 'evaluate_spawn',
@@ -591,6 +764,28 @@ export class BehaviorCompilerService {
         },
       ],
     };
+  }
+
+  /**
+   * A pacing directive's beats, validated into the shape both consumers rely
+   * on. A directive compiled before the beat layer existed still yields one
+   * usable beat, so an older package keeps producing a level rather than a
+   * region with no geometry at all.
+   */
+  beatsOf(directive: ExperienceDirective | undefined): LevelBeat[] {
+    const raw = directive?.parameters.beats;
+    const beats = (Array.isArray(raw) ? raw : [])
+      .filter((beat): beat is Record<string, any> => !!beat && typeof beat === 'object')
+      .map((beat) => ({
+        type: (['calm', 'build', 'peak', 'release'] as LevelBeatType[]).includes(beat.type)
+          ? (beat.type as LevelBeatType)
+          : ('build' as LevelBeatType),
+        duration: Math.max(1, num(beat.duration, 20)),
+        enemyDensity: num(beat.enemyDensity, 0.3),
+        traversalComplexity: num(beat.traversalComplexity, 0.5),
+      }));
+    if (beats.length) return beats;
+    return [{ type: 'build', duration: 30, enemyDensity: num(directive?.parameters.encounterDensity, 0.3), traversalComplexity: 0.5 }];
   }
 
   // ---- squad ----
@@ -711,14 +906,60 @@ export class BehaviorCompilerService {
    * directive, so the geometry a player crosses is derived from the location's
    * enclosure and the arc's pressure rather than being one flat strip everywhere.
    */
-  buildEnvironmentPlan(directive: ExperienceDirective, all: ExperienceDirective[]): EnvironmentPlan {
+  buildEnvironmentPlan(
+    directive: ExperienceDirective,
+    all: ExperienceDirective[],
+    model?: SemanticModel,
+  ): EnvironmentPlan {
     const p = directive.parameters;
     const traversal = all.find((other) => other.family === 'traversal' && other.targetId === directive.targetId);
     const platformCount = num(traversal?.parameters.platformCount, 3);
     const gapWidth = num(traversal?.parameters.gapWidth, 2);
     const verticality = num(traversal?.parameters.verticality, 0.4);
+    const hazardBudget = num(traversal?.parameters.hazardBudget, 0);
     const propKinds = Array.isArray(p.propKinds) ? (p.propKinds as string[]) : ['crate'];
     const propCount = num(p.propCount, 3);
+    const beats = this.beatsOf(all.find((other) => other.family === 'pacing' && other.targetId === directive.targetId));
+    const nodesById = new Map<string, SemanticNode>((model?.semanticNodes || []).map((node) => [node.id, node]));
+
+    const hazardNodeIds = Array.isArray(p.hazardNodeIds) ? (p.hazardNodeIds as string[]) : [];
+    const itemNodeIds = Array.isArray(p.itemNodeIds) ? (p.itemNodeIds as string[]) : [];
+
+    // Danger sits where the region is hardest — a hazard on a calm stretch is
+    // just an unfair surprise, while one on a peak is the peak.
+    const hazardBeats = beats.filter((beat) => beat.traversalComplexity >= 0.5);
+    // Stage 2 already guaranteed these are terrain, not bodies — nothing here is
+    // also walking around as an enemy. The budget caps how much of it the
+    // region's layout was sized to carry.
+    const placedHazards = hazardNodeIds
+      .slice(0, Math.max(0, hazardBudget))
+      .map((nodeId, index) => {
+        const node = nodesById.get(nodeId);
+        const severity = num(node?.attributes.severity, 0.6);
+        return {
+          id: `${directive.targetId}-hazard-${index + 1}`,
+          nodeId,
+          label: str(node?.attributes.label, `Hazard ${index + 1}`),
+          spriteId: 'hazard_zone',
+          // The severity the source implied, spent as what it costs to touch.
+          damage: Math.round(8 + severity * 22),
+          width: Number((1 + severity).toFixed(2)),
+          height: 0.6,
+          bindingId: node?.bindingId || null,
+          beat: (hazardBeats[index % Math.max(1, hazardBeats.length)] || beats[0]).type,
+        };
+      });
+
+    const placedItems = itemNodeIds.map((nodeId, index) => {
+      const node = nodesById.get(nodeId);
+      return {
+        id: `${directive.targetId}-item-${index + 1}`,
+        nodeId,
+        label: str(node?.attributes.label, `Item ${index + 1}`),
+        bindingId: node?.bindingId || null,
+        xp: num(node?.attributes.xp, 0),
+      };
+    });
 
     return {
       regionId: directive.targetId,
@@ -734,16 +975,28 @@ export class BehaviorCompilerService {
         width: 0.9,
         height: 0.9,
       })),
-      platforms: Array.from({ length: platformCount }, (_, index) => ({
-        id: `${directive.targetId}-platform-${index + 1}`,
-        width: Number((3 + (index % 2) * 1.5).toFixed(2)),
-        height: 0.4,
-        gapAfter: Number(gapWidth.toFixed(2)),
-        // Rising platforms in vertical regions; a flat run when verticality is low.
-        rise: Number((verticality * (1 + (index % 3))).toFixed(2)),
-      })),
-      hazardNodeIds: Array.isArray(p.hazardNodeIds) ? (p.hazardNodeIds as string[]) : [],
-      itemNodeIds: Array.isArray(p.itemNodeIds) ? (p.itemNodeIds as string[]) : [],
+      // The run is divided across the region's beats in order, so a player
+      // moving through it crosses calm ground, then staggered gaps, then the
+      // climb the peak asked for. Complexity buys narrower ledges, wider gaps
+      // and more rise — the three levers a side-scroller has.
+      platforms: Array.from({ length: platformCount }, (_, index) => {
+        const beat = beats[Math.min(beats.length - 1, Math.floor((index / platformCount) * beats.length))];
+        const complexity = beat.traversalComplexity;
+        return {
+          id: `${directive.targetId}-platform-${index + 1}`,
+          width: Number((4 - complexity * 2 + (index % 2) * 0.5).toFixed(2)),
+          height: 0.4,
+          gapAfter: Number((gapWidth * (0.7 + complexity * 0.6)).toFixed(2)),
+          // Rising platforms in vertical regions; a flat run when the beat is calm.
+          rise: Number((verticality * complexity * (1 + (index % 3))).toFixed(2)),
+          beat: beat.type,
+          traversalComplexity: complexity,
+        };
+      }),
+      hazardNodeIds,
+      itemNodeIds,
+      hazards: placedHazards,
+      items: placedItems,
     };
   }
 

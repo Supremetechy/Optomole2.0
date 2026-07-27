@@ -4,6 +4,7 @@ import { BehaviorCompilerService } from './behavior-compiler.service';
 import { ExperienceBuildService } from './experience-build.service';
 import { ExperienceCompilerService } from './experience-compiler.service';
 import { ExperienceDirectiveService } from './experience-directive.service';
+import { FormSynthesisService } from './form-synthesis.service';
 import { GameplayDslService } from './gameplay-dsl.service';
 import { SemanticModelService } from './semantic-model.service';
 import { EngineTarget, ExperiencePackage, SourcePayload } from '../shared/types';
@@ -31,6 +32,7 @@ export class CompilerController {
     private readonly experienceBuild: ExperienceBuildService,
     private readonly semanticModel: SemanticModelService,
     private readonly directives: ExperienceDirectiveService,
+    private readonly forms: FormSynthesisService,
     private readonly behaviors: BehaviorCompilerService,
     private readonly gameplayDsl: GameplayDslService,
   ) {}
@@ -53,8 +55,14 @@ export class CompilerController {
    *
    *   0/1  SemanticModelService       package + preprocessing -> ContentNode[] / SemanticNode[]
    *   2    ExperienceDirectiveService SemanticNode[]          -> ExperienceDirective[]
+   *   2.5  FormSynthesisService       SemanticNode[]          -> topology / verbs / resolution
    *   3    BehaviorCompilerService    ExperienceDirective[]   -> state machines / directors / sequences
    *   4    (runtime)                  the adapter blindly runs actions
+   *
+   * Stage 2.5 is what decides the KIND of game; the stages around it decide how
+   * it feels and what it is about. The emitter composes from all three, so two
+   * uploads with different shapes compile to structurally different games rather
+   * than to the same platformer with different labels.
    *
    * The ExperienceBuild projection still runs alongside, because it is what
    * carries the *content* (bindings, quests, cast) while the directive chain
@@ -82,9 +90,10 @@ export class CompilerController {
       mappingManifest: resolved.mappingManifest,
     });
     const directiveSet = this.directives.resolve({ model, package: body.package as Record<string, any> });
-    const behaviors = this.behaviors.compile({ directives: directiveSet, model });
+    const form = this.forms.synthesize({ model, package: body.package as Record<string, any> });
+    const behaviors = this.behaviors.compile({ directives: directiveSet, model, form });
 
-    const bundle = this.gameplayDsl.compile({ build, behaviors });
+    const bundle = this.gameplayDsl.compile({ build, behaviors, form });
     const bundleId = this.gameplayDsl.remember(bundle);
 
     return {
@@ -92,6 +101,7 @@ export class CompilerController {
       bundleId,
       bundleUrl: `/v1/compiler/gameplay-dsl/${bundleId}`,
       templateId: resolved.template.id,
+      form: { signature: form.signature, topology: form.topology, verbs: form.verbs, resolution: form.resolution },
       componentValidation: build.validation,
       // Every stage reports what it dropped, so an empty region or an
       // unfought hazard is visible here rather than as a missing entity.
@@ -99,11 +109,12 @@ export class CompilerController {
         semanticModel: model.coverage,
         semanticStats: model.stats,
         directives: directiveSet.coverage,
+        form: form.coverage,
         behaviors: behaviors.validation,
         bundle: bundle.validation,
       },
       ...(body.includeStages
-        ? { stages: { semanticModel: model, directives: directiveSet, behaviors } }
+        ? { stages: { semanticModel: model, directives: directiveSet, form, behaviors } }
         : {}),
       bundle,
     };
@@ -126,8 +137,9 @@ export class CompilerController {
       mappingManifest: resolved.mappingManifest,
     });
     const directiveSet = this.directives.resolve({ model, package: body.package as Record<string, any> });
-    const behaviors = this.behaviors.compile({ directives: directiveSet, model });
-    return { ok: true, semanticModel: model, directives: directiveSet, behaviors };
+    const form = this.forms.synthesize({ model, package: body.package as Record<string, any> });
+    const behaviors = this.behaviors.compile({ directives: directiveSet, model, form });
+    return { ok: true, semanticModel: model, directives: directiveSet, form, behaviors };
   }
 
   @Get('gameplay-dsl/:id')

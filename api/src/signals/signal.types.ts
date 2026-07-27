@@ -57,6 +57,16 @@ export interface IncomingSignal {
 export interface SignalBatch {
   sessionId?: string;
   experienceId?: string;
+  /**
+   * The specific build that produced these observations.
+   *
+   * experienceId is a slug of the source title, so every build compiled from the
+   * same content collides on it — two different playables become one identity in
+   * the stream. buildId is unique per compile and is the join key for anything
+   * that must not confuse them. Optional because logs written before it existed
+   * carry only experienceId; consumers fall back for those.
+   */
+  buildId?: string;
   template?: string;
   engine?: string;
   /** Which sensor produced this batch. Omitted means `runtime`. */
@@ -73,6 +83,8 @@ export interface StoredSignal {
   source: SignalSource;
   sessionId?: string;
   experienceId?: string;
+  /** The specific build these came from. Absent on logs predating the field. */
+  buildId?: string;
   template?: string;
   engine?: string;
   data?: Record<string, unknown>;

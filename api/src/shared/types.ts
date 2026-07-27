@@ -26,6 +26,12 @@ export interface ExperiencePackage {
     /** The favorite game this experience was modeled off, when the user chose one. */
     modeledAfter?: unknown;
     world?: unknown;
+    /**
+     * Explicit experience tags ("floaty", "verticality", "zoning"). Stage 2
+     * derives its numbers from the content's own semantics; a tag is an author
+     * overriding that derivation on purpose. See ExperienceDirectiveService.
+     */
+    tags?: unknown;
   };
   source?: SourcePayload;
   blueprint?: Record<string, unknown>;

@@ -1,10 +1,10 @@
 {
   "schemaVersion": "1.0.0",
   "kind": "optomole.GameplayDslBundle",
-  "experienceId": "exp_demo",
+  "experienceId": "exp-test",
   "game": {
-    "id": "exp_demo",
-    "title": "Q3 Revenue Review",
+    "id": "exp-test",
+    "title": "Operations Floor",
     "version": "1.0.0",
     "config": {
       "gravity": {
@@ -21,24 +21,36 @@
     "globalSystems": [
       "physics",
       "input",
-      "ui"
+      "ui",
+      "combat"
     ]
   },
   "scenes": [
     {
       "id": "scene-1",
-      "name": "Pipeline Ridge",
+      "name": "Server Vault",
       "regionId": "region-1",
       "systems": [
         "physics",
-        "input"
+        "input",
+        "combat"
       ],
       "entities": [
         "scene-1-player",
         "scene-1-ground",
+        "scene-1-platform-1",
+        "scene-1-platform-2",
+        "scene-1-platform-3",
+        "scene-1-platform-4",
+        "scene-1-prop-1",
+        "scene-1-prop-2",
+        "scene-1-prop-3",
+        "scene-1-prop-4",
+        "scene-1-hazard-1",
         "scene-1-item-1",
-        "scene-1-item-2",
-        "scene-1-npc-3",
+        "scene-1-npc-2",
+        "scene-1-enemy-3",
+        "scene-1-enemy-4",
         "scene-1-goal"
       ],
       "entryTriggers": [
@@ -46,21 +58,38 @@
       ],
       "exitTriggers": [
         "scene-1-goal"
+      ],
+      "palette": [
+        "#f2f2f2",
+        "#2b1216",
+        "#ff4d4d",
+        "#ffb347",
+        "#c81d25"
+      ],
+      "ambientIntensity": 0.9,
+      "directors": [
+        "region-1_squad_director",
+        "region-1_pacing_director"
       ]
     },
     {
       "id": "scene-2",
-      "name": "Churn Hollow",
+      "name": "Loading Bay",
       "regionId": "region-2",
       "systems": [
         "physics",
-        "input"
+        "input",
+        "combat"
       ],
       "entities": [
         "scene-2-player",
         "scene-2-ground",
-        "scene-2-item-1",
-        "scene-2-npc-2",
+        "scene-2-platform-1",
+        "scene-2-platform-2",
+        "scene-2-prop-1",
+        "scene-2-prop-2",
+        "scene-2-prop-3",
+        "scene-2-enemy-1",
         "scene-2-goal"
       ],
       "entryTriggers": [
@@ -68,6 +97,17 @@
       ],
       "exitTriggers": [
         "scene-2-goal"
+      ],
+      "palette": [
+        "#ffffff",
+        "#0f2f3a",
+        "#7ef7ff",
+        "#a0ffcf",
+        "#4cc38a"
+      ],
+      "ambientIntensity": 0.25,
+      "directors": [
+        "region-2_pacing_director"
       ]
     }
   ],
@@ -138,6 +178,13 @@
                 "W",
                 "UpArrow"
               ]
+            },
+            {
+              "action": "Attack",
+              "keys": [
+                "J",
+                "F"
+              ]
             }
           ]
         },
@@ -147,8 +194,13 @@
           "initialState": "Idle",
           "variables": {
             "isGrounded": true,
-            "moveSpeed": 5,
-            "jumpForce": 12
+            "moveSpeed": 6.31,
+            "jumpForce": 7.43,
+            "airControl": 0.83,
+            "coyoteTime": 0.081,
+            "gravityScale": 1,
+            "health": 100,
+            "maxHealth": 100
           }
         }
       ]
@@ -163,12 +215,12 @@
         {
           "type": "TransformComponent",
           "position": {
-            "x": 8,
+            "x": 9.5,
             "y": 0,
             "z": 0
           },
           "scale": {
-            "x": 20,
+            "x": 23,
             "y": 1,
             "z": 1
           }
@@ -193,13 +245,335 @@
       ]
     },
     {
+      "id": "scene-1-platform-1",
+      "archetype": "platform",
+      "tags": [
+        "ground",
+        "platform"
+      ],
+      "beat": "peak",
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 4,
+            "y": 2.16,
+            "z": 0
+          },
+          "scale": {
+            "x": 2.1,
+            "y": 0.4,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "platform_tile",
+          "layer": "terrain"
+        },
+        {
+          "type": "PhysicsComponent",
+          "bodyType": "static",
+          "colliderShape": {
+            "type": "box",
+            "width": 1,
+            "height": 1
+          },
+          "collisionTags": [
+            "player"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scene-1-platform-2",
+      "archetype": "platform",
+      "tags": [
+        "ground",
+        "platform"
+      ],
+      "beat": "peak",
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 9.61,
+            "y": 2.83,
+            "z": 0
+          },
+          "scale": {
+            "x": 2.6,
+            "y": 0.4,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "platform_tile",
+          "layer": "terrain"
+        },
+        {
+          "type": "PhysicsComponent",
+          "bodyType": "static",
+          "colliderShape": {
+            "type": "box",
+            "width": 1,
+            "height": 1
+          },
+          "collisionTags": [
+            "player"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scene-1-platform-3",
+      "archetype": "platform",
+      "tags": [
+        "ground",
+        "platform"
+      ],
+      "beat": "release",
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 15.06,
+            "y": 1.96,
+            "z": 0
+          },
+          "scale": {
+            "x": 3.56,
+            "y": 0.4,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "platform_tile",
+          "layer": "terrain"
+        },
+        {
+          "type": "PhysicsComponent",
+          "bodyType": "static",
+          "colliderShape": {
+            "type": "box",
+            "width": 1,
+            "height": 1
+          },
+          "collisionTags": [
+            "player"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scene-1-platform-4",
+      "archetype": "platform",
+      "tags": [
+        "ground",
+        "platform"
+      ],
+      "beat": "calm",
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 22,
+            "y": 1.7,
+            "z": 0
+          },
+          "scale": {
+            "x": 3.94,
+            "y": 0.4,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "platform_tile",
+          "layer": "terrain"
+        },
+        {
+          "type": "PhysicsComponent",
+          "bodyType": "static",
+          "colliderShape": {
+            "type": "box",
+            "width": 1,
+            "height": 1
+          },
+          "collisionTags": [
+            "player"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scene-1-prop-1",
+      "archetype": "prop",
+      "tags": [
+        "prop",
+        "scenery"
+      ],
+      "label": "console",
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 5.5,
+            "y": 1,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "prop",
+          "layer": "background"
+        }
+      ]
+    },
+    {
+      "id": "scene-1-prop-2",
+      "archetype": "prop",
+      "tags": [
+        "prop",
+        "scenery"
+      ],
+      "label": "crate",
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 8.5,
+            "y": 1,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "prop",
+          "layer": "background"
+        }
+      ]
+    },
+    {
+      "id": "scene-1-prop-3",
+      "archetype": "prop",
+      "tags": [
+        "prop",
+        "scenery"
+      ],
+      "label": "door",
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 11.5,
+            "y": 1,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "prop",
+          "layer": "background"
+        }
+      ]
+    },
+    {
+      "id": "scene-1-prop-4",
+      "archetype": "prop",
+      "tags": [
+        "prop",
+        "scenery"
+      ],
+      "label": "console",
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 14.5,
+            "y": 1,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "prop",
+          "layer": "background"
+        }
+      ]
+    },
+    {
+      "id": "scene-1-hazard-1",
+      "archetype": "hazard",
+      "tags": [
+        "hazard"
+      ],
+      "bindingId": "bind-4",
+      "label": "Stale credentials",
+      "beat": "peak",
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 5.5,
+            "y": 0.8,
+            "z": 0
+          },
+          "scale": {
+            "x": 1.7,
+            "y": 0.6,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "hazard_zone",
+          "layer": "foreground"
+        },
+        {
+          "type": "PhysicsComponent",
+          "bodyType": "static",
+          "colliderShape": {
+            "type": "box",
+            "width": 1,
+            "height": 1
+          },
+          "collisionTags": [
+            "player"
+          ]
+        }
+      ]
+    },
+    {
       "id": "scene-1-item-1",
       "archetype": "collectible",
       "tags": [
         "collectible"
       ],
-      "bindingId": "b1",
-      "label": "Renewal Ledger",
+      "bindingId": "bind-1",
+      "label": "Access Token",
       "components": [
         {
           "type": "TransformComponent",
@@ -234,59 +608,18 @@
       ]
     },
     {
-      "id": "scene-1-item-2",
-      "archetype": "collectible",
+      "id": "scene-1-npc-2",
+      "archetype": "npc",
       "tags": [
-        "collectible"
+        "npc"
       ],
-      "bindingId": "b3",
-      "label": "Win/Loss Deck",
+      "bindingId": "bind-2",
+      "label": "Dana Reyes",
       "components": [
         {
           "type": "TransformComponent",
           "position": {
             "x": 7,
-            "y": 1.5,
-            "z": 0
-          },
-          "scale": {
-            "x": 1,
-            "y": 1,
-            "z": 1
-          }
-        },
-        {
-          "type": "RenderComponent",
-          "spriteId": "collectible",
-          "layer": "foreground"
-        },
-        {
-          "type": "PhysicsComponent",
-          "bodyType": "static",
-          "colliderShape": {
-            "type": "box",
-            "width": 0.6,
-            "height": 0.6
-          },
-          "collisionTags": [
-            "player"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "scene-1-npc-3",
-      "archetype": "npc",
-      "tags": [
-        "npc"
-      ],
-      "bindingId": "c1",
-      "label": "Ops Lead",
-      "components": [
-        {
-          "type": "TransformComponent",
-          "position": {
-            "x": 10,
             "y": 1.9,
             "z": 0
           },
@@ -316,6 +649,128 @@
       ]
     },
     {
+      "id": "scene-1-enemy-3",
+      "archetype": "boss",
+      "tags": [
+        "enemy",
+        "hostile",
+        "squad:region-1_squad_director"
+      ],
+      "bindingId": "bind-6",
+      "label": "Credential Leak",
+      "family": "aggression",
+      "squadId": "region-1_squad_director",
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 10,
+            "y": 1.85,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "enemy_idle",
+          "layer": "characters"
+        },
+        {
+          "type": "PhysicsComponent",
+          "bodyType": "dynamic",
+          "mass": 1,
+          "colliderShape": {
+            "type": "box",
+            "width": 0.9,
+            "height": 1.7
+          },
+          "collisionTags": [
+            "ground",
+            "player"
+          ]
+        },
+        {
+          "type": "StateComponent",
+          "stateMachineId": "enemy-1_combat_sm",
+          "initialState": "Idle",
+          "variables": {
+            "aggression": 0.9,
+            "effectiveAggression": 0.9,
+            "baseSpeed": 6.6,
+            "effectiveSpeed": 6.6,
+            "health": 150,
+            "maxHealth": 150,
+            "attackGranted": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "scene-1-enemy-4",
+      "archetype": "hazard",
+      "tags": [
+        "enemy",
+        "hostile",
+        "squad:region-1_squad_director"
+      ],
+      "bindingId": "bind-5",
+      "label": "Silent failover",
+      "family": "pressure",
+      "squadId": "region-1_squad_director",
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 13,
+            "y": 1.85,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "enemy_idle",
+          "layer": "characters"
+        },
+        {
+          "type": "PhysicsComponent",
+          "bodyType": "dynamic",
+          "mass": 1,
+          "colliderShape": {
+            "type": "box",
+            "width": 0.9,
+            "height": 1.7
+          },
+          "collisionTags": [
+            "ground",
+            "player"
+          ]
+        },
+        {
+          "type": "StateComponent",
+          "stateMachineId": "enemy-3_combat_sm",
+          "initialState": "Idle",
+          "variables": {
+            "aggression": 0.65,
+            "effectiveAggression": 0.65,
+            "baseSpeed": 5.6,
+            "effectiveSpeed": 5.6,
+            "health": 82,
+            "maxHealth": 82,
+            "attackGranted": false
+          }
+        }
+      ]
+    },
+    {
       "id": "scene-1-goal",
       "archetype": "goal",
       "tags": [
@@ -325,7 +780,7 @@
         {
           "type": "TransformComponent",
           "position": {
-            "x": 16,
+            "x": 19,
             "y": 2,
             "z": 0
           },
@@ -420,6 +875,13 @@
                 "W",
                 "UpArrow"
               ]
+            },
+            {
+              "action": "Attack",
+              "keys": [
+                "J",
+                "F"
+              ]
             }
           ]
         },
@@ -429,8 +891,13 @@
           "initialState": "Idle",
           "variables": {
             "isGrounded": true,
-            "moveSpeed": 5,
-            "jumpForce": 12
+            "moveSpeed": 6.31,
+            "jumpForce": 7.43,
+            "airControl": 0.83,
+            "coyoteTime": 0.081,
+            "gravityScale": 1,
+            "health": 100,
+            "maxHealth": 100
           }
         }
       ]
@@ -445,12 +912,12 @@
         {
           "type": "TransformComponent",
           "position": {
-            "x": 6.5,
+            "x": 5,
             "y": 0,
             "z": 0
           },
           "scale": {
-            "x": 17,
+            "x": 14,
             "y": 1,
             "z": 1
           }
@@ -475,39 +942,39 @@
       ]
     },
     {
-      "id": "scene-2-item-1",
-      "archetype": "collectible",
+      "id": "scene-2-platform-1",
+      "archetype": "platform",
       "tags": [
-        "collectible"
+        "ground",
+        "platform"
       ],
-      "bindingId": "b2",
-      "label": "Discount Memo",
+      "beat": "build",
       "components": [
         {
           "type": "TransformComponent",
           "position": {
             "x": 4,
-            "y": 1.5,
+            "y": 1.66,
             "z": 0
           },
           "scale": {
-            "x": 1,
-            "y": 1,
+            "x": 3.08,
+            "y": 0.4,
             "z": 1
           }
         },
         {
           "type": "RenderComponent",
-          "spriteId": "collectible",
-          "layer": "foreground"
+          "spriteId": "platform_tile",
+          "layer": "terrain"
         },
         {
           "type": "PhysicsComponent",
           "bodyType": "static",
           "colliderShape": {
             "type": "box",
-            "width": 0.6,
-            "height": 0.6
+            "width": 1,
+            "height": 1
           },
           "collisionTags": [
             "player"
@@ -516,19 +983,60 @@
       ]
     },
     {
-      "id": "scene-2-npc-2",
-      "archetype": "npc",
+      "id": "scene-2-platform-2",
+      "archetype": "platform",
       "tags": [
-        "npc"
+        "ground",
+        "platform"
       ],
-      "bindingId": "c2",
-      "label": "Field Rep",
+      "beat": "build",
       "components": [
         {
           "type": "TransformComponent",
           "position": {
-            "x": 7,
-            "y": 1.9,
+            "x": 10.67,
+            "y": 1.82,
+            "z": 0
+          },
+          "scale": {
+            "x": 3.58,
+            "y": 0.4,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "platform_tile",
+          "layer": "terrain"
+        },
+        {
+          "type": "PhysicsComponent",
+          "bodyType": "static",
+          "colliderShape": {
+            "type": "box",
+            "width": 1,
+            "height": 1
+          },
+          "collisionTags": [
+            "player"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scene-2-prop-1",
+      "archetype": "prop",
+      "tags": [
+        "prop",
+        "scenery"
+      ],
+      "label": "pillar",
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 5.5,
+            "y": 1,
             "z": 0
           },
           "scale": {
@@ -539,20 +1047,126 @@
         },
         {
           "type": "RenderComponent",
-          "spriteId": "npc",
+          "spriteId": "prop",
+          "layer": "background"
+        }
+      ]
+    },
+    {
+      "id": "scene-2-prop-2",
+      "archetype": "prop",
+      "tags": [
+        "prop",
+        "scenery"
+      ],
+      "label": "crate",
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 8.5,
+            "y": 1,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "prop",
+          "layer": "background"
+        }
+      ]
+    },
+    {
+      "id": "scene-2-prop-3",
+      "archetype": "prop",
+      "tags": [
+        "prop",
+        "scenery"
+      ],
+      "label": "beacon",
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 11.5,
+            "y": 1,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "prop",
+          "layer": "background"
+        }
+      ]
+    },
+    {
+      "id": "scene-2-enemy-1",
+      "archetype": "hazard",
+      "tags": [
+        "enemy",
+        "hostile"
+      ],
+      "bindingId": "bind-3",
+      "label": "Unrotated keys",
+      "family": "zoning",
+      "squadId": null,
+      "components": [
+        {
+          "type": "TransformComponent",
+          "position": {
+            "x": 4,
+            "y": 1.85,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        {
+          "type": "RenderComponent",
+          "spriteId": "enemy_idle",
           "layer": "characters"
         },
         {
           "type": "PhysicsComponent",
-          "bodyType": "static",
+          "bodyType": "dynamic",
+          "mass": 1,
           "colliderShape": {
             "type": "box",
-            "width": 0.8,
-            "height": 1.8
+            "width": 0.9,
+            "height": 1.7
           },
           "collisionTags": [
+            "ground",
             "player"
           ]
+        },
+        {
+          "type": "StateComponent",
+          "stateMachineId": "enemy-2_combat_sm",
+          "initialState": "Idle",
+          "variables": {
+            "aggression": 0.7,
+            "effectiveAggression": 0.7,
+            "baseSpeed": 5.8,
+            "effectiveSpeed": 5.8,
+            "health": 88,
+            "maxHealth": 88,
+            "attackGranted": false
+          }
         }
       ]
     },
@@ -566,7 +1180,7 @@
         {
           "type": "TransformComponent",
           "position": {
-            "x": 13,
+            "x": 10,
             "y": 2,
             "z": 0
           },
@@ -770,12 +1384,838 @@
           ]
         }
       ]
+    },
+    {
+      "id": "enemy-1_combat_sm",
+      "initialState": "Idle",
+      "states": [
+        {
+          "id": "Idle",
+          "onEnterActions": [
+            {
+              "id": "play_idle_combat",
+              "type": "PlayAnimation",
+              "parameters": {
+                "animationId": "enemy_idle"
+              }
+            }
+          ]
+        },
+        {
+          "id": "Alert",
+          "onEnterActions": [
+            {
+              "id": "start_reaction_timer",
+              "type": "StartTimer",
+              "parameters": {
+                "timerId": "reaction",
+                "duration": 0.52
+              }
+            }
+          ]
+        },
+        {
+          "id": "Approaching",
+          "onUpdateActions": [
+            {
+              "id": "approach_move",
+              "type": "ApplyMovementTowardTarget",
+              "parameters": {
+                "targetTag": "player",
+                "speedVar": "effectiveSpeed",
+                "speed": 6.6,
+                "preferredRange": "mixed",
+                "stopDistance": 1.78
+              }
+            }
+          ]
+        },
+        {
+          "id": "Holding",
+          "onEnterActions": [
+            {
+              "id": "play_hold",
+              "type": "PlayAnimation",
+              "parameters": {
+                "animationId": "enemy_circle"
+              }
+            }
+          ],
+          "onUpdateActions": [
+            {
+              "id": "circle_move",
+              "type": "ApplyOrbitMovement",
+              "parameters": {
+                "targetTag": "player",
+                "radius": 8.5,
+                "speed": 1.9
+              }
+            }
+          ]
+        },
+        {
+          "id": "Telegraphing",
+          "onEnterActions": [
+            {
+              "id": "play_windup",
+              "type": "PlayAnimation",
+              "parameters": {
+                "animationId": "enemy_attack_windup"
+              }
+            },
+            {
+              "id": "start_windup_timer",
+              "type": "StartTimer",
+              "parameters": {
+                "timerId": "windup",
+                "duration": 0.48
+              }
+            }
+          ]
+        },
+        {
+          "id": "Attacking",
+          "onEnterActions": [
+            {
+              "id": "apply_attack",
+              "type": "ApplyAttack",
+              "parameters": {
+                "targetTag": "player",
+                "damage": 19,
+                "range": 6.5
+              }
+            },
+            {
+              "id": "start_cooldown",
+              "type": "StartTimer",
+              "parameters": {
+                "timerId": "cooldown",
+                "duration": 1.06
+              }
+            },
+            {
+              "id": "release_slot",
+              "type": "EmitEvent",
+              "parameters": {
+                "eventType": "OnCustom",
+                "payload": {
+                  "kind": "attack_released"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "Retreating",
+          "onUpdateActions": [
+            {
+              "id": "retreat_move",
+              "type": "ApplyMovementAwayFromTarget",
+              "parameters": {
+                "targetTag": "player",
+                "speed": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "Recovering",
+          "onEnterActions": [
+            {
+              "id": "play_recover",
+              "type": "PlayAnimation",
+              "parameters": {
+                "animationId": "enemy_idle"
+              }
+            },
+            {
+              "id": "start_recovery",
+              "type": "StartTimer",
+              "parameters": {
+                "timerId": "recovery",
+                "duration": 0.8
+              }
+            }
+          ]
+        }
+      ],
+      "transitions": [
+        {
+          "fromStateId": "Idle",
+          "toStateId": "Alert",
+          "eventType": "OnPerception",
+          "conditions": [
+            {
+              "id": "player_seen",
+              "type": "TargetInSightRange",
+              "parameters": {
+                "targetTag": "player",
+                "range": 24
+              }
+            }
+          ]
+        },
+        {
+          "fromStateId": "Alert",
+          "toStateId": "Approaching",
+          "eventType": "OnTimerElapsed",
+          "conditions": [
+            {
+              "id": "reaction_done",
+              "type": "TimerElapsed",
+              "parameters": {
+                "timerId": "reaction"
+              }
+            }
+          ]
+        },
+        {
+          "fromStateId": "Approaching",
+          "toStateId": "Telegraphing",
+          "eventType": "OnDistanceCheck",
+          "priority": 10,
+          "conditions": [
+            {
+              "id": "in_range",
+              "type": "WithinRange",
+              "parameters": {
+                "targetTag": "player",
+                "range": 2.97
+              }
+            },
+            {
+              "id": "slot_granted",
+              "type": "AttackSlotGranted",
+              "parameters": {}
+            }
+          ]
+        },
+        {
+          "fromStateId": "Approaching",
+          "toStateId": "Holding",
+          "eventType": "OnDistanceCheck",
+          "conditions": [
+            {
+              "id": "in_range_denied",
+              "type": "WithinRange",
+              "parameters": {
+                "targetTag": "player",
+                "range": 2.97
+              }
+            },
+            {
+              "id": "slot_denied",
+              "type": "AttackSlotDenied",
+              "parameters": {}
+            }
+          ]
+        },
+        {
+          "fromStateId": "Holding",
+          "toStateId": "Telegraphing",
+          "eventType": "OnCustom",
+          "conditions": [
+            {
+              "id": "slot_granted_hold",
+              "type": "AttackSlotGranted",
+              "parameters": {}
+            }
+          ]
+        },
+        {
+          "fromStateId": "Telegraphing",
+          "toStateId": "Attacking",
+          "eventType": "OnTimerElapsed",
+          "conditions": [
+            {
+              "id": "windup_done",
+              "type": "TimerElapsed",
+              "parameters": {
+                "timerId": "windup"
+              }
+            }
+          ]
+        },
+        {
+          "fromStateId": "Attacking",
+          "toStateId": "Recovering",
+          "eventType": "OnTimerElapsed",
+          "conditions": [
+            {
+              "id": "cooldown_done",
+              "type": "TimerElapsed",
+              "parameters": {
+                "timerId": "cooldown"
+              }
+            }
+          ]
+        },
+        {
+          "fromStateId": "Recovering",
+          "toStateId": "Approaching",
+          "eventType": "OnTimerElapsed",
+          "conditions": [
+            {
+              "id": "recovery_done",
+              "type": "TimerElapsed",
+              "parameters": {
+                "timerId": "recovery"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "enemy-2_combat_sm",
+      "initialState": "Idle",
+      "states": [
+        {
+          "id": "Idle",
+          "onEnterActions": [
+            {
+              "id": "play_idle_combat",
+              "type": "PlayAnimation",
+              "parameters": {
+                "animationId": "enemy_idle"
+              }
+            }
+          ]
+        },
+        {
+          "id": "Alert",
+          "onEnterActions": [
+            {
+              "id": "start_reaction_timer",
+              "type": "StartTimer",
+              "parameters": {
+                "timerId": "reaction",
+                "duration": 0.7
+              }
+            }
+          ]
+        },
+        {
+          "id": "MaintainDistance",
+          "onUpdateActions": [
+            {
+              "id": "standoff_move",
+              "type": "ApplyStandoffMovement",
+              "parameters": {
+                "targetTag": "player",
+                "speedVar": "effectiveSpeed",
+                "speed": 5.8,
+                "minRange": 3.6,
+                "maxRange": 6
+              }
+            }
+          ]
+        },
+        {
+          "id": "Holding",
+          "onEnterActions": [
+            {
+              "id": "play_hold",
+              "type": "PlayAnimation",
+              "parameters": {
+                "animationId": "enemy_circle"
+              }
+            }
+          ],
+          "onUpdateActions": [
+            {
+              "id": "circle_move",
+              "type": "ApplyOrbitMovement",
+              "parameters": {
+                "targetTag": "player",
+                "radius": 8.5,
+                "speed": 1.7
+              }
+            }
+          ]
+        },
+        {
+          "id": "Telegraphing",
+          "onEnterActions": [
+            {
+              "id": "play_windup",
+              "type": "PlayAnimation",
+              "parameters": {
+                "animationId": "enemy_attack_windup"
+              }
+            },
+            {
+              "id": "start_windup_timer",
+              "type": "StartTimer",
+              "parameters": {
+                "timerId": "windup",
+                "duration": 0.66
+              }
+            }
+          ]
+        },
+        {
+          "id": "Attacking",
+          "onEnterActions": [
+            {
+              "id": "fire_projectile",
+              "type": "FireProjectile",
+              "parameters": {
+                "targetTag": "player",
+                "damage": 16,
+                "range": 6.5,
+                "projectileSpeed": 12.2
+              }
+            },
+            {
+              "id": "start_cooldown",
+              "type": "StartTimer",
+              "parameters": {
+                "timerId": "cooldown",
+                "duration": 1.4
+              }
+            },
+            {
+              "id": "release_slot",
+              "type": "EmitEvent",
+              "parameters": {
+                "eventType": "OnCustom",
+                "payload": {
+                  "kind": "attack_released"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "Retreating",
+          "onUpdateActions": [
+            {
+              "id": "retreat_move",
+              "type": "ApplyMovementAwayFromTarget",
+              "parameters": {
+                "targetTag": "player",
+                "speed": 5
+              }
+            }
+          ]
+        }
+      ],
+      "transitions": [
+        {
+          "fromStateId": "Idle",
+          "toStateId": "Alert",
+          "eventType": "OnPerception",
+          "conditions": [
+            {
+              "id": "player_seen",
+              "type": "TargetInSightRange",
+              "parameters": {
+                "targetTag": "player",
+                "range": 24
+              }
+            }
+          ]
+        },
+        {
+          "fromStateId": "Alert",
+          "toStateId": "MaintainDistance",
+          "eventType": "OnTimerElapsed",
+          "conditions": [
+            {
+              "id": "reaction_done",
+              "type": "TimerElapsed",
+              "parameters": {
+                "timerId": "reaction"
+              }
+            }
+          ]
+        },
+        {
+          "fromStateId": "MaintainDistance",
+          "toStateId": "Telegraphing",
+          "eventType": "OnDistanceCheck",
+          "priority": 10,
+          "conditions": [
+            {
+              "id": "in_range",
+              "type": "WithinRange",
+              "parameters": {
+                "targetTag": "player",
+                "range": 6
+              }
+            },
+            {
+              "id": "slot_granted",
+              "type": "AttackSlotGranted",
+              "parameters": {}
+            }
+          ]
+        },
+        {
+          "fromStateId": "MaintainDistance",
+          "toStateId": "Holding",
+          "eventType": "OnDistanceCheck",
+          "conditions": [
+            {
+              "id": "in_range_denied",
+              "type": "WithinRange",
+              "parameters": {
+                "targetTag": "player",
+                "range": 6
+              }
+            },
+            {
+              "id": "slot_denied",
+              "type": "AttackSlotDenied",
+              "parameters": {}
+            }
+          ]
+        },
+        {
+          "fromStateId": "Holding",
+          "toStateId": "Telegraphing",
+          "eventType": "OnCustom",
+          "conditions": [
+            {
+              "id": "slot_granted_hold",
+              "type": "AttackSlotGranted",
+              "parameters": {}
+            }
+          ]
+        },
+        {
+          "fromStateId": "Telegraphing",
+          "toStateId": "Attacking",
+          "eventType": "OnTimerElapsed",
+          "conditions": [
+            {
+              "id": "windup_done",
+              "type": "TimerElapsed",
+              "parameters": {
+                "timerId": "windup"
+              }
+            }
+          ]
+        },
+        {
+          "fromStateId": "Attacking",
+          "toStateId": "MaintainDistance",
+          "eventType": "OnTimerElapsed",
+          "conditions": [
+            {
+              "id": "cooldown_done",
+              "type": "TimerElapsed",
+              "parameters": {
+                "timerId": "cooldown"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "enemy-3_combat_sm",
+      "initialState": "Idle",
+      "states": [
+        {
+          "id": "Idle",
+          "onEnterActions": [
+            {
+              "id": "play_idle_combat",
+              "type": "PlayAnimation",
+              "parameters": {
+                "animationId": "enemy_idle"
+              }
+            }
+          ]
+        },
+        {
+          "id": "Alert",
+          "onEnterActions": [
+            {
+              "id": "start_reaction_timer",
+              "type": "StartTimer",
+              "parameters": {
+                "timerId": "reaction",
+                "duration": 0.75
+              }
+            }
+          ]
+        },
+        {
+          "id": "Approaching",
+          "onUpdateActions": [
+            {
+              "id": "approach_move",
+              "type": "ApplyMovementTowardTarget",
+              "parameters": {
+                "targetTag": "player",
+                "speedVar": "effectiveSpeed",
+                "speed": 5.6,
+                "preferredRange": "melee",
+                "stopDistance": 0.4
+              }
+            }
+          ]
+        },
+        {
+          "id": "Holding",
+          "onEnterActions": [
+            {
+              "id": "play_hold",
+              "type": "PlayAnimation",
+              "parameters": {
+                "animationId": "enemy_circle"
+              }
+            }
+          ],
+          "onUpdateActions": [
+            {
+              "id": "circle_move",
+              "type": "ApplyOrbitMovement",
+              "parameters": {
+                "targetTag": "player",
+                "radius": 4,
+                "speed": 1.65
+              }
+            }
+          ]
+        },
+        {
+          "id": "Telegraphing",
+          "onEnterActions": [
+            {
+              "id": "play_windup",
+              "type": "PlayAnimation",
+              "parameters": {
+                "animationId": "enemy_attack_windup"
+              }
+            },
+            {
+              "id": "start_windup_timer",
+              "type": "StartTimer",
+              "parameters": {
+                "timerId": "windup",
+                "duration": 0.69
+              }
+            }
+          ]
+        },
+        {
+          "id": "Attacking",
+          "onEnterActions": [
+            {
+              "id": "apply_attack",
+              "type": "ApplyAttack",
+              "parameters": {
+                "targetTag": "player",
+                "damage": 15,
+                "range": 2
+              }
+            },
+            {
+              "id": "start_cooldown",
+              "type": "StartTimer",
+              "parameters": {
+                "timerId": "cooldown",
+                "duration": 1.45
+              }
+            },
+            {
+              "id": "release_slot",
+              "type": "EmitEvent",
+              "parameters": {
+                "eventType": "OnCustom",
+                "payload": {
+                  "kind": "attack_released"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "Retreating",
+          "onUpdateActions": [
+            {
+              "id": "retreat_move",
+              "type": "ApplyMovementAwayFromTarget",
+              "parameters": {
+                "targetTag": "player",
+                "speed": 5
+              }
+            }
+          ]
+        }
+      ],
+      "transitions": [
+        {
+          "fromStateId": "Idle",
+          "toStateId": "Alert",
+          "eventType": "OnPerception",
+          "conditions": [
+            {
+              "id": "player_seen",
+              "type": "TargetInSightRange",
+              "parameters": {
+                "targetTag": "player",
+                "range": 6
+              }
+            }
+          ]
+        },
+        {
+          "fromStateId": "Alert",
+          "toStateId": "Approaching",
+          "eventType": "OnTimerElapsed",
+          "conditions": [
+            {
+              "id": "reaction_done",
+              "type": "TimerElapsed",
+              "parameters": {
+                "timerId": "reaction"
+              }
+            }
+          ]
+        },
+        {
+          "fromStateId": "Approaching",
+          "toStateId": "Telegraphing",
+          "eventType": "OnDistanceCheck",
+          "priority": 10,
+          "conditions": [
+            {
+              "id": "in_range",
+              "type": "WithinRange",
+              "parameters": {
+                "targetTag": "player",
+                "range": 0.6
+              }
+            },
+            {
+              "id": "slot_granted",
+              "type": "AttackSlotGranted",
+              "parameters": {}
+            }
+          ]
+        },
+        {
+          "fromStateId": "Approaching",
+          "toStateId": "Holding",
+          "eventType": "OnDistanceCheck",
+          "conditions": [
+            {
+              "id": "in_range_denied",
+              "type": "WithinRange",
+              "parameters": {
+                "targetTag": "player",
+                "range": 0.6
+              }
+            },
+            {
+              "id": "slot_denied",
+              "type": "AttackSlotDenied",
+              "parameters": {}
+            }
+          ]
+        },
+        {
+          "fromStateId": "Holding",
+          "toStateId": "Telegraphing",
+          "eventType": "OnCustom",
+          "conditions": [
+            {
+              "id": "slot_granted_hold",
+              "type": "AttackSlotGranted",
+              "parameters": {}
+            }
+          ]
+        },
+        {
+          "fromStateId": "Telegraphing",
+          "toStateId": "Attacking",
+          "eventType": "OnTimerElapsed",
+          "conditions": [
+            {
+              "id": "windup_done",
+              "type": "TimerElapsed",
+              "parameters": {
+                "timerId": "windup"
+              }
+            }
+          ]
+        },
+        {
+          "fromStateId": "Attacking",
+          "toStateId": "Approaching",
+          "eventType": "OnTimerElapsed",
+          "conditions": [
+            {
+              "id": "cooldown_done",
+              "type": "TimerElapsed",
+              "parameters": {
+                "timerId": "cooldown"
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "triggers": [
     {
+      "id": "scene-1-hazard-1-contact",
+      "scope": "scene",
+      "sceneId": "scene-1",
+      "eventType": "OnCollision",
+      "conditions": [
+        {
+          "id": "scene-1-hazard-1-touch",
+          "type": "CollisionPair",
+          "parameters": {
+            "entityAId": "scene-1-player",
+            "entityBId": "scene-1-hazard-1"
+          }
+        }
+      ],
+      "actions": [
+        {
+          "id": "scene-1-hazard-1-damage",
+          "type": "ApplyAttack",
+          "parameters": {
+            "entityId": "scene-1-hazard-1",
+            "targetTag": "player",
+            "damage": 23,
+            "range": 2.5,
+            "cooldown": 1
+          }
+        },
+        {
+          "id": "scene-1-hazard-1-signal",
+          "type": "EmitEvent",
+          "parameters": {
+            "eventType": "OnCustom",
+            "payload": {
+              "kind": "hazard_contact",
+              "entityId": "scene-1-hazard-1",
+              "bindingId": "bind-4",
+              "label": "Stale credentials"
+            }
+          }
+        },
+        {
+          "id": "scene-1-hazard-1-message",
+          "type": "ShowMessage",
+          "parameters": {
+            "text": "Stale credentials!"
+          }
+        }
+      ]
+    },
+    {
       "id": "scene-1-item-1-collect",
       "scope": "scene",
+      "sceneId": "scene-1",
       "eventType": "OnCollision",
       "conditions": [
         {
@@ -803,8 +2243,8 @@
             "payload": {
               "kind": "collected",
               "entityId": "scene-1-item-1",
-              "bindingId": "b1",
-              "label": "Renewal Ledger"
+              "bindingId": "bind-1",
+              "label": "Access Token"
             }
           }
         },
@@ -812,87 +2252,168 @@
           "id": "scene-1-item-1-message",
           "type": "ShowMessage",
           "parameters": {
-            "text": "Collected: Renewal Ledger"
+            "text": "Collected: Access Token"
           }
         }
       ]
     },
     {
-      "id": "scene-1-item-2-collect",
+      "id": "scene-1-npc-2-dialogue",
       "scope": "scene",
+      "sceneId": "scene-1",
       "eventType": "OnCollision",
       "conditions": [
         {
-          "id": "scene-1-item-2-touch",
+          "id": "scene-1-npc-2-touch",
           "type": "CollisionPair",
           "parameters": {
             "entityAId": "scene-1-player",
-            "entityBId": "scene-1-item-2"
+            "entityBId": "scene-1-npc-2"
           }
         }
       ],
       "actions": [
         {
-          "id": "scene-1-item-2-despawn",
-          "type": "DespawnEntity",
-          "parameters": {
-            "entityId": "scene-1-item-2"
-          }
-        },
-        {
-          "id": "scene-1-item-2-signal",
-          "type": "EmitEvent",
-          "parameters": {
-            "eventType": "OnCustom",
-            "payload": {
-              "kind": "collected",
-              "entityId": "scene-1-item-2",
-              "bindingId": "b3",
-              "label": "Win/Loss Deck"
-            }
-          }
-        },
-        {
-          "id": "scene-1-item-2-message",
+          "id": "scene-1-npc-2-say",
           "type": "ShowMessage",
           "parameters": {
-            "text": "Collected: Win/Loss Deck"
-          }
-        }
-      ]
-    },
-    {
-      "id": "scene-1-npc-3-dialogue",
-      "scope": "scene",
-      "eventType": "OnCollision",
-      "conditions": [
-        {
-          "id": "scene-1-npc-3-touch",
-          "type": "CollisionPair",
-          "parameters": {
-            "entityAId": "scene-1-player",
-            "entityBId": "scene-1-npc-3"
-          }
-        }
-      ],
-      "actions": [
-        {
-          "id": "scene-1-npc-3-say",
-          "type": "ShowMessage",
-          "parameters": {
-            "text": "Ops Lead: Margins slipped in month two."
+            "text": "Dana Reyes: Start with the logs."
           }
         },
         {
-          "id": "scene-1-npc-3-signal",
+          "id": "scene-1-npc-2-signal",
           "type": "EmitEvent",
           "parameters": {
             "eventType": "OnCustom",
             "payload": {
               "kind": "npc_met",
-              "entityId": "scene-1-npc-3",
-              "bindingId": "c1"
+              "entityId": "scene-1-npc-2",
+              "bindingId": "bind-2"
             }
+          }
+        }
+      ]
+    },
+    {
+      "id": "scene-1-enemy-3-contact",
+      "scope": "scene",
+      "sceneId": "scene-1",
+      "eventType": "OnCollision",
+      "conditions": [
+        {
+          "id": "scene-1-enemy-3-touch",
+          "type": "CollisionPair",
+          "parameters": {
+            "entityAId": "scene-1-player",
+            "entityBId": "scene-1-enemy-3"
+          }
+        }
+      ],
+      "actions": [
+        {
+          "id": "scene-1-enemy-3-damage",
+          "type": "ApplyAttack",
+          "parameters": {
+            "entityId": "scene-1-enemy-3",
+            "targetTag": "player",
+            "damage": 10
+          }
+        },
+        {
+          "id": "scene-1-enemy-3-signal",
+          "type": "EmitEvent",
+          "parameters": {
+            "eventType": "OnCustom",
+            "payload": {
+              "kind": "enemy_contact",
+              "entityId": "scene-1-enemy-3",
+              "bindingId": "bind-6",
+              "label": "Credential Leak"
+            }
+          }
+        },
+        {
+          "id": "scene-1-enemy-3-message",
+          "type": "ShowMessage",
+          "parameters": {
+            "text": "Credential Leak strikes!"
+          }
+        }
+      ]
+    },
+    {
+      "id": "scene-1-enemy-4-contact",
+      "scope": "scene",
+      "sceneId": "scene-1",
+      "eventType": "OnCollision",
+      "conditions": [
+        {
+          "id": "scene-1-enemy-4-touch",
+          "type": "CollisionPair",
+          "parameters": {
+            "entityAId": "scene-1-player",
+            "entityBId": "scene-1-enemy-4"
+          }
+        }
+      ],
+      "actions": [
+        {
+          "id": "scene-1-enemy-4-damage",
+          "type": "ApplyAttack",
+          "parameters": {
+            "entityId": "scene-1-enemy-4",
+            "targetTag": "player",
+            "damage": 10
+          }
+        },
+        {
+          "id": "scene-1-enemy-4-signal",
+          "type": "EmitEvent",
+          "parameters": {
+            "eventType": "OnCustom",
+            "payload": {
+              "kind": "enemy_contact",
+              "entityId": "scene-1-enemy-4",
+              "bindingId": "bind-5",
+              "label": "Silent failover"
+            }
+          }
+        },
+        {
+          "id": "scene-1-enemy-4-message",
+          "type": "ShowMessage",
+          "parameters": {
+            "text": "Silent failover strikes!"
+          }
+        }
+      ]
+    },
+    {
+      "id": "scene-1-player-attack",
+      "scope": "scene",
+      "sceneId": "scene-1",
+      "eventType": "OnInput",
+      "conditions": [
+        {
+          "id": "scene-1-attack-pressed",
+          "type": "InputIsPressed",
+          "parameters": {
+            "actions": [
+              "Attack"
+            ]
+          }
+        }
+      ],
+      "actions": [
+        {
+          "id": "scene-1-player-strike",
+          "type": "ApplyAttack",
+          "parameters": {
+            "entityId": "scene-1-player",
+            "targetTag": "enemy",
+            "damage": 25,
+            "range": 2.2,
+            "cooldown": 0.45
           }
         }
       ]
@@ -900,6 +2421,7 @@
     {
       "id": "scene-1-start",
       "scope": "scene",
+      "sceneId": "scene-1",
       "eventType": "OnSceneEnter",
       "conditions": [],
       "actions": [
@@ -907,7 +2429,7 @@
           "id": "scene-1-start-message",
           "type": "ShowMessage",
           "parameters": {
-            "text": "Entering Pipeline Ridge — reach the flag!"
+            "text": "Entering Server Vault — reach the flag!"
           }
         }
       ]
@@ -947,81 +2469,78 @@
       ]
     },
     {
-      "id": "scene-2-item-1-collect",
+      "id": "scene-2-enemy-1-contact",
       "scope": "scene",
+      "sceneId": "scene-2",
       "eventType": "OnCollision",
       "conditions": [
         {
-          "id": "scene-2-item-1-touch",
+          "id": "scene-2-enemy-1-touch",
           "type": "CollisionPair",
           "parameters": {
             "entityAId": "scene-2-player",
-            "entityBId": "scene-2-item-1"
+            "entityBId": "scene-2-enemy-1"
           }
         }
       ],
       "actions": [
         {
-          "id": "scene-2-item-1-despawn",
-          "type": "DespawnEntity",
+          "id": "scene-2-enemy-1-damage",
+          "type": "ApplyAttack",
           "parameters": {
-            "entityId": "scene-2-item-1"
+            "entityId": "scene-2-enemy-1",
+            "targetTag": "player",
+            "damage": 10
           }
         },
         {
-          "id": "scene-2-item-1-signal",
+          "id": "scene-2-enemy-1-signal",
           "type": "EmitEvent",
           "parameters": {
             "eventType": "OnCustom",
             "payload": {
-              "kind": "collected",
-              "entityId": "scene-2-item-1",
-              "bindingId": "b2",
-              "label": "Discount Memo"
+              "kind": "enemy_contact",
+              "entityId": "scene-2-enemy-1",
+              "bindingId": "bind-3",
+              "label": "Unrotated keys"
             }
           }
         },
         {
-          "id": "scene-2-item-1-message",
+          "id": "scene-2-enemy-1-message",
           "type": "ShowMessage",
           "parameters": {
-            "text": "Collected: Discount Memo"
+            "text": "Unrotated keys strikes!"
           }
         }
       ]
     },
     {
-      "id": "scene-2-npc-2-dialogue",
+      "id": "scene-2-player-attack",
       "scope": "scene",
-      "eventType": "OnCollision",
+      "sceneId": "scene-2",
+      "eventType": "OnInput",
       "conditions": [
         {
-          "id": "scene-2-npc-2-touch",
-          "type": "CollisionPair",
+          "id": "scene-2-attack-pressed",
+          "type": "InputIsPressed",
           "parameters": {
-            "entityAId": "scene-2-player",
-            "entityBId": "scene-2-npc-2"
+            "actions": [
+              "Attack"
+            ]
           }
         }
       ],
       "actions": [
         {
-          "id": "scene-2-npc-2-say",
-          "type": "ShowMessage",
+          "id": "scene-2-player-strike",
+          "type": "ApplyAttack",
           "parameters": {
-            "text": "Field Rep: Hello, I'm Field Rep."
-          }
-        },
-        {
-          "id": "scene-2-npc-2-signal",
-          "type": "EmitEvent",
-          "parameters": {
-            "eventType": "OnCustom",
-            "payload": {
-              "kind": "npc_met",
-              "entityId": "scene-2-npc-2",
-              "bindingId": "c2"
-            }
+            "entityId": "scene-2-player",
+            "targetTag": "enemy",
+            "damage": 25,
+            "range": 2.2,
+            "cooldown": 0.45
           }
         }
       ]
@@ -1029,6 +2548,7 @@
     {
       "id": "scene-2-start",
       "scope": "scene",
+      "sceneId": "scene-2",
       "eventType": "OnSceneEnter",
       "conditions": [],
       "actions": [
@@ -1036,7 +2556,7 @@
           "id": "scene-2-start-message",
           "type": "ShowMessage",
           "parameters": {
-            "text": "Entering Churn Hollow — reach the flag!"
+            "text": "Entering Loading Bay — reach the flag!"
           }
         }
       ]
@@ -1076,14 +2596,467 @@
       ]
     }
   ],
+  "directors": [
+    {
+      "id": "region-1_squad_director",
+      "scope": "region",
+      "targetId": "region-1",
+      "tickIntervalSeconds": 0.2,
+      "onTickActions": [
+        {
+          "id": "arbitrate_attackers",
+          "type": "ArbitrateSquadAttack",
+          "parameters": {
+            "squadId": "region-1_squad_director",
+            "memberKeys": [
+              "enemy-1",
+              "enemy-3"
+            ],
+            "maxConcurrentAttackers": 2,
+            "flankBias": 0.69,
+            "callOutDelay": 0.61
+          }
+        },
+        {
+          "id": "broadcast_effective_aggression",
+          "type": "BroadcastVariable",
+          "parameters": {
+            "squadId": "region-1_squad_director",
+            "memberKeys": [
+              "enemy-1",
+              "enemy-3"
+            ],
+            "var": "effectiveAggression",
+            "mode": "scaleByCommittedAllies",
+            "baseVar": "aggression"
+          }
+        }
+      ],
+      "scheduledActions": []
+    },
+    {
+      "id": "region-1_pacing_director",
+      "scope": "region",
+      "targetId": "region-1",
+      "tickIntervalSeconds": 1,
+      "beats": [
+        {
+          "type": "peak",
+          "duration": 22,
+          "enemyDensity": 0.9,
+          "traversalComplexity": 0.95
+        },
+        {
+          "type": "release",
+          "duration": 18,
+          "enemyDensity": 0.25,
+          "traversalComplexity": 0.22
+        },
+        {
+          "type": "calm",
+          "duration": 15,
+          "enemyDensity": 0.3,
+          "traversalComplexity": 0.28
+        }
+      ],
+      "onTickActions": [
+        {
+          "id": "evaluate_spawn",
+          "type": "EvaluateSpawnBudget",
+          "parameters": {
+            "regionId": "region-1",
+            "baseRate": 5.6,
+            "curve": "release",
+            "density": 0.5
+          }
+        },
+        {
+          "id": "evaluate_music",
+          "type": "SetMusicIntensity",
+          "parameters": {
+            "regionId": "region-1",
+            "intensity": 0.9,
+            "curve": "release"
+          }
+        }
+      ],
+      "scheduledActions": [
+        {
+          "id": "breather_trigger",
+          "type": "TriggerBreather",
+          "repeatEverySeconds": 27,
+          "parameters": {
+            "regionId": "region-1",
+            "durationSeconds": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "region-2_pacing_director",
+      "scope": "region",
+      "targetId": "region-2",
+      "tickIntervalSeconds": 1,
+      "beats": [
+        {
+          "type": "build",
+          "duration": 28,
+          "enemyDensity": 0.55,
+          "traversalComplexity": 0.46
+        },
+        {
+          "type": "peak",
+          "duration": 17,
+          "enemyDensity": 0.9,
+          "traversalComplexity": 0.79
+        },
+        {
+          "type": "release",
+          "duration": 23,
+          "enemyDensity": 0.25,
+          "traversalComplexity": 0.18
+        }
+      ],
+      "onTickActions": [
+        {
+          "id": "evaluate_spawn",
+          "type": "EvaluateSpawnBudget",
+          "parameters": {
+            "regionId": "region-2",
+            "baseRate": 3,
+            "curve": "steady",
+            "density": 0.5
+          }
+        },
+        {
+          "id": "evaluate_music",
+          "type": "SetMusicIntensity",
+          "parameters": {
+            "regionId": "region-2",
+            "intensity": 0.25,
+            "curve": "steady"
+          }
+        }
+      ],
+      "scheduledActions": [
+        {
+          "id": "breather_trigger",
+          "type": "TriggerBreather",
+          "repeatEverySeconds": 40,
+          "parameters": {
+            "regionId": "region-2",
+            "durationSeconds": 8
+          }
+        }
+      ]
+    }
+  ],
+  "sequences": [
+    {
+      "id": "level_sequence",
+      "beats": [
+        {
+          "id": "beat_sem_0af03cab-fd62-4334-9a38-db9ee5451080",
+          "order": 0,
+          "label": "The alert fires",
+          "skippable": false,
+          "triggerActions": [
+            {
+              "id": "trigger_sem_0af03cab-fd62-4334-9a38-db9ee5451080",
+              "type": "PlayCutsceneOrDialogue",
+              "parameters": {
+                "contentRef": "sem_0af03cab-fd62-4334-9a38-db9ee5451080",
+                "bindingId": null,
+                "label": "The alert fires",
+                "tone": "neutral",
+                "intensity": 0.8
+              }
+            },
+            {
+              "id": "mark_sem_0af03cab-fd62-4334-9a38-db9ee5451080",
+              "type": "SetVariable",
+              "parameters": {
+                "var": "beat_sem_0af03cab-fd62-4334-9a38-db9ee5451080_complete",
+                "value": true,
+                "scope": "world"
+              }
+            }
+          ]
+        },
+        {
+          "id": "beat_sem_79cf7b6f-62c8-4f86-a8dc-3b39bf8f3872",
+          "order": 1,
+          "label": "Tracing the breach",
+          "skippable": true,
+          "triggerActions": [
+            {
+              "id": "trigger_sem_79cf7b6f-62c8-4f86-a8dc-3b39bf8f3872",
+              "type": "PlayCutsceneOrDialogue",
+              "parameters": {
+                "contentRef": "sem_79cf7b6f-62c8-4f86-a8dc-3b39bf8f3872",
+                "bindingId": null,
+                "label": "Tracing the breach",
+                "tone": "neutral",
+                "intensity": 0.8
+              }
+            },
+            {
+              "id": "mark_sem_79cf7b6f-62c8-4f86-a8dc-3b39bf8f3872",
+              "type": "SetVariable",
+              "parameters": {
+                "var": "beat_sem_79cf7b6f-62c8-4f86-a8dc-3b39bf8f3872_complete",
+                "value": true,
+                "scope": "world"
+              }
+            }
+          ]
+        },
+        {
+          "id": "beat_sem_57c1963d-207a-4e7c-832b-9b747c54249c",
+          "order": 2,
+          "label": "Keys rotated",
+          "skippable": true,
+          "triggerActions": [
+            {
+              "id": "trigger_sem_57c1963d-207a-4e7c-832b-9b747c54249c",
+              "type": "PlayCutsceneOrDialogue",
+              "parameters": {
+                "contentRef": "sem_57c1963d-207a-4e7c-832b-9b747c54249c",
+                "bindingId": null,
+                "label": "Keys rotated",
+                "tone": "neutral",
+                "intensity": 0.8
+              }
+            },
+            {
+              "id": "mark_sem_57c1963d-207a-4e7c-832b-9b747c54249c",
+              "type": "SetVariable",
+              "parameters": {
+                "var": "beat_sem_57c1963d-207a-4e7c-832b-9b747c54249c_complete",
+                "value": true,
+                "scope": "world"
+              }
+            }
+          ]
+        }
+      ],
+      "transitions": [
+        {
+          "fromBeatId": "beat_sem_0af03cab-fd62-4334-9a38-db9ee5451080",
+          "toBeatId": "beat_sem_79cf7b6f-62c8-4f86-a8dc-3b39bf8f3872",
+          "conditions": [
+            {
+              "id": "require_beat_sem_0af03cab-fd62-4334-9a38-db9ee5451080",
+              "type": "BeatCompleted",
+              "parameters": {
+                "beatId": "beat_sem_0af03cab-fd62-4334-9a38-db9ee5451080"
+              }
+            }
+          ]
+        },
+        {
+          "fromBeatId": "beat_sem_79cf7b6f-62c8-4f86-a8dc-3b39bf8f3872",
+          "toBeatId": "beat_sem_57c1963d-207a-4e7c-832b-9b747c54249c",
+          "conditions": []
+        }
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "spriteId": "player_idle",
+      "role": "player",
+      "shape": "capsule",
+      "width": 0.8,
+      "height": 1.8,
+      "tint": "#ffffff",
+      "palette": [
+        "#ffffff",
+        "#3a1720",
+        "#ff5c5c",
+        "#ffb347",
+        "#e63946"
+      ],
+      "tone": "fear"
+    },
+    {
+      "spriteId": "ground_tile",
+      "role": "terrain",
+      "shape": "box",
+      "width": 1,
+      "height": 1,
+      "tint": "#3a1720",
+      "palette": [
+        "#ffffff",
+        "#3a1720",
+        "#ff5c5c",
+        "#ffb347",
+        "#e63946"
+      ],
+      "tone": "fear"
+    },
+    {
+      "spriteId": "platform_tile",
+      "role": "terrain",
+      "shape": "box",
+      "width": 1,
+      "height": 0.4,
+      "tint": "#3a1720",
+      "palette": [
+        "#ffffff",
+        "#3a1720",
+        "#ff5c5c",
+        "#ffb347",
+        "#e63946"
+      ],
+      "tone": "fear"
+    },
+    {
+      "spriteId": "collectible",
+      "role": "item",
+      "shape": "diamond",
+      "width": 0.6,
+      "height": 0.6,
+      "tint": "#ff5c5c",
+      "palette": [
+        "#ffffff",
+        "#3a1720",
+        "#ff5c5c",
+        "#ffb347",
+        "#e63946"
+      ],
+      "tone": "fear"
+    },
+    {
+      "spriteId": "npc",
+      "role": "npc",
+      "shape": "capsule",
+      "width": 0.8,
+      "height": 1.8,
+      "tint": "#ffb347",
+      "palette": [
+        "#ffffff",
+        "#3a1720",
+        "#ff5c5c",
+        "#ffb347",
+        "#e63946"
+      ],
+      "tone": "fear"
+    },
+    {
+      "spriteId": "goal_flag",
+      "role": "goal",
+      "shape": "box",
+      "width": 1,
+      "height": 2,
+      "tint": "#ff5c5c",
+      "palette": [
+        "#ffffff",
+        "#3a1720",
+        "#ff5c5c",
+        "#ffb347",
+        "#e63946"
+      ],
+      "tone": "fear"
+    },
+    {
+      "spriteId": "prop",
+      "role": "prop",
+      "shape": "box",
+      "width": 0.9,
+      "height": 0.9,
+      "tint": "#3a1720",
+      "palette": [
+        "#ffffff",
+        "#3a1720",
+        "#ff5c5c",
+        "#ffb347",
+        "#e63946"
+      ],
+      "tone": "fear"
+    },
+    {
+      "spriteId": "hazard_zone",
+      "role": "hazard",
+      "shape": "box",
+      "width": 1.5,
+      "height": 0.6,
+      "tint": "#ff5c5c",
+      "palette": [
+        "#ffffff",
+        "#3a1720",
+        "#ff5c5c",
+        "#ffb347",
+        "#e63946"
+      ],
+      "tone": "fear"
+    },
+    {
+      "spriteId": "enemy_idle",
+      "role": "enemy",
+      "shape": "capsule",
+      "width": 0.9,
+      "height": 1.7,
+      "tint": "#e63946",
+      "palette": [
+        "#ffffff",
+        "#3a1720",
+        "#ff5c5c",
+        "#ffb347",
+        "#e63946"
+      ],
+      "tone": "fear"
+    },
+    {
+      "spriteId": "enemy_attack_windup",
+      "role": "enemy",
+      "shape": "capsule",
+      "width": 1,
+      "height": 1.7,
+      "tint": "#ff5c5c",
+      "palette": [
+        "#ffffff",
+        "#3a1720",
+        "#ff5c5c",
+        "#ffb347",
+        "#e63946"
+      ],
+      "tone": "fear"
+    },
+    {
+      "spriteId": "enemy_circle",
+      "role": "enemy",
+      "shape": "capsule",
+      "width": 0.9,
+      "height": 1.7,
+      "tint": "#e63946",
+      "palette": [
+        "#ffffff",
+        "#3a1720",
+        "#ff5c5c",
+        "#ffb347",
+        "#e63946"
+      ],
+      "tone": "fear"
+    }
+  ],
   "validation": {
     "sceneCount": 2,
-    "entityCount": 11,
-    "triggerCount": 9,
+    "entityCount": 25,
+    "triggerCount": 12,
     "contributions": {
       "regions": 2,
-      "inventoryItems": 3,
-      "castCharacters": 2
+      "inventoryItems": 0,
+      "castCharacters": 1,
+      "enemies": 3,
+      "platforms": 8,
+      "props": 7,
+      "placedHazards": 1,
+      "regionItems": 1,
+      "directors": 3,
+      "pacingBeats": 6,
+      "sequenceBeats": 3,
+      "assets": 11
     }
   }
 }

@@ -12,10 +12,15 @@
  * observations, not answers. Later layers (World Model, Reflection) interpret them.
  */
 export class SignalEmitter {
-  constructor({ endpoint, personId, experienceId, template, engine, flushMs = 5000 }) {
+  constructor({ endpoint, personId, experienceId, buildId, template, engine, flushMs = 5000 }) {
     this.endpoint = endpoint;
     this.personId = personId;
     this.experienceId = experienceId || null;
+    // Which playable this is, as opposed to which body of content it came from.
+    // experienceId is title-derived and shared by every build of the same source;
+    // buildId is unique. Consumers that must not confuse two builds (Reflection
+    // scoring a hypothesis, the graph counting replays) join on this.
+    this.buildId = buildId || null;
     this.template = template || null;
     this.engine = engine || 'pixi';
     this.flushMs = flushMs;
@@ -34,6 +39,7 @@ export class SignalEmitter {
     this.emit('experience_start', {
       personId: this.personId,
       experienceId: this.experienceId,
+      buildId: this.buildId,
       template: this.template,
       engine: this.engine,
     });
@@ -109,6 +115,7 @@ export class SignalEmitter {
     const batch = {
       sessionId: this.sessionId,
       experienceId: this.experienceId,
+      buildId: this.buildId,
       template: this.template,
       engine: this.engine,
       signals: this._queue.splice(0, this._queue.length),
@@ -156,7 +163,14 @@ export class SignalEmitter {
     try {
       if (typeof window !== 'undefined' && window.parent && window.parent !== window) {
         window.parent.postMessage(
-          { source: 'optomole', type: 'session_end', personId: this.personId, experienceId: this.experienceId, summary },
+          {
+            source: 'optomole',
+            type: 'session_end',
+            personId: this.personId,
+            experienceId: this.experienceId,
+            buildId: this.buildId,
+            summary,
+          },
           '*',
         );
       }
@@ -214,6 +228,7 @@ export function attachSignalEmitter(runtime, manifest = {}, meta = {}, engine = 
       endpoint,
       personId,
       experienceId: meta.experienceId || manifest.experienceId,
+      buildId: meta.buildId || manifest.buildId,
       template: manifest.templateId,
       engine,
     });

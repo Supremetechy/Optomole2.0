@@ -177,6 +177,10 @@ export type ActionType =
   | "PlayAnimation"
   | "ApplyImpulse"
   | "ApplyHorizontalMovementFromInput"
+  // Four-direction steering for gravity-free topologies (maps, boards, rooms).
+  // Separate from the horizontal action rather than a flag on it: a side-scroller
+  // must not be one parameter away from letting the player fly.
+  | "ApplyPlanarMovementFromInput"
   | "SetVariable"
   | "SpawnEntity"
   | "DespawnEntity"
@@ -192,7 +196,14 @@ export type ActionType =
   | "ApplyMovementTowardTarget"
   | "ApplyMovementAwayFromTarget"
   | "ApplyOrbitMovement"
+  // Zoning: hold a band around the target rather than closing on it. One action
+  // rather than toward/away gated by a condition, because a state machine can
+  // only branch on transitions and a standoff has to correct every frame.
+  | "ApplyStandoffMovement"
   | "ApplyAttack"
+  // A zoning enemy's strike. Damage is core-resolved after `travelTime`, so a
+  // shot that is dodged in flight misses — which is what makes range fair.
+  | "FireProjectile"
   // Director-emitted. The core samples the curve and passes a scalar; the
   // adapter never decides what "escalating" means.
   | "EvaluateSpawnBudget"
@@ -222,6 +233,21 @@ export interface DirectorProgram {
   tickIntervalSeconds: number;
   onTickActions: Action[];
   scheduledActions: Array<Action & { repeatEverySeconds: number }>;
+  /**
+   * The beat plan a pacing director walks, in order, looping while the region
+   * is occupied. Only the `enemyDensity` half is spent here: the geometry the
+   * beats asked for was already compiled into the scene's platform run.
+   */
+  beats?: LevelBeat[];
+}
+
+export type LevelBeatType = "calm" | "build" | "peak" | "release";
+
+export interface LevelBeat {
+  type: LevelBeatType;
+  duration: number;
+  enemyDensity: number;
+  traversalComplexity: number;
 }
 
 // ---- Sequences (beat-ordered narrative) ----

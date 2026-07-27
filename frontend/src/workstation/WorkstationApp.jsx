@@ -56,10 +56,14 @@ const ENGINE_BY_VALUE = Object.fromEntries(ENGINES.map((e) => [e.value, e]));
  */
 const COMPILERS = [
   { value: '', label: 'Structural — no AI, derived from your content', keyless: true },
-  { value: 'local', label: 'Local model — offline (Ollama / LM Studio)', keyless: true, model: 'claude-sonnet-reasoning' },
+  // No default model for `local`: the tag has to match something actually pulled
+  // on this machine, so the gateway's LOCAL_AI_MODEL decides unless the operator
+  // types one. A hardcoded guess here just produces "model not found" compiles.
+  { value: 'local', label: 'Local model — offline (Ollama / LM Studio)', keyless: true, model: '' },
   { value: 'openai', label: 'OpenAI', model: 'gpt-4o-mini' },
   { value: 'claude', label: 'Claude', model: 'claude-3-5-sonnet-latest' },
   { value: 'gemini', label: 'Gemini', model: 'gemini-3.5-flash' },
+  { value: 'kimi', label: 'Kimi', model: 'kimi-latest' },
 ];
 
 const COMPILER_BY_VALUE = Object.fromEntries(COMPILERS.map((c) => [c.value, c]));
@@ -141,7 +145,7 @@ export default function WorkstationApp() {
   // writes it to storage.
   const [compiler, setCompiler] = useState(storedCompiler);
   const [aiModel, setAiModel] = useState(() => COMPILER_BY_VALUE[storedCompiler()]?.model || '');
-  const [aiKeys, setAiKeys] = useState({ openai: '', claude: '', gemini: '' });
+  const [aiKeys, setAiKeys] = useState({ openai: '', claude: '', gemini: '', kimi: '' });
   const [phase, setPhase] = useState('idle'); // idle · reading · constructing · ready · queued · download · error
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
@@ -603,8 +607,13 @@ export default function WorkstationApp() {
                 {experiments.length > 0 && (
                   <div className="ws-block">
                     <label>EXPERIMENTS</label>
+                    {/*
+                      Keyed by buildId, not experienceId: experienceId is a slug of
+                      the session title, so every experiment run on the same content
+                      (or on untitled content) collides. buildId is per build.
+                    */}
                     {experiments.slice(0, 4).map((e) => (
-                      <div key={e.experienceId} className="ws-exp-row">
+                      <div key={e.buildId || e.experienceId} className="ws-exp-row">
                         <span className={`ws-status-dot ws-st-${e.status}`} />
                         <span className="ws-exp-genre">{e.genre}</span>
                         <span className="ws-exp-status">{e.status}</span>

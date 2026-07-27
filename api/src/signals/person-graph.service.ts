@@ -87,7 +87,11 @@ export class PersonGraphService {
     const signals = log?.signals || [];
 
     const nodes = new Map<string, GraphNode>();
-    const experienceCounts = new Map<string, number>(); // experienceId -> plays (for replay/persistence)
+    // buildId -> plays (for replay/persistence). Keyed by build, not experienceId:
+    // an experienceId is a title slug, so counting under it made a FIRST play of a
+    // newly built game look like a replay of an older one and awarded a
+    // persistence trait nobody earned. Legacy signals fall back to experienceId.
+    const experienceCounts = new Map<string, number>();
 
     const decay = (ts: number) => {
       const ageDays = Math.max(0, (asOf - (ts || asOf)) / PersonGraphService.DAY_MS);
@@ -151,9 +155,10 @@ export class PersonGraphService {
       switch (signal.type) {
         case 'experience_start': {
           if (genre) reinforce({ id: `engaged:genre:${genre}`, level: 'behavioral', label: genre, kind: 'genre' }, signal, 1.0);
-          if (signal.experienceId) {
-            const plays = (experienceCounts.get(signal.experienceId) || 0) + 1;
-            experienceCounts.set(signal.experienceId, plays);
+          const playKey = signal.buildId || signal.experienceId;
+          if (playKey) {
+            const plays = (experienceCounts.get(playKey) || 0) + 1;
+            experienceCounts.set(playKey, plays);
             // Second+ start of the same experience is a replay → persistence trait.
             if (plays >= 2) reinforce({ id: 'trait:persistent', level: 'behavioral', label: 'Persistent (replays)' }, signal, 0.7);
           }

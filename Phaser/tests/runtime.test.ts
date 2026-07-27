@@ -100,9 +100,12 @@ test("compiled bundle opens its first scene and announces the region", () => {
   const { adapter } = boot(COMPILED);
   assert.equal(adapter.scenesCreated[0], "scene-1");
   assert.ok(adapter.created.includes("scene-1-player"), "player entity created");
+  // Read the name off the bundle rather than hardcoding it: this asserts that
+  // the region ANNOUNCES ITSELF, not that a fixture still says one thing.
+  const regionName = COMPILED.scenes[0].name;
   assert.ok(
-    adapter.messages().some(m => m.includes("Pipeline Ridge")),
-    `expected the region name in ${JSON.stringify(adapter.messages())}`
+    adapter.messages().some(m => m.includes(regionName)),
+    `expected "${regionName}" in ${JSON.stringify(adapter.messages())}`
   );
 });
 
@@ -209,7 +212,11 @@ test("a shared state machine targets whichever entity is running it", () => {
   const move = adapter.actions.find(a => a.type === "ApplyHorizontalMovementFromInput");
   assert.ok(move, "movement action reached the adapter");
   assert.equal(move!.parameters.entityId, "scene-1-player", "action targets the running entity");
-  assert.equal(move!.parameters.speed, 5, "speedVar resolved from that entity's variables");
+  // The compiled speed, not a constant: it is derived from the source's mood, so
+  // hardcoding it here would assert the fixture rather than the resolution.
+  const compiledSpeed = (COMPILED.entities.find(e => e.id === "scene-1-player")
+    ?.components.find(c => c.type === "StateComponent") as any)?.variables.moveSpeed;
+  assert.equal(move!.parameters.speed, compiledSpeed, "speedVar resolved from that entity's variables");
 
   // And after advancing, the same machine must drive scene 2's player.
   adapter.inject({

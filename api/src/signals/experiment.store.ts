@@ -26,13 +26,20 @@ export interface ExperimentRecord {
 
 /**
  * ExperimentStore — per-person append log of experiments, mirroring SignalStore's
- * local-file + in-memory pattern. Also indexed by experienceId so Reflection can
- * resolve "which hypothesis did this play session test?" from a signal's experienceId.
+ * local-file + in-memory pattern. Also indexed by buildId so Reflection can
+ * resolve "which hypothesis did this play session test?" from a signal's buildId.
+ *
+ * The index is keyed by buildId and NOT by experienceId, which is a slug of the
+ * source title: two experiments run against the same content (or against any two
+ * untitled sessions) share an experienceId, so an experienceId-keyed index
+ * silently dropped the earlier experiment and pointed its signals at the later
+ * one's hypothesis. buildId is unique per compile, so every experiment survives
+ * and is scored against the plays that actually belong to it.
  */
 @Injectable()
 export class ExperimentStore {
   private readonly byPerson = new Map<string, ExperimentRecord[]>();
-  private readonly byExperience = new Map<string, ExperimentRecord>();
+  private readonly byBuild = new Map<string, ExperimentRecord>();
   private hydrated = false;
 
   record(exp: ExperimentRecord): ExperimentRecord {
@@ -40,7 +47,7 @@ export class ExperimentStore {
     const list = this.byPerson.get(exp.personId) || [];
     list.unshift(exp);
     this.byPerson.set(exp.personId, list);
-    this.byExperience.set(exp.experienceId, exp);
+    this.byBuild.set(exp.buildId, exp);
     this.writeFile(exp.personId, list);
     return exp;
   }
@@ -50,15 +57,16 @@ export class ExperimentStore {
     return this.byPerson.get(personId) || [];
   }
 
-  findByExperience(experienceId: string): ExperimentRecord | null {
+  /** The experiment a specific playable was built to test. */
+  findByBuild(buildId: string): ExperimentRecord | null {
     this.hydrate();
-    return this.byExperience.get(experienceId) || null;
+    return this.byBuild.get(buildId) || null;
   }
 
   /** Update an experiment in place (e.g. Reflection setting its scored status). */
-  update(experienceId: string, patch: Partial<ExperimentRecord>): ExperimentRecord | null {
+  update(buildId: string, patch: Partial<ExperimentRecord>): ExperimentRecord | null {
     this.hydrate();
-    const exp = this.byExperience.get(experienceId);
+    const exp = this.byBuild.get(buildId);
     if (!exp) return null;
     Object.assign(exp, patch); // byPerson holds the same object reference
     this.writeFile(exp.personId, this.byPerson.get(exp.personId) || []);
@@ -86,7 +94,9 @@ export class ExperimentStore {
         const list = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8')) as ExperimentRecord[];
         if (Array.isArray(list) && list[0]?.personId) {
           this.byPerson.set(list[0].personId, list);
-          for (const exp of list) this.byExperience.set(exp.experienceId, exp);
+          // Ledgers on disk already carry buildId (it has always been part of the
+          // record), so re-keying the index needs no migration.
+          for (const exp of list) if (exp.buildId) this.byBuild.set(exp.buildId, exp);
         }
       } catch {
         // Skip corrupt ledgers rather than failing every experiment.

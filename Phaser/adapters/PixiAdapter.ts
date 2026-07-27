@@ -11,6 +11,7 @@ import {
 } from "../dsl/types";
 import { EngineAdapter } from "../runtime/EngineAdapter";
 import { componentOf } from "../runtime/GameplayBundle";
+import { MusicBus } from "../runtime/MusicBus";
 
 /**
  * PixiAdapter — the second engine behind the same Gameplay DSL.
@@ -82,7 +83,14 @@ export class PixiAdapter implements EngineAdapter {
   private message: Text | null = null;
   private messageTimer: number | null = null;
 
-  private onKeyDown = (e: KeyboardEvent) => this.heldCodes.add(e.code);
+  /** What SetMusicIntensity moves. Silent until the first key press. */
+  private music = new MusicBus();
+
+  private onKeyDown = (e: KeyboardEvent) => {
+    // Browsers refuse to start audio without a gesture; the first key is it.
+    this.music.resume();
+    this.heldCodes.add(e.code);
+  };
   private onKeyUp = (e: KeyboardEvent) => this.heldCodes.delete(e.code);
   private onBlur = () => this.heldCodes.clear();
 
@@ -98,6 +106,7 @@ export class PixiAdapter implements EngineAdapter {
     window.removeEventListener("keydown", this.onKeyDown);
     window.removeEventListener("keyup", this.onKeyUp);
     window.removeEventListener("blur", this.onBlur);
+    this.music.dispose();
   }
 
   // DSL space is meters, y-up; the canvas is pixels, y-down.
@@ -198,6 +207,23 @@ export class PixiAdapter implements EngineAdapter {
         if (dir !== 0) this.face(record, dir);
         break;
       }
+      case "ApplyPlanarMovementFromInput": {
+        if (!record) break;
+        let dx = 0;
+        let dy = 0;
+        if (this.inputState["MoveLeft"]) dx -= 1;
+        if (this.inputState["MoveRight"]) dx += 1;
+        if (this.inputState["MoveDown"]) dy -= 1; // bodies are y-up
+        if (this.inputState["MoveUp"]) dy += 1;
+        // Normalize so a diagonal is not √2 faster than an axis — the one thing
+        // that makes hand-written top-down movement feel wrong.
+        const length = Math.hypot(dx, dy) || 1;
+        const speed = p.speed ?? 0;
+        record.body.vx = (dx / length) * speed;
+        record.body.vy = (dy / length) * speed;
+        if (dx !== 0) this.face(record, dx);
+        break;
+      }
       case "ApplyImpulse": {
         if (!record) break;
         const force = p.force ?? 0;
@@ -239,6 +265,18 @@ export class PixiAdapter implements EngineAdapter {
         this.face(record, dir);
         break;
       }
+      case "ApplyStandoffMovement": {
+        const target = this.records.get(p.targetEntityId);
+        if (!record || !target) break;
+        // Hold a band: back off inside it, close outside it, stand still within.
+        const offset = record.body.x - target.body.x;
+        const gap = Math.abs(offset);
+        const side = Math.sign(offset) || 1;
+        const dir = gap < (p.minRange ?? 3) ? side : gap > (p.maxRange ?? 6) ? -side : 0;
+        record.body.vx = dir * (p.speed ?? 1);
+        this.face(record, -side);
+        break;
+      }
       case "ApplyOrbitMovement": {
         const target = this.records.get(p.targetEntityId);
         if (!record || !target) break;
@@ -258,11 +296,23 @@ export class PixiAdapter implements EngineAdapter {
         if (target) this.flash(target);
         break;
       }
+      case "FireProjectile": {
+        // The shot's arrival is the core's business (it lands on `travelTime`);
+        // the release is the adapter's, so it flashes the muzzle, not the target.
+        if (record) this.flash(record);
+        break;
+      }
       case "SetMusicIntensity":
+        // The core already folded the curve into the region's compiled loudness;
+        // this only turns the knob.
+        this.music.setIntensity(Number(p.resolvedIntensity ?? p.intensity ?? 0));
+        break;
       case "EvaluateSpawnBudget":
       case "TriggerBreather":
-        // Director output. Audio and spawn budgets are not wired in this
-        // prototype; the values arrive pre-resolved so wiring them is additive.
+        // The core already resolved these: reinforcements are spawned through
+        // createEntity, and a breather has already suspended the region's
+        // budget. They arrive here only as a presentation hook (a HUD cue, a
+        // camera beat), which this prototype does not draw.
         break;
       case "PlayCutsceneOrDialogue": {
         this.showMessage(String(p.label ?? p.contentRef ?? ""));

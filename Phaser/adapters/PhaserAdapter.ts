@@ -10,6 +10,7 @@ import {
   InputComponent,
 } from "../dsl/types";
 import { EngineAdapter } from "../runtime/EngineAdapter";
+import { MusicBus } from "../runtime/MusicBus";
 
 export interface PhaserAdapterConfig {
   pixelsPerUnit: number;
@@ -32,6 +33,8 @@ export class PhaserAdapter implements EngineAdapter {
   private records = new Map<string, EntityRecord>();
   private eventQueue: Event[] = [];
   private inputKeys = new Map<string, Phaser.Input.Keyboard.Key[]>();
+  /** What SetMusicIntensity moves. Silent until the first key press. */
+  private music = new MusicBus();
   private inputState: Record<string, boolean> = {};
   private touchingPairs = new Set<string>();
   private framePairs = new Set<string>();
@@ -148,6 +151,24 @@ export class PhaserAdapter implements EngineAdapter {
         if (dir !== 0 && sprite) sprite.setFlipX(dir < 0);
         break;
       }
+      case "ApplyPlanarMovementFromInput": {
+        const sprite = this.records.get(p.entityId)?.sprite;
+        const body = sprite?.body as Phaser.Physics.Arcade.Body | undefined;
+        if (!body) break;
+        let dx = 0;
+        let dy = 0;
+        if (this.inputState["MoveLeft"]) dx -= 1;
+        if (this.inputState["MoveRight"]) dx += 1;
+        if (this.inputState["MoveUp"]) dy += 1; // DSL y-up
+        if (this.inputState["MoveDown"]) dy -= 1;
+        // Normalize so a diagonal is not √2 faster than an axis.
+        const length = Math.hypot(dx, dy) || 1;
+        const speedPx = (p.speed ?? 0) * this.cfg.pixelsPerUnit;
+        body.setVelocityX((dx / length) * speedPx);
+        body.setVelocityY(-(dy / length) * speedPx); // DSL y-up → Phaser y-down
+        if (dx !== 0 && sprite) sprite.setFlipX(dx < 0);
+        break;
+      }
       case "ApplyImpulse": {
         const body = this.records.get(p.entityId)?.sprite
           .body as Phaser.Physics.Arcade.Body | undefined;
@@ -176,7 +197,8 @@ export class PhaserAdapter implements EngineAdapter {
       // targetTag was already resolved to targetEntityId by the core.
       case "ApplyMovementTowardTarget":
       case "ApplyMovementAwayFromTarget":
-      case "ApplyOrbitMovement": {
+      case "ApplyOrbitMovement":
+      case "ApplyStandoffMovement": {
         const sprite = this.records.get(p.entityId)?.sprite;
         const target = this.records.get(p.targetEntityId)?.sprite;
         const body = sprite?.body as Phaser.Physics.Arcade.Body | undefined;
@@ -189,6 +211,17 @@ export class PhaserAdapter implements EngineAdapter {
           dir = Math.abs(gapPx) <= stopPx ? 0 : Math.sign(gapPx);
         } else if (action.type === "ApplyMovementAwayFromTarget") {
           dir = -(Math.sign(gapPx) || 1);
+        } else if (action.type === "ApplyStandoffMovement") {
+          // Hold a band: back off inside it, close outside it, stand within it.
+          const offsetPx = sprite.x - target.x;
+          const distancePx = Math.abs(offsetPx);
+          const side = Math.sign(offsetPx) || 1;
+          dir =
+            distancePx < (p.minRange ?? 3) * this.cfg.pixelsPerUnit
+              ? side
+              : distancePx > (p.maxRange ?? 6) * this.cfg.pixelsPerUnit
+                ? -side
+                : 0;
         } else {
           // Circling in a side-scroller: hold station at the orbit radius.
           const radiusPx = (p.radius ?? 4) * this.cfg.pixelsPerUnit;
@@ -206,11 +239,25 @@ export class PhaserAdapter implements EngineAdapter {
         this.scene.tweens.add({ targets: target, alpha: 0.4, duration: 90, yoyo: true });
         break;
       }
-      case "SetMusicIntensity":
+      case "FireProjectile": {
+        // The shot's arrival is the core's business (it lands on `travelTime`);
+        // the release is the adapter's, so it flashes the muzzle, not the target.
+        const shooter = p.entityId ? this.records.get(p.entityId)?.sprite : undefined;
+        if (!shooter) break;
+        this.scene.tweens.add({ targets: shooter, alpha: 0.5, duration: 70, yoyo: true });
+        break;
+      }
       case "EvaluateSpawnBudget":
       case "TriggerBreather":
-        // Director output arrives pre-resolved (tension already sampled); audio
-        // and spawn budgets are not wired in this prototype.
+        // The core already resolved these: reinforcements are spawned through
+        // createEntity, and a breather has already suspended the region's
+        // budget. They arrive here only as a presentation hook (a HUD cue, a
+        // camera beat), which this prototype does not draw.
+        break;
+      case "SetMusicIntensity":
+        // The core already folded the curve into the region's compiled loudness;
+        // this only turns the knob.
+        this.music.setIntensity(Number(p.resolvedIntensity ?? p.intensity ?? 0));
         break;
       case "PlayCutsceneOrDialogue": {
         this.applyAction({
@@ -259,6 +306,8 @@ export class PhaserAdapter implements EngineAdapter {
       this.inputState[action] = down;
       if (down) anyDown = true;
     }
+    // Browsers refuse to start audio without a gesture; the first key is it.
+    if (anyDown) this.music.resume();
     if (changed || anyDown) {
       this.eventQueue.push({
         id: "input_tick",

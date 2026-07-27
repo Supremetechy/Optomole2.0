@@ -31,12 +31,26 @@ export class ReflectionService {
     const pending = this.experiments.listForPerson(id).filter((e) => e.status === 'pending');
     const signals = this.signals.get(id)?.signals || [];
 
-    const byExperience = new Map<string, StoredSignal[]>();
+    // Signals are joined to experiments by buildId — the id of the exact playable
+    // that produced them. experienceId is a title slug shared by every build of
+    // the same content, so joining on it handed one experiment the plays of
+    // another and scored a hypothesis against a game that never tested it.
+    //
+    // Signals predating buildId carry only experienceId. They are grouped into a
+    // separate legacy map rather than merged, so a new build can never absorb an
+    // old build's play history through a shared slug: post-buildId signals are
+    // only ever reachable by buildId.
+    const byBuild = new Map<string, StoredSignal[]>();
+    const legacyByExperience = new Map<string, StoredSignal[]>();
     for (const s of signals) {
-      if (!s.experienceId || s.type === 'reflection') continue;
-      const list = byExperience.get(s.experienceId) || [];
+      if (s.type === 'reflection') continue;
+      const [index, key] = s.buildId
+        ? [byBuild, s.buildId] as const
+        : [legacyByExperience, s.experienceId] as const;
+      if (!key) continue;
+      const list = index.get(key) || [];
       list.push(s);
-      byExperience.set(s.experienceId, list);
+      index.set(key, list);
     }
 
     const nowIso = new Date().toISOString();
@@ -45,15 +59,16 @@ export class ReflectionService {
     const emitted: StoredSignal[] = [];
 
     for (const exp of pending) {
-      const plays = byExperience.get(exp.experienceId);
+      const plays = byBuild.get(exp.buildId) || legacyByExperience.get(exp.experienceId);
       if (!plays || !plays.length) continue; // not played yet → stay pending
 
       const eng = engagement(plays);
       const verdict = evaluate(exp, eng);
-      this.experiments.update(exp.experienceId, { status: verdict.status });
+      this.experiments.update(exp.buildId, { status: verdict.status });
 
       insights.push({
         experienceId: exp.experienceId,
+        buildId: exp.buildId,
         genre: exp.genre,
         mode: exp.mode,
         hypothesis: exp.hypothesis,
@@ -72,6 +87,7 @@ export class ReflectionService {
         // the gameplay evidence they were drawn from.
         source: 'reflection',
         experienceId: exp.experienceId,
+        buildId: exp.buildId,
         template: exp.templateId,
         engine: 'reflection',
         data: { outcome: verdict.status, genre: exp.genre, insight: verdict.insight, weight: round(verdict.weight, 3) },
@@ -181,6 +197,8 @@ function evaluate(exp: ExperimentRecord, eng: Engagement): Verdict {
 
 export interface ReflectionInsight {
   experienceId: string;
+  /** The exact playable that was scored — experienceId alone is ambiguous. */
+  buildId: string;
   genre: string;
   mode: 'explore' | 'exploit';
   hypothesis: string;

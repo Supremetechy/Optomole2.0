@@ -4,6 +4,7 @@ import { ExperienceAssetsService } from '../assets/experience-assets.service';
 import { BehaviorCompilerService } from '../compiler/behavior-compiler.service';
 import { ExperienceBuildService } from '../compiler/experience-build.service';
 import { ExperienceDirectiveService } from '../compiler/experience-directive.service';
+import { FormSynthesisService } from '../compiler/form-synthesis.service';
 import { GameplayDslBundle, GameplayDslService } from '../compiler/gameplay-dsl.service';
 import { SemanticModelService } from '../compiler/semantic-model.service';
 import { QueueService } from '../integrations/queue.service';
@@ -26,6 +27,7 @@ export class BuildsService {
     private readonly experienceBuild: ExperienceBuildService,
     private readonly semanticModel: SemanticModelService,
     private readonly directives: ExperienceDirectiveService,
+    private readonly forms: FormSynthesisService,
     private readonly behaviors: BehaviorCompilerService,
     private readonly gameplayDsl: GameplayDslService,
     private readonly experienceAssets: ExperienceAssetsService,
@@ -328,10 +330,18 @@ export class BuildsService {
         // Signal loop wiring: the playable runtime's SignalEmitter posts player
         // observations to `${apiBase}/v1/persons/${personId}/signals`. personId
         // defaults to 'anonymous' until the person-node compile path stamps a real
-        // one onto the package (step #3+). experienceId ties signals to this build.
+        // one onto the package (step #3+).
         apiBase: gatewayBaseUrl,
         personId: (pkg.experience as any)?.personId || (pkg as any)?.personId || 'anonymous',
+        // Two ids, because they answer different questions. experienceId is a slug
+        // of the title, so every build of the same content shares it — it groups a
+        // body of work. buildId is unique per compile and is what actually
+        // identifies THIS playable: it is the join key Reflection scores an
+        // experiment by, and the key the graph counts replays under. Without it,
+        // a second build from the same content inherits the first one's play
+        // history and its pending hypothesis.
         experienceId: build.experienceId,
+        buildId: build.id,
         // Loop #5: the World-Model hypothesis this experience was generated to test.
         experiment: (pkg as any)?.experiment || null,
         domain: (pkg.progression as any)?.domain || null,
@@ -407,8 +417,12 @@ export class BuildsService {
     try {
       const model = this.semanticModel.project({ package: pkg, mappingManifest: resolved.mappingManifest });
       const directiveSet = this.directives.resolve({ model, package: pkg as Record<string, any> });
-      const behaviors = this.behaviors.compile({ directives: directiveSet, model });
-      const bundle = this.gameplayDsl.compile({ build: projected, behaviors });
+      // Stage 2.5 decides the kind of game this content wants to be; the
+      // behavior compiler and the emitter both need it, because the player
+      // machine and the layout have to agree about whether the world pulls.
+      const form = this.forms.synthesize({ model, package: pkg as Record<string, any> });
+      const behaviors = this.behaviors.compile({ directives: directiveSet, model, form });
+      const bundle = this.gameplayDsl.compile({ build: projected, behaviors, form });
       return { bundle, bundleId: this.gameplayDsl.remember(bundle) };
     } catch (caught) {
       const error = caught instanceof Error ? caught.message : String(caught);

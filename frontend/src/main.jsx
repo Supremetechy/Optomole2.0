@@ -33,6 +33,7 @@ const sourceTypes = [
   { value: 'url', label: 'Web URL' },
   { value: 'ebook', label: 'eBook / Notes' },
   { value: 'audio', label: 'Audio Transcript' },
+  { value: 'notes', label: 'Notebook / txt' },
 ];
 
 const targets = [
@@ -40,6 +41,10 @@ const targets = [
   { value: 'unity', label: 'Unity', note: 'Queued engine build' },
   { value: 'unreal', label: 'Unreal', note: 'Queued engine build' },
   { value: 'blender', label: 'Blender', note: 'Queued glTF export' },
+  { value: 'pixi', label: 'PixiJS', note: 'Queued browser build' },
+  { value: 'phaser', label: 'Phaser', note: 'Queued browser build' },
+  { value: 'three', label: 'ThreeJS', note: 'Queued browser build' }
+
 ];
 
 const genres = [
@@ -62,6 +67,7 @@ const domainLabels = {
   defense: 'Defense',
   engineering: 'Engineering',
   aiGenerated: 'AI Generated',
+  all: 'All Domains'
 };
 
 const domainFallbacks = {
@@ -70,6 +76,7 @@ const domainFallbacks = {
   defense: ['security', 'risk', 'threat', 'compliance', 'credential', 'breach'],
   engineering: ['system', 'api', 'build', 'deploy', 'power', 'workflow', 'infrastructure'],
   aiGenerated: ['ai-generated', 'ai-generated'],
+  all: ['all', 'all']
 };
 
 const mapNodes = [
@@ -346,6 +353,8 @@ function safeStorageSet(key, value) {
     window.localStorage.setItem(key, value);
   } catch (_) {
     // Some browser/privacy contexts block storage; profile state still works in memory.
+
+    return;
   }
 }
 
@@ -1697,7 +1706,7 @@ function App() {
         </aside>
       </main>
 
-      {/* Background video <video
+      {process.env.NODE_ENV === 'development' && <video
         className="engine-loop"
         src="/OptomoleEngine.mp4"
         autoPlay
@@ -1705,7 +1714,7 @@ function App() {
         muted
         playsInline
         aria-label="Optomole engine preview"
-      />*/}
+      />}
     </div>
   );
 }

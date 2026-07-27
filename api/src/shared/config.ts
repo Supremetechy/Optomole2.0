@@ -123,8 +123,10 @@ export function gatewayConfig(): GatewayConfig {
     // OpenAI-compatible endpoint (Ollama at :11434/v1, or LM Studio) so the
     // gateway never loads the GGUF in-process. LOCAL_AI_MODEL is the tag the
     // runtime exposes (e.g. the Ollama model created from the One Touch GGUF).
+    // The default is a tag Ollama can actually serve; set LOCAL_AI_MODEL to
+    // whatever `ollama list` shows on this machine.
     localAiBaseUrl: value('LOCAL_AI_BASE_URL', 'http://localhost:11434/v1'),
-    localAiModel: value('LOCAL_AI_MODEL', 'claude-sonnet-reasoning'),
+    localAiModel: value('LOCAL_AI_MODEL', 'llama3.2'),
     openaiApiKey: value('OPENAI_API_KEY', ''),
     whisperModel: value('WHISPER_MODEL', 'whisper-1'),
     openaiTranscribeModel: value('OPENAI_TRANSCRIBE_MODEL', 'gpt-4o-mini-transcribe'),

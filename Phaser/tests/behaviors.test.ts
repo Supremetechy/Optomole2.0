@@ -9,7 +9,8 @@ import {
   createSquadState,
 } from "../runtime/SquadArbiter";
 import { sampleCurve } from "../runtime/PacingCurves";
-import { Action, Entity, Event, Scene, Vector3 } from "../dsl/types";
+import { MusicBus } from "../runtime/MusicBus";
+import { Action, Entity, Event, Scene, TransformComponent, Vector3 } from "../dsl/types";
 
 /**
  * Stage 4 — the three executors a compiled experience needs beyond the original
@@ -23,13 +24,23 @@ import { Action, Entity, Event, Scene, Vector3 } from "../dsl/types";
 
 class StubAdapter implements EngineAdapter {
   actions: Action[] = [];
+  created: string[] = [];
   destroyed: string[] = [];
   positions = new Map<string, Vector3>();
   private queue: Event[] = [];
 
   createScene() {}
   destroyScene() {}
-  createEntity() {}
+  createEntity(entity: Entity) {
+    this.created.push(entity.id);
+    // Place it where its transform says, unless a test has already positioned
+    // it — an entity that arrives mid-scene has to be locatable like any other.
+    if (this.positions.has(entity.id)) return;
+    const transform = entity.components.find(
+      (c): c is TransformComponent => c.type === "TransformComponent"
+    );
+    if (transform) this.positions.set(entity.id, { ...transform.position });
+  }
   destroyEntity(entityId: string) {
     this.destroyed.push(entityId);
     this.positions.delete(entityId);
@@ -413,11 +424,388 @@ test("the director samples the curve so the adapter receives a scalar", () => {
   assert.ok(adapter.ofType("TriggerBreather").length >= 2, "scheduled actions repeat on their own interval");
 });
 
+// ---- pacing: reinforcements and breathers ----
+
+/**
+ * A pacing director tuned for a test: one tick a second, a steady curve, and a
+ * base rate that resolves to exactly one spawn per tick. Real compiled rates are
+ * 2-6 per minute — the arithmetic is identical, just slower to watch.
+ */
+function pacingDirector(overrides: {
+  density: number;
+  breatherEverySeconds?: number;
+  breatherDurationSeconds?: number;
+}) {
+  return {
+    id: "region-1_pacing_director",
+    scope: "region" as const,
+    targetId: "region-1",
+    tickIntervalSeconds: 1,
+    onTickActions: [
+      {
+        id: "spawn",
+        type: "EvaluateSpawnBudget" as const,
+        // steady samples 0.5, so 120/min resolves to 60/min = one per tick.
+        parameters: { regionId: "region-1", baseRate: 120, curve: "steady", density: overrides.density },
+      },
+    ],
+    scheduledActions: overrides.breatherEverySeconds
+      ? [
+          {
+            id: "breather",
+            type: "TriggerBreather" as const,
+            repeatEverySeconds: overrides.breatherEverySeconds,
+            parameters: {
+              regionId: "region-1",
+              durationSeconds: overrides.breatherDurationSeconds ?? 5,
+            },
+          },
+        ]
+      : [],
+  };
+}
+
+const reinforcementsIn = (adapter: StubAdapter) =>
+  adapter.created.filter(id => id.includes("-reinforcement-"));
+
+test("a region walks its beat plan on its own clock, and announces each beat", () => {
+  const director = {
+    ...pacingDirector({ density: 1 }),
+    beats: [
+      { type: "calm" as const, duration: 2, enemyDensity: 0.1, traversalComplexity: 0.25 },
+      { type: "peak" as const, duration: 2, enemyDensity: 1, traversalComplexity: 0.85 },
+    ],
+  };
+  const seen: string[] = [];
+  const { core } = boot(bundle({ directors: [director] }));
+  core.subscribe(n => {
+    if (n.kind === "event" && (n.event.payload as any)?.kind === "beat") {
+      seen.push(String((n.event.payload as any).beatType));
+    }
+  });
+
+  run(core, 5);
+  assert.deepEqual(seen, ["calm", "peak", "calm"], "the plan advances on duration and loops");
+});
+
+test("a peak may crowd a region where a calm beat may not", () => {
+  // Same rate, same region, same two compiled enemies — only the beat differs.
+  const withBeats = (beats: any[]) => ({ ...pacingDirector({ density: 1 }), beats });
+  const calmOnly = boot(
+    bundle({
+      directors: [withBeats([{ type: "calm", duration: 600, enemyDensity: 0.1, traversalComplexity: 0.25 }])],
+    })
+  );
+  const peakOnly = boot(
+    bundle({
+      directors: [withBeats([{ type: "peak", duration: 600, enemyDensity: 1, traversalComplexity: 0.85 }])],
+    })
+  );
+
+  run(calmOnly.core, 8);
+  run(peakOnly.core, 8);
+
+  assert.deepEqual(
+    reinforcementsIn(calmOnly.adapter),
+    [],
+    "a calm beat's density is already met by the enemies the region declared"
+  );
+  assert.equal(
+    reinforcementsIn(peakOnly.adapter).length,
+    4,
+    "a peak fills the region, and the beat density is what said it could"
+  );
+});
+
+test("reinforcements top a region back up to its compiled density, and stop there", () => {
+  // density 1.0 => six simultaneous enemies allowed; the scene declares two.
+  const { adapter, core } = boot(bundle({ directors: [pacingDirector({ density: 1 })] }));
+
+  run(core, 5.5);
+
+  const arrivals = reinforcementsIn(adapter);
+  assert.equal(arrivals.length, 4, "the region filled to its density and the budget stopped paying out");
+  assert.ok(
+    arrivals.every(id => core.getVariables(id) !== undefined),
+    "every reinforcement is running a behavior tree, not just a sprite"
+  );
+
+  // The cap is on the living, so clearing the region re-opens it.
+  run(core, 5);
+  assert.equal(reinforcementsIn(adapter).length, 4, "a region at capacity accrues nothing further");
+});
+
+test("a region already at its density is never reinforced", () => {
+  // density 0.34 => two enemies allowed, which is exactly what the scene has.
+  const { adapter, core } = boot(bundle({ directors: [pacingDirector({ density: 0.34 })] }));
+  run(core, 10);
+  assert.deepEqual(reinforcementsIn(adapter), [], "pacing tops a region up, it does not pile on");
+});
+
+test("a breather suspends reinforcements and does not pay the pause back as a wave", () => {
+  const breathers: Array<Record<string, any>> = [];
+  const { adapter, core } = boot(
+    bundle({
+      directors: [pacingDirector({ density: 1, breatherEverySeconds: 1, breatherDurationSeconds: 5 })],
+    })
+  );
+  core.subscribe(n => {
+    if (n.kind === "event" && n.event.payload?.kind === "breather") breathers.push(n.event.payload);
+  });
+
+  run(core, 6);
+
+  assert.equal(
+    reinforcementsIn(adapter).length,
+    1,
+    "one arrival landed before the first breather; the rest of the window stayed quiet"
+  );
+  assert.ok(breathers.length > 0, "the rest is observable, so telemetry can see the pacing");
+  assert.equal(breathers[0].regionId, "region-1", "a breather is scoped to the region that asked for it");
+});
+
+test("a reinforcement fights like the enemy it was cloned from, and can be fought back", () => {
+  const attackTrigger = {
+    id: "player-attack",
+    scope: "scene" as const,
+    eventType: "OnCustom" as const,
+    conditions: [],
+    actions: [
+      {
+        id: "strike",
+        type: "ApplyAttack" as const,
+        parameters: { entityId: "scene-1-player", targetTag: "enemy", damage: 30, range: 3 },
+      },
+    ],
+  };
+
+  const { adapter, core } = boot(
+    bundle({ directors: [pacingDirector({ density: 1 })], triggers: [attackTrigger] })
+  );
+
+  const reached: string[] = [];
+  run(core, 1.5);
+  const arrival = reinforcementsIn(adapter)[0];
+  assert.ok(arrival, "a reinforcement arrived");
+
+  assert.equal(
+    core.getVariables(arrival)?.health,
+    50,
+    "it inherited the compiled health of its template, not a runtime default"
+  );
+
+  core.subscribe(n => {
+    if (n.kind === "transition" && n.entityId === arrival) reached.push(n.to);
+  });
+  run(core, 1.5);
+  assert.ok(reached.includes("Approaching"), "it runs the same combat tree on the same clock");
+
+  // The failure this guards: a reinforcement the compiled scene never declared
+  // is invisible to `targetTag`, so it damages a player who cannot damage it.
+  adapter.positions.set(arrival, { x: 10.5, y: 0, z: 0 });
+  adapter.inject({ id: "s", type: "OnCustom", payload: {} });
+  core.update(1 / 60);
+  assert.equal(core.getVariables(arrival)?.health, 20, "the player's strike resolved against it");
+});
+
+test("loudness is resolved by the core, so the adapter only turns a knob", () => {
+  const director = {
+    ...pacingDirector({ density: 0.34 }),
+    onTickActions: [
+      {
+        id: "music",
+        type: "SetMusicIntensity" as const,
+        parameters: { regionId: "region-1", intensity: 0.8, curve: "escalating" },
+      },
+    ],
+  };
+  const { adapter, core } = boot(bundle({ directors: [director] }));
+  run(core, 5);
+
+  const cues = adapter.ofType("SetMusicIntensity");
+  assert.ok(cues.length >= 4, "the director ticked");
+  for (const cue of cues) {
+    assert.equal(typeof cue.parameters.resolvedIntensity, "number", "a scalar, not a curve name");
+    assert.ok(cue.parameters.resolvedIntensity <= cue.parameters.intensity,
+      "the curve can only ever hold the region back from its compiled loudness");
+  }
+  assert.ok(
+    Number(cues[cues.length - 1].parameters.resolvedIntensity) > Number(cues[0].parameters.resolvedIntensity),
+    "an escalating region gets louder — and the adapter never had to know that"
+  );
+});
+
+test("the music bus is silent, not broken, where there is no audio", () => {
+  // Headless, in a test, or in a browser that blocks it: audio must never be
+  // the reason a compiled experience fails to run.
+  const bus = new MusicBus();
+  assert.equal(bus.available, false, "node has no AudioContext");
+  assert.doesNotThrow(() => {
+    bus.setIntensity(0.9);
+    bus.resume();
+    bus.setIntensity(0);
+    bus.dispose();
+    bus.setIntensity(0.5);
+  });
+});
+
 test("curve sampling is a pure function of elapsed time", () => {
   assert.equal(sampleCurve("steady", 0), sampleCurve("steady", 500));
   assert.ok(sampleCurve("escalating", 300) > sampleCurve("escalating", 30));
   assert.ok(sampleCurve("release", 30) > sampleCurve("release", 150));
   assert.equal(sampleCurve("no-such-curve", 10), sampleCurve("steady", 10), "an unknown curve degrades to steady");
+});
+
+// ---- the zoning family ----
+
+/** The zoning tree BehaviorCompilerService emits, trimmed to essentials. */
+const ZONING_SM = {
+  id: "zoning_combat_sm",
+  initialState: "Idle",
+  states: [
+    { id: "Idle", onEnterActions: [{ id: "idle", type: "PlayAnimation", parameters: { animationId: "enemy_idle" } }] },
+    {
+      id: "MaintainDistance",
+      onUpdateActions: [
+        {
+          id: "standoff",
+          type: "ApplyStandoffMovement",
+          parameters: { targetTag: "player", speedVar: "effectiveSpeed", minRange: 3.6, maxRange: 6 },
+        },
+      ],
+    },
+    {
+      id: "Telegraphing",
+      onEnterActions: [{ id: "windup", type: "StartTimer", parameters: { timerId: "windup", duration: 0.3 } }],
+    },
+    {
+      id: "Attacking",
+      onEnterActions: [
+        {
+          id: "shoot",
+          type: "FireProjectile",
+          parameters: { targetTag: "player", damage: 10, range: 6.5, projectileSpeed: 4 },
+        },
+        { id: "cool", type: "StartTimer", parameters: { timerId: "cooldown", duration: 30 } },
+      ],
+    },
+  ],
+  transitions: [
+    {
+      fromStateId: "Idle",
+      toStateId: "MaintainDistance",
+      eventType: "OnPerception",
+      conditions: [{ id: "seen", type: "TargetInSightRange", parameters: { targetTag: "player", range: 24 } }],
+    },
+    {
+      fromStateId: "MaintainDistance",
+      toStateId: "Telegraphing",
+      eventType: "OnDistanceCheck",
+      conditions: [
+        { id: "in_band", type: "WithinRange", parameters: { targetTag: "player", range: 6 } },
+        { id: "granted", type: "AttackSlotGranted", parameters: {} },
+      ],
+    },
+    {
+      fromStateId: "Telegraphing",
+      toStateId: "Attacking",
+      eventType: "OnTimerElapsed",
+      conditions: [{ id: "wound", type: "TimerElapsed", parameters: { timerId: "windup" } }],
+    },
+  ],
+} as any;
+
+const ZONER: Entity = {
+  id: "zoner-1",
+  archetype: "enemy",
+  tags: ["enemy", "hostile"],
+  components: [
+    { type: "TransformComponent", position: { x: 15, y: 0, z: 0 } },
+    { type: "RenderComponent", spriteId: "enemy_idle", layer: "characters" },
+    {
+      type: "StateComponent",
+      stateMachineId: "zoning_combat_sm",
+      initialState: "Idle",
+      variables: { effectiveSpeed: 4, health: 50, maxHealth: 50 },
+    },
+  ],
+};
+
+function zoningBundle(triggers: any[] = []) {
+  return bundle({
+    entities: [PLAYER, ZONER],
+    scenes: [{ ...SCENE, entities: ["scene-1-player", "zoner-1"], directors: [] }],
+    stateMachines: [PLAYER_SM, ZONING_SM],
+    triggers,
+  });
+}
+
+test("a zoning enemy holds its band instead of closing the gap", () => {
+  const { adapter, core } = boot(zoningBundle());
+  // 15m out: seen, but well outside the band, so it has to work its way in —
+  // which is the only state in which holding is distinguishable from shooting.
+  adapter.positions.set("zoner-1", { x: 25, y: 0, z: 0 });
+  run(core, 0.5);
+
+  assert.equal(adapter.ofType("ApplyMovementTowardTarget").length, 0, "it never charges");
+  const standoff = adapter.ofType("ApplyStandoffMovement")[0];
+  assert.ok(standoff, "it works the standoff instead");
+  assert.equal(standoff.parameters.targetEntityId, "scene-1-player", "resolved before the adapter sees it");
+  assert.equal(standoff.parameters.speed, 4, "speedVar resolved to the compiled number");
+  assert.ok(
+    standoff.parameters.minRange < standoff.parameters.maxRange,
+    "the band it holds has width, so it is a position and not a point"
+  );
+});
+
+test("a shot lands on arrival, not on release — distance is what buys the player time", () => {
+  const { adapter, core } = boot(zoningBundle());
+  adapter.positions.set("zoner-1", { x: 15, y: 0, z: 0 }); // 5m at 4 units/s => 1.25s of flight
+
+  run(core, 0.8);
+  const shot = adapter.ofType("FireProjectile")[0];
+  assert.ok(shot, "the shot was released");
+  assert.equal(shot.parameters.targetEntityId, "scene-1-player");
+  assert.ok(
+    Math.abs(Number(shot.parameters.travelTime) - 1.25) < 0.1,
+    "flight time came from the gap it actually fired across, not from a constant"
+  );
+  assert.equal(core.getVariables("scene-1-player")?.health, 100, "releasing a shot damages nobody");
+
+  run(core, 1.4);
+  assert.equal(core.getVariables("scene-1-player")?.health, 90, "the shot landed on its own clock");
+  assert.ok(
+    adapter.ofType("ApplyAttack").some(a => a.parameters.targetEntityId === "scene-1-player"),
+    "impact reuses the hit presentation every adapter already implements"
+  );
+});
+
+test("a shot whose target is gone when it arrives simply misses", () => {
+  const despawnPlayer = {
+    id: "vanish",
+    scope: "global" as const,
+    eventType: "OnCustom" as const,
+    conditions: [],
+    actions: [
+      { id: "gone", type: "DespawnEntity" as const, parameters: { entityId: "scene-1-player" } },
+    ],
+  };
+  const { adapter, core } = boot(zoningBundle([despawnPlayer]));
+  adapter.positions.set("zoner-1", { x: 15, y: 0, z: 0 });
+
+  run(core, 0.8);
+  assert.ok(adapter.ofType("FireProjectile").length > 0, "the shot is in flight");
+
+  adapter.inject({ id: "vanish", type: "OnCustom", payload: {} });
+  core.update(1 / 60);
+  run(core, 1.5);
+
+  assert.equal(core.getVariables("scene-1-player"), undefined, "the target left before it arrived");
+  assert.equal(
+    adapter.ofType("ApplyAttack").length,
+    0,
+    "nothing was hit — a shot in flight does not re-aim at whoever is nearest when it lands"
+  );
 });
 
 // ---- narrative sequences ----

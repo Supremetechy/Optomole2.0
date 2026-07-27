@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, HttpException, Injectable } from '@nestjs/common';
 import { classifyExperienceOutputType, EXPERIENCE_OUTPUT_TYPES } from '../shared/experience-output-types';
 import { id } from '../shared/ids';
 import { HUMAN_EXPERIENCES } from '../shared/human-experiences';
@@ -17,7 +17,9 @@ import {
   RUNTIME_ARCHETYPES,
 } from '../shared/runtime-archetypes';
 
-type AiProvider = 'openai' | 'claude' | 'gemini' | 'local';
+type AiProvider = 'openai' | 'claude' | 'gemini' | 'kimi' | 'local';
+
+const AI_PROVIDERS = new Set<string>(['openai', 'claude', 'gemini', 'kimi', 'local']);
 
 export interface AiCompilerOptions {
   provider?: AiProvider;
@@ -26,6 +28,7 @@ export interface AiCompilerOptions {
     openai?: string;
     claude?: string;
     gemini?: string;
+    kimi?: string;
   };
 }
 
@@ -84,20 +87,36 @@ export class ExperienceCompilerService {
     const options = this.applyGameReference(rawOptions);
     const ai = this.aiOptions(options);
     if (!ai.provider) throw new BadRequestException('AI provider is required.');
+    if (!AI_PROVIDERS.has(ai.provider)) throw new BadRequestException(`Unknown AI compiler "${ai.provider}".`);
     const keyless = KEYLESS_PROVIDERS.has(ai.provider);
     const apiKey = this.keyFor(ai.provider, ai);
     if (!keyless && !apiKey) throw new BadRequestException(`API key is required for ${ai.provider}.`);
 
-    const manifest = await this.callProvider(ai.provider, apiKey, ai.model || this.defaultModel(ai.provider), source, options);
-    return this.packageFromManifest(this.normalizeManifest(manifest, source, options), source, options, ai);
+    // Every provider failure below is a plain Error, which Nest would render as a
+    // bare 500 "Internal server error" — the client then shows "Construction
+    // failed" with no cause, which is indistinguishable from a gateway bug. The
+    // provider is an upstream dependency, so report it as one and keep its
+    // message: a wrong key, a wrong model id, or a dead local server are all
+    // things only the operator can fix, and only if they can see them.
+    try {
+      const manifest = await this.callProvider(ai.provider, apiKey, ai.model || this.defaultModel(ai.provider), source, options);
+      return this.packageFromManifest(this.normalizeManifest(manifest, source, options), source, options, ai);
+    } catch (err) {
+      if (err instanceof HttpException) throw err;
+      throw new BadGatewayException((err as Error)?.message || `The ${ai.provider} compiler failed.`);
+    }
   }
 
   private async callProvider(provider: AiProvider, apiKey: string, model: string, source: SourcePayload, options: Record<string, unknown>) {
     const prompt = this.prompt(source, options);
     if (provider === 'openai') return this.callOpenAi(apiKey, model, prompt);
     if (provider === 'claude') return this.callClaude(apiKey, model, prompt);
+    if (provider === 'gemini') return this.callGemini(apiKey, model, prompt);
+    if (provider === 'kimi') return this.callKimi(apiKey, model, prompt);
     if (provider === 'local') return this.callLocal(model, prompt);
-    return this.callGemini(apiKey, model, prompt);
+    // Never silently route an unrecognized provider at someone else's endpoint —
+    // that turns "Kimi isn't wired up" into "Gemini compile failed".
+    throw new BadRequestException(`Unknown AI compiler "${provider}".`);
   }
 
   /**
@@ -206,6 +225,38 @@ export class ExperienceCompilerService {
     if (!response.ok) throw new Error(`Gemini compile failed: ${this.errorMessage(data, response.status)}`);
     const text = Array.isArray(data?.candidates)
       ? data.candidates.flatMap((candidate: any) => candidate?.content?.parts || []).map((part: any) => part?.text || '').join('\n')
+      : '';
+    return this.parseJson(text);
+  }
+
+  /**
+   * Kimi (Moonshot AI). The endpoint is OpenAI-compatible, so this is the same
+   * chat/completions shape as the local provider, pointed at Moonshot with a key.
+   * Base URL is overridable for the .cn endpoint via KIMI_BASE_URL.
+   */
+  private async callKimi(apiKey: string, model: string, prompt: string) {
+    const baseUrl = (process.env.KIMI_BASE_URL || 'https://api.moonshot.ai/v1').replace(/\/$/, '');
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        stream: false,
+        temperature: 0.2,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: this.systemPrompt() },
+          { role: 'user', content: prompt },
+        ],
+      }),
+    });
+    const data = await this.readJson(response);
+    if (!response.ok) throw new Error(`Kimi compile failed: ${this.errorMessage(data, response.status)}`);
+    const text = Array.isArray(data?.choices)
+      ? data.choices.map((choice: any) => choice?.message?.content || '').join('\n')
       : '';
     return this.parseJson(text);
   }
@@ -474,6 +525,7 @@ export class ExperienceCompilerService {
   private defaultModel(provider: AiProvider) {
     if (provider === 'openai') return 'gpt-4o-mini';
     if (provider === 'claude') return 'claude-3-5-sonnet-latest';
+    if (provider === 'kimi') return 'kimi-latest';
     if (provider === 'local') return gatewayConfig().localAiModel;
     return 'gemini-3.5-flash';
   }

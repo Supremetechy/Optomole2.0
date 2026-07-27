@@ -5,11 +5,13 @@ import {
   Event,
   StateMachine,
   StateComponent,
+  TransformComponent,
   Trigger,
   Transition,
   Condition,
   Action,
   DirectorProgram,
+  LevelBeat,
   SequenceGraph,
   Vector3,
 } from "../dsl/types";
@@ -37,6 +39,31 @@ interface DirectorRuntime {
   elapsed: number;
   sinceTick: number;
   sinceScheduled: Record<string, number>;
+  /** Which beat of the program's plan is playing; -1 until the first is entered. */
+  beatIndex: number;
+}
+
+/**
+ * A region's reinforcement account. The pacing director accrues into `budget`
+ * in whole spawns; a breather suspends accrual until `breatherUntil`.
+ */
+interface SpawnBudgetRuntime {
+  budget: number;
+  spawned: number;
+  breatherUntil: number;
+}
+
+/**
+ * A shot in flight. It carries the id it was fired at rather than re-resolving
+ * on arrival, so a zoning enemy that loses its target mid-flight still misses
+ * instead of silently re-aiming at whoever is nearest when it lands.
+ */
+interface ProjectileRuntime {
+  attackerId: string;
+  targetId: string;
+  damage: number;
+  remaining: number;
+  action: Action;
 }
 
 /** Where a narrative sequence has got to, and how long it has been there. */
@@ -67,6 +94,22 @@ const DEFAULT_BEAT_DWELL_SECONDS = 8;
 /** Default reach for an attack that does not declare one, in DSL units. */
 const DEFAULT_ATTACK_RANGE = 2.5;
 
+/** Compiled spawn rates are enemies-per-minute; budgets accrue in spawns. */
+const SECONDS_PER_MINUTE = 60;
+
+/**
+ * What an encounter density of 1.0 is allowed to mean, in simultaneous living
+ * enemies. The compiled density scales against this, so the ceiling on how
+ * crowded a region can get is one number here rather than an open-ended feed.
+ */
+const ENEMIES_AT_FULL_DENSITY = 6;
+
+/** How far apart successive reinforcements arrive, in DSL units. */
+const REINFORCEMENT_SPREAD_UNITS = 1.5;
+
+/** Fallback flight speed for a shot that does not declare one, in units/s. */
+const DEFAULT_PROJECTILE_SPEED = 10;
+
 export class RuntimeCore {
   private game: Game | null = null;
   private scenes = new Map<string, Scene>();
@@ -96,6 +139,12 @@ export class RuntimeCore {
   private squads = new Map<string, SquadArbitrationState>();
   /** entityId -> whether its squad currently grants it an attack slot. */
   private attackGrants = new Map<string, boolean>();
+  /** regionId -> reinforcement account, driven by that region's pacing director. */
+  private spawnBudgets = new Map<string, SpawnBudgetRuntime>();
+  /** Entity definitions minted at runtime by a spawn budget, not by the compiler. */
+  private spawnedEntityIds = new Set<string>();
+  /** Shots in flight, resolved on arrival so distance stays worth something. */
+  private projectiles: ProjectileRuntime[] = [];
   private sincePerception = 0;
   /** True when any loaded machine reacts to perception/distance polling. */
   private needsPerceptionTick = false;
@@ -148,6 +197,13 @@ export class RuntimeCore {
     this.firedTimers.clear();
     this.squads.clear();
     this.attackGrants.clear();
+    // Reinforcements were minted for the encounter that just ended. Their
+    // definitions exist nowhere in the compiled bundle, so dropping them here is
+    // what stops a long session accumulating entity ids no scene can reach.
+    for (const spawnedId of this.spawnedEntityIds) this.entities.delete(spawnedId);
+    this.spawnedEntityIds.clear();
+    this.spawnBudgets.clear();
+    this.projectiles = [];
     this.activeSceneId = sceneId;
     this.adapter.createScene(scene);
 
@@ -177,6 +233,7 @@ export class RuntimeCore {
         sinceScheduled: Object.fromEntries(
           program.scheduledActions.map(action => [action.id, 0])
         ),
+        beatIndex: -1,
       }));
 
     this.needsPerceptionTick = [...this.instances.values()].some(inst =>
@@ -213,6 +270,9 @@ export class RuntimeCore {
 
     // 5. Perception/distance polling drives combat trees with no player input.
     this.tickPerception(deltaTime);
+
+    // 5b. Shots in flight land, or miss a target that is no longer there.
+    this.tickProjectiles(deltaTime);
 
     // 6. Directors: pacing curves and squad arbitration.
     this.tickDirectors(deltaTime);
@@ -383,6 +443,12 @@ export class RuntimeCore {
         return actions.every(a => !this.lastInputState[a]);
       }
       case "VariableEquals": {
+        // World scope closes a one-way street: SetVariable could already write
+        // a world variable, but nothing except BeatCompleted could read one
+        // back, so cross-entity progress (every item collected, every node
+        // visited) had no way to gate anything. A resolution is exactly that
+        // kind of state, so it needs the symmetric read.
+        if (p.scope === "world") return this.worldVariables[p.var] === p.value;
         const vars = p.entityId
           ? this.instances.get(p.entityId)?.variables
           : inst?.variables;
@@ -500,6 +566,20 @@ export class RuntimeCore {
       case "ApplyAttack":
         this.runAttack(action, inst);
         return;
+      case "FireProjectile":
+        this.runFireProjectile(action, inst);
+        return;
+      // Pacing output. Whether a reinforcement is due, and whether the region is
+      // resting, are gameplay decisions — so they resolve here and the action is
+      // still forwarded, leaving the adapter only the presentation of it.
+      case "EvaluateSpawnBudget":
+        this.runSpawnBudget(action);
+        this.adapter.applyAction(this.resolveAction(action, inst));
+        return;
+      case "TriggerBreather":
+        this.runBreather(action);
+        this.adapter.applyAction(this.resolveAction(action, inst));
+        return;
       case "DespawnEntity": {
         // Core-side cleanup first so a dead entity stops running its machine
         // and stops holding a squad slot; the adapter still removes the sprite.
@@ -508,6 +588,9 @@ export class RuntimeCore {
           this.instances.delete(entityId);
           this.timers.delete(entityId);
           this.releaseAttackSlot(entityId);
+          // A reinforcement's definition dies with it; a compiled entity's does
+          // not, because its scene will declare it again on reload.
+          if (this.spawnedEntityIds.delete(entityId)) this.entities.delete(entityId);
         }
         this.adapter.applyAction(this.resolveAction(action, inst));
         return;
@@ -609,6 +692,7 @@ export class RuntimeCore {
     for (const director of this.directors) {
       director.elapsed += deltaTime;
       director.sinceTick += deltaTime;
+      this.advanceBeat(director);
       if (director.sinceTick >= director.program.tickIntervalSeconds) {
         director.sinceTick = 0;
         for (const action of director.program.onTickActions) {
@@ -637,18 +721,38 @@ export class RuntimeCore {
     const curve = action.parameters.curve;
     if (typeof curve === "string") {
       const tension = sampleCurve(curve, director.elapsed);
+      const beat = this.activeBeat(director);
       this.executeAction(
         {
           ...action,
           parameters: {
             ...action.parameters,
             tension,
+            // The beat plays over the curve: the curve says how hard the region
+            // is pressing, the beat says what kind of moment it is pressing in.
+            ...(beat
+              ? {
+                  beatType: beat.type,
+                  beatIndex: director.beatIndex,
+                  beatEnemyDensity: beat.enemyDensity,
+                }
+              : {}),
             elapsedSeconds: Number(director.elapsed.toFixed(2)),
+            // How much time this tick accounts for. A rate is meaningless
+            // without it, and only the director knows its own cadence.
+            tickIntervalSeconds: director.program.tickIntervalSeconds,
             // The compiled base rate scaled by where the curve is now — the
-            // spawn budget an adapter actually applies.
+            // spawn budget the region actually accrues against this tick.
             resolvedRate:
               typeof action.parameters.baseRate === "number"
                 ? Number((action.parameters.baseRate * tension).toFixed(3))
+                : undefined,
+            // Same rule for loudness: the region's compiled intensity is what it
+            // feels like at full tension, and the curve says how much of that is
+            // being felt now. An adapter receives one scalar and turns a knob.
+            resolvedIntensity:
+              typeof action.parameters.intensity === "number"
+                ? Number(Math.max(0, Math.min(1, action.parameters.intensity * tension)).toFixed(3))
                 : undefined,
           },
         },
@@ -657,6 +761,198 @@ export class RuntimeCore {
       return;
     }
     this.executeAction(action, undefined);
+  }
+
+  // ---- pacing: beats, reinforcements and breathers ----
+
+  /**
+   * Which beat a director is on, from its own elapsed clock. The plan loops:
+   * a region the player lingers in keeps cycling calm → build → peak rather
+   * than pinning forever at whatever its last beat happened to be.
+   */
+  private activeBeat(director: DirectorRuntime): LevelBeat | null {
+    const beats = director.program.beats;
+    if (!beats?.length) return null;
+    const total = beats.reduce((sum, beat) => sum + Math.max(1, beat.duration), 0);
+    let offset = director.elapsed % total;
+    for (const beat of beats) {
+      offset -= Math.max(1, beat.duration);
+      if (offset < 0) return beat;
+    }
+    return beats[beats.length - 1];
+  }
+
+  private beatIndexOf(director: DirectorRuntime, beat: LevelBeat): number {
+    return director.program.beats?.indexOf(beat) ?? -1;
+  }
+
+  /** Announce a beat change once, so telemetry and adapters can react to it. */
+  private advanceBeat(director: DirectorRuntime): void {
+    const beat = this.activeBeat(director);
+    if (!beat) return;
+    const index = this.beatIndexOf(director, beat);
+    if (index === director.beatIndex) return;
+    director.beatIndex = index;
+    this.emit({
+      id: `beat_${director.program.id}_${index}`,
+      type: "OnCustom",
+      payload: {
+        kind: "beat",
+        regionId: director.program.targetId,
+        beatType: beat.type,
+        beatIndex: index,
+        enemyDensity: beat.enemyDensity,
+        traversalComplexity: beat.traversalComplexity,
+      },
+    });
+  }
+
+  // ---- pacing: reinforcements and breathers ----
+
+  private spawnBudgetFor(regionId: string): SpawnBudgetRuntime {
+    let state = this.spawnBudgets.get(regionId);
+    if (!state) {
+      state = { budget: 0, spawned: 0, breatherUntil: 0 };
+      this.spawnBudgets.set(regionId, state);
+    }
+    return state;
+  }
+
+  /**
+   * Reinforcements. The director hands over a rate already scaled by the tension
+   * curve; this accrues it into whole spawns and tops the region back up to the
+   * encounter density the pacing directive asked for.
+   *
+   * The cap counts LIVING enemies rather than total spawns, which is what makes
+   * pacing feel like pacing: a player who clears a region faster than the budget
+   * accrues earns quiet, and one who leaves it standing never faces more at once
+   * than the compiled density allows.
+   */
+  private runSpawnBudget(action: Action): void {
+    const p = action.parameters;
+    const regionId = String(p.regionId ?? this.activeSceneId ?? "region");
+    const state = this.spawnBudgetFor(regionId);
+    if (this.clock < state.breatherUntil) return;
+
+    const rate = Number(p.resolvedRate ?? p.baseRate);
+    const interval = Number(p.tickIntervalSeconds);
+    if (!(rate > 0) || !(interval > 0)) return;
+
+    const templates = this.enemyTemplates();
+    if (!templates.length) return;
+
+    // The active beat's density wins over the region's average when a pacing
+    // plan is compiled: that is the whole point of a beat — a peak is allowed
+    // to be crowded and a release is not, inside the same region.
+    const density = Number(p.beatEnemyDensity ?? p.density);
+    const targetLive = Math.max(
+      1,
+      Math.round((Number.isFinite(density) ? density : 0.3) * ENEMIES_AT_FULL_DENSITY)
+    );
+
+    state.budget += (rate * interval) / SECONDS_PER_MINUTE;
+    while (state.budget >= 1 && this.liveEnemyCount() < targetLive) {
+      state.budget -= 1;
+      state.spawned += 1;
+      this.spawnReinforcement(templates[state.spawned % templates.length], state.spawned);
+    }
+    // A region at capacity banks at most one spawn, so a long stalemate cannot
+    // burst into a wave the instant the player thins it out.
+    if (state.budget > 1) state.budget = 1;
+  }
+
+  /**
+   * A breather suspends reinforcement accrual for its duration — the pause the
+   * pacing directive asked for. Enemies already in the region keep fighting: a
+   * breather is relief from escalation, not a truce.
+   */
+  private runBreather(action: Action): void {
+    const p = action.parameters;
+    const regionId = String(p.regionId ?? this.activeSceneId ?? "region");
+    const duration = Number(p.durationSeconds);
+    if (!(duration > 0)) return;
+
+    const state = this.spawnBudgetFor(regionId);
+    state.breatherUntil = this.clock + duration;
+    // Banked pressure does not survive the pause, or the rest would simply be
+    // paid back as a wave the moment it ends.
+    state.budget = 0;
+    this.emit({
+      id: `breather_${regionId}`,
+      type: "OnCustom",
+      payload: { kind: "breather", regionId, durationSeconds: duration },
+    });
+  }
+
+  /** The enemies this region declared — the only things it may reinforce with. */
+  private enemyTemplates(): Entity[] {
+    const scene = this.activeSceneId ? this.scenes.get(this.activeSceneId) : null;
+    if (!scene) return [];
+    return scene.entities
+      .map(entityId => this.entities.get(entityId))
+      .filter((entity): entity is Entity => !!entity && entity.tags.includes("enemy"));
+  }
+
+  private liveEnemyCount(): number {
+    let live = 0;
+    for (const entityId of this.instances.keys()) {
+      if (this.entities.get(entityId)?.tags.includes("enemy")) live += 1;
+    }
+    return live;
+  }
+
+  /**
+   * One reinforcement, CLONED from an enemy the region already declared rather
+   * than invented here. Cloning is what keeps every compiled number intact — its
+   * behavior tree, its squad tag, its sprite, its health — so a reinforcement
+   * fights like the content that produced it instead of like a runtime default.
+   */
+  private spawnReinforcement(template: Entity, ordinal: number): void {
+    const transform = template.components.find(
+      (c): c is TransformComponent => c.type === "TransformComponent"
+    );
+    if (!transform) return;
+
+    const entityId = `${template.id}-reinforcement-${ordinal}`;
+    if (this.entities.has(entityId)) return;
+
+    // Arrivals are spread around the template's own position, which is on the
+    // ground and inside the region by construction — nothing computed at runtime
+    // can promise either.
+    const offset = ((ordinal % 3) - 1) * REINFORCEMENT_SPREAD_UNITS;
+    const clone: Entity = {
+      ...template,
+      id: entityId,
+      components: template.components.map(component =>
+        component.type === "TransformComponent"
+          ? { ...component, position: { ...component.position, x: component.position.x + offset } }
+          : component
+      ),
+    };
+
+    this.entities.set(entityId, clone);
+    this.spawnedEntityIds.add(entityId);
+    this.adapter.createEntity(clone);
+    this.registerStateMachine(clone);
+
+    const inst = this.instances.get(entityId);
+    if (inst) {
+      // A region whose compiled enemies were all defeated may have stopped
+      // polling; a new arrival needs perception back on to ever notice anyone.
+      this.needsPerceptionTick =
+        this.needsPerceptionTick ||
+        inst.machine.transitions.some(
+          t => t.eventType === "OnPerception" || t.eventType === "OnDistanceCheck"
+        );
+      this.runStateActions(inst, inst.currentStateId, "onEnterActions");
+    }
+
+    this.emit({
+      id: `reinforcement_${entityId}`,
+      type: "OnCustom",
+      payload: { kind: "reinforcement", entityId, templateId: template.id },
+      sourceEntityId: entityId,
+    });
   }
 
   // ---- squad arbitration ----
@@ -799,34 +1095,114 @@ export class RuntimeCore {
     const targetId = this.resolveTargetId(attackerId, p.targetEntityId, p.targetTag, range);
     if (!targetId) return;
 
-    const target = this.instances.get(targetId);
     const damage = Number(p.damage) || 0;
-    if (target && typeof target.variables.health === "number") {
-      target.variables.health = Math.max(0, Number(target.variables.health) - damage);
-      this.emit({
-        id: `health_${targetId}`,
-        type: "OnHealthChanged",
-        payload: { health: target.variables.health, damage },
-        sourceEntityId: targetId,
-      });
-      if (target.variables.health <= 0) {
-        this.emit({
-          id: `defeated_${targetId}`,
-          type: "OnCustom",
-          payload: { kind: "defeated", entityId: targetId },
-          sourceEntityId: targetId,
-        });
-        this.executeAction(
-          { id: `despawn_${targetId}`, type: "DespawnEntity", parameters: { entityId: targetId } },
-          undefined
-        );
-      }
-    }
+    this.applyDamage(targetId, damage);
 
     this.adapter.applyAction({
       ...action,
       parameters: { ...p, entityId: attackerId, targetEntityId: targetId, damage },
     });
+  }
+
+  /**
+   * Health, death and the events either produces. Shared by melee and by a
+   * projectile's arrival so a shot and a swing kill by exactly the same rule.
+   */
+  private applyDamage(targetId: string, damage: number): void {
+    const target = this.instances.get(targetId);
+    if (!target || typeof target.variables.health !== "number") return;
+
+    target.variables.health = Math.max(0, Number(target.variables.health) - damage);
+    this.emit({
+      id: `health_${targetId}`,
+      type: "OnHealthChanged",
+      payload: { health: target.variables.health, damage },
+      sourceEntityId: targetId,
+    });
+    if (target.variables.health > 0) return;
+
+    this.emit({
+      id: `defeated_${targetId}`,
+      type: "OnCustom",
+      payload: { kind: "defeated", entityId: targetId },
+      sourceEntityId: targetId,
+    });
+    this.executeAction(
+      { id: `despawn_${targetId}`, type: "DespawnEntity", parameters: { entityId: targetId } },
+      undefined
+    );
+  }
+
+  /**
+   * A zoning enemy's shot. Travel time is derived from the gap it actually fired
+   * across and its compiled projectile speed — not authored per attack — so the
+   * band a zoning enemy fights to keep is the same band that gives the player
+   * time to break line, close, or move.
+   */
+  private runFireProjectile(action: Action, inst?: StateMachineInstance): void {
+    const p = action.parameters;
+    const attackerId = p.entityId ?? inst?.entityId;
+    if (!attackerId) return;
+
+    const cooldown = Number(p.cooldown);
+    if (Number.isFinite(cooldown) && cooldown > 0) {
+      if (this.timers.get(attackerId)?.has("attack")) return;
+      this.startTimer(attackerId, "attack", cooldown);
+    }
+
+    const range = typeof p.range === "number" ? p.range : DEFAULT_ATTACK_RANGE;
+    const targetId = this.resolveTargetId(attackerId, p.targetEntityId, p.targetTag, range);
+    if (!targetId) return;
+
+    const speed = Number(p.projectileSpeed) > 0 ? Number(p.projectileSpeed) : DEFAULT_PROJECTILE_SPEED;
+    const gap = this.distanceBetween(attackerId, targetId) ?? range;
+    const resolved: Action = {
+      ...action,
+      parameters: { ...p, entityId: attackerId, targetEntityId: targetId, travelTime: Number((gap / speed).toFixed(3)) },
+    };
+
+    this.projectiles.push({
+      attackerId,
+      targetId,
+      damage: Number(p.damage) || 0,
+      remaining: gap / speed,
+      action: resolved,
+    });
+    // Released now, resolved later: the adapter draws the shot leaving.
+    this.adapter.applyAction(resolved);
+  }
+
+  /**
+   * Shots land on the core's clock. A target that died or despawned mid-flight
+   * takes nothing — the shot simply misses, which is what makes moving out of
+   * the way a real answer to a zoning enemy.
+   */
+  private tickProjectiles(deltaTime: number): void {
+    if (!this.projectiles.length) return;
+    const landed: ProjectileRuntime[] = [];
+    this.projectiles = this.projectiles.filter(projectile => {
+      projectile.remaining -= deltaTime;
+      if (projectile.remaining > 0) return true;
+      landed.push(projectile);
+      return false;
+    });
+
+    for (const projectile of landed) {
+      if (!this.instances.has(projectile.targetId)) continue;
+      this.applyDamage(projectile.targetId, projectile.damage);
+      // Impact reuses the melee presentation contract rather than inventing a
+      // second one: every adapter already flashes an ApplyAttack's target.
+      this.adapter.applyAction({
+        id: `${projectile.action.id}_impact`,
+        type: "ApplyAttack",
+        parameters: {
+          entityId: projectile.attackerId,
+          targetEntityId: projectile.targetId,
+          damage: projectile.damage,
+        },
+      });
+    }
+    this.drainQueue();
   }
 
   // ---- narrative sequences ----
@@ -887,7 +1263,11 @@ export class RuntimeCore {
     if (!targetTag) return null;
 
     const scene = this.activeSceneId ? this.scenes.get(this.activeSceneId) : null;
-    const candidates = (scene?.entities ?? [...this.entities.keys()]).filter(entityId => {
+    // A scene's entity list is compiled and therefore fixed; reinforcements are
+    // added here or they would be unhittable ghosts — visible, damaging, and
+    // invisible to the player's own targetTag.
+    const declared = scene?.entities ?? [...this.entities.keys()];
+    const candidates = [...declared, ...this.spawnedEntityIds].filter(entityId => {
       if (entityId === selfId) return false;
       return this.entities.get(entityId)?.tags.includes(targetTag) ?? false;
     });

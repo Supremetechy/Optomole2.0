@@ -65,9 +65,19 @@ function packageFor({ emotions, arc, locations, hazards }) {
           missions: [{ id: 'm1', title: 'Contain the breach', summary: 'Trace and isolate.', objectives: [], reward: { xp: 150 } }],
           bosses: [{ id: 'boss-1', name: 'Credential Leak', sourceActionId: 'a1', defeatCondition: 'Rotate the keys' }],
           gameplayAtoms: [
+            // GameplayNormalizationService alternates hazard atoms between
+            // `challenge` (resolved by confronting it) and `branch` (chosen —
+            // routed around), so the fixture has to carry both or the
+            // environmental-hazard path is never exercised by a real shape.
             { id: 'atom-1', sourceId: 'a1', sourceKind: 'hazard', label: 'Unrotated keys', gameplayType: 'challenge', salience: 0.8, successCondition: 'rotate them' },
             ...hazards.map((label, index) => ({
-              id: `atom-h${index}`, sourceId: 'a1', sourceKind: 'hazard', label, gameplayType: 'challenge', salience: 0.7, successCondition: 'resolve',
+              id: `atom-h${index}`,
+              sourceId: 'a1',
+              sourceKind: 'hazard',
+              label,
+              gameplayType: index % 2 === 0 ? 'branch' : 'challenge',
+              salience: 0.7,
+              successCondition: 'resolve',
             })),
             { id: 'atom-2', sourceId: 'a1', sourceKind: 'concept', label: 'Access Token', gameplayType: 'inventory_item', interactionType: 'collect', salience: 0.6, reward: { xp: 75 } },
           ],
@@ -91,7 +101,9 @@ const TENSE = packageFor({
   emotions: ['fear', 'urgency'],
   arc: { beginning: 'fear', middle: 'urgency', end: 'relief', stages: [] },
   locations: ['Server Vault', 'Loading Bay'],
-  hazards: ['Stale credentials'],
+  // Two, because normalization alternates their atom type: the first becomes
+  // terrain to route around and the second a threat to fight.
+  hazards: ['Stale credentials', 'Silent failover'],
 });
 
 const CALM = packageFor({
@@ -222,12 +234,30 @@ test('every directive traces back to the semantic nodes it was derived from', ()
   }
 });
 
-test('hazards and antagonists both become fightable, and group into squads', () => {
+test("a source's risks split into things to fight and things to route around", () => {
+  const { directiveSet, compiled, model } = compile(TENSE);
+  const combat = directiveSet.directives.filter(d => d.family === 'combat');
+  const hazardNodes = model.semanticNodes.filter(n => n.kind === 'hazard');
+
+  // `challenge` atoms are resolved by confronting them; `branch` atoms are
+  // chosen — routed around. Without the split every risk arrived as a monster.
+  const environmental = hazardNodes.filter(n => n.attributes.gameplayType === 'branch');
+  assert.ok(environmental.length > 0, 'the source named a risk that is terrain, not a body');
+
+  const embodied = new Set(combat.map(d => d.parameters.hazardNodeId).filter(Boolean));
+  const placed = new Set(compiled.environments.flatMap(e => e.hazards.map(h => h.nodeId)));
+  assert.ok(placed.size > 0, 'and it was placed as environmental danger');
+  for (const nodeId of placed) {
+    assert.ok(!embodied.has(nodeId), 'no risk is both an enemy and a hazard zone');
+  }
+});
+
+test('fightable risks and antagonists group into squads', () => {
   const { directiveSet } = compile(TENSE);
   const combat = directiveSet.directives.filter(d => d.family === 'combat');
   const squads = directiveSet.directives.filter(d => d.family === 'squad');
 
-  assert.equal(combat.length, 3, 'one boss + two hazards became three enemies');
+  assert.equal(combat.length, 3, 'one boss + two fightable hazards became three enemies');
   assert.ok(squads.length >= 1, 'enemies sharing a region get a coordinator');
   const squad = squads[0];
   assert.ok(squad.parameters.memberTargetIds.length >= 2, 'a squad has at least two members');
@@ -240,8 +270,9 @@ test('hazards and antagonists both become fightable, and group into squads', () 
 // ---- Stage 3 ----
 
 test('combat compiles to a behavior tree that waits for its squad', () => {
-  const { compiled } = compile(TENSE);
-  const tree = compiled.stateMachines.find(m => m.id.endsWith('_combat_sm'));
+  const { compiled, directiveSet } = compile(TENSE);
+  const closing = directiveSet.directives.find(d => d.family === 'combat' && d.parameters.family !== 'zoning');
+  const tree = compiled.stateMachines.find(m => m.id === `${closing.targetId}_combat_sm`);
   assert.ok(tree, 'a combat machine was compiled');
 
   const stateIds = tree.states.map(s => s.id);
@@ -274,14 +305,62 @@ test("an enemy's reach matches the range it commits at", () => {
   const { compiled, directiveSet } = compile(TENSE);
   for (const directive of directiveSet.directives.filter(d => d.family === 'combat')) {
     const tree = compiled.stateMachines.find(m => m.id === `${directive.targetId}_combat_sm`);
-    const attack = tree.states
+    const strike = tree.states
       .find(s => s.id === 'Attacking')
-      .onEnterActions.find(a => a.type === 'ApplyAttack');
+      .onEnterActions.find(a => a.type === 'ApplyAttack' || a.type === 'FireProjectile');
     const engageRange = directive.parameters.preferredRange === 'melee' ? 1.5 : 6;
     assert.ok(
-      attack.parameters.range >= engageRange,
+      strike.parameters.range >= engageRange,
       `${directive.parameters.preferredRange} enemy reaches at least as far as it commits`
     );
+  }
+});
+
+test('the three enemy families compile to genuinely different trees', () => {
+  const { compiled, directiveSet } = compile(TENSE);
+  const combat = directiveSet.directives.filter(d => d.family === 'combat');
+  const families = new Set(combat.map(d => d.parameters.family));
+  assert.ok(families.size > 1, 'one source produces more than one kind of threat');
+
+  const treeFor = key => compiled.stateMachines.find(m => m.id === `${key}_combat_sm`);
+  const statesOf = tree => tree.states.map(s => s.id);
+
+  const zoning = combat.find(d => d.parameters.family === 'zoning');
+  assert.ok(zoning, 'a ranged threat compiles to the zoning family');
+  const zoningTree = treeFor(zoning.targetId);
+  assert.ok(statesOf(zoningTree).includes('MaintainDistance'), 'zoning holds a band');
+  assert.ok(!statesOf(zoningTree).includes('Approaching'), 'and never closes the gap');
+  const standoff = zoningTree.states
+    .find(s => s.id === 'MaintainDistance')
+    .onUpdateActions.find(a => a.type === 'ApplyStandoffMovement');
+  assert.ok(standoff.parameters.minRange < standoff.parameters.maxRange, 'the band has width');
+  const shot = zoningTree.states.find(s => s.id === 'Attacking').onEnterActions
+    .find(a => a.type === 'FireProjectile');
+  assert.ok(shot.parameters.projectileSpeed > 0, 'and it shoots rather than swings');
+
+  const aggressive = combat.find(d => d.parameters.family === 'aggression');
+  if (aggressive) {
+    const tree = treeFor(aggressive.targetId);
+    assert.ok(statesOf(tree).includes('Recovering'), 'an aggression enemy pays for its burst');
+    const afterAttack = tree.transitions.find(t => t.fromStateId === 'Attacking');
+    assert.equal(afterAttack.toStateId, 'Recovering', 'and is vulnerable straight after it');
+  }
+
+  const pressure = combat.find(d => d.parameters.family === 'pressure');
+  if (pressure) {
+    const tree = treeFor(pressure.targetId);
+    assert.ok(statesOf(tree).includes('Approaching'), 'pressure closes');
+    assert.ok(!statesOf(tree).includes('Recovering'), 'and never stops to recover');
+  }
+
+  // The invariant every family shares.
+  for (const directive of combat) {
+    const actions = treeFor(directive.targetId).states.flatMap(s => [
+      ...(s.onEnterActions ?? []),
+      ...(s.onUpdateActions ?? []),
+    ]);
+    assert.ok(actions.every(a => a.parameters.entityId === undefined),
+      `${directive.parameters.family} hardcodes no entityId`);
   }
 });
 
@@ -318,6 +397,127 @@ test('pacing and squad compile to directors, narrative to a beat graph', () => {
   assert.equal(sequence.beats[0].label, 'The alert fires', 'beats carry the source scene title');
 });
 
+test('a region compiles to a beat plan, and the beats reshape the ground under them', () => {
+  const { directiveSet, compiled } = compile(TENSE);
+
+  const pacingDirectives = directiveSet.directives.filter(d => d.family === 'pacing');
+  assert.ok(pacingDirectives.every(d => Array.isArray(d.parameters.beats) && d.parameters.beats.length),
+    'every region names the beats it plays');
+
+  // region-1 is the tense opening: its curve is a release, so it opens at a peak.
+  const opening = pacingDirectives.find(d => d.targetId === 'region-1');
+  assert.equal(opening.parameters.beats[0].type, 'peak',
+    'the beat sequence follows the tension curve the arc produced');
+  assert.ok(opening.parameters.beats.some(b => b.type === 'release'),
+    'and it comes back down rather than holding at peak');
+
+  const plan = compiled.environments.find(e => e.regionId === 'region-1');
+  const byBeat = new Map(plan.platforms.map(p => [p.beat, p]));
+  const peak = byBeat.get('peak');
+  const rest = byBeat.get('release') || byBeat.get('calm');
+  assert.ok(peak && rest, 'the run is divided across the region\'s beats');
+
+  // The doc's table, made real: calm is wide and flat, peak is narrow, gappy and vertical.
+  assert.ok(peak.width < rest.width, 'a peak stands on narrower ledges');
+  assert.ok(peak.gapAfter > rest.gapAfter, 'and asks for longer jumps');
+  assert.ok(peak.rise > rest.rise, 'and climbs where a rest beat stays flat');
+
+  const director = compiled.directors.find(d => d.id === 'region-1_pacing_director');
+  assert.deepEqual(
+    director.beats.map(b => b.type),
+    opening.parameters.beats.map(b => b.type),
+    'the same plan reaches the runtime, so geometry and spawning agree on the beat'
+  );
+});
+
+test('a beat plan differs when the content differs', () => {
+  const tense = compile(TENSE).directiveSet.directives.find(d => d.family === 'pacing' && d.targetId === 'region-1');
+  const calm = compile(CALM).directiveSet.directives.find(d => d.family === 'pacing' && d.targetId === 'region-1');
+
+  assert.notDeepEqual(
+    tense.parameters.beats.map(b => b.type),
+    calm.parameters.beats.map(b => b.type),
+    'a source that opens tense and one that opens calm do not play the same beats'
+  );
+  const peakOf = beats => beats.find(b => b.type === 'peak');
+  const tensePeak = peakOf(tense.parameters.beats);
+  const calmPeak = peakOf(calm.parameters.beats);
+  if (tensePeak && calmPeak) {
+    assert.ok(tensePeak.duration > calmPeak.duration, 'pressure stretches the peak it produced');
+  }
+});
+
+// ---- Stage 2 input: author tags ----
+
+/** The same source, with the author asking for something explicitly. */
+const tagged = tags => {
+  const pkg = packageFor({
+    emotions: ['calm', 'trust'],
+    arc: { beginning: 'calm', middle: 'trust', end: 'joy', stages: [] },
+    locations: ['Reading Room', 'Garden Path'],
+    hazards: [],
+  });
+  return { ...pkg, experience: { ...pkg.experience, tags } };
+};
+
+test('an author tag bends the derivation instead of being ignored', () => {
+  const plain = compile(CALM).directiveSet.directives.find(d => d.family === 'movement');
+  const floaty = compile(tagged(['floaty'])).directiveSet.directives.find(d => d.family === 'movement');
+
+  assert.ok(floaty.parameters.jumpApexHeight > plain.parameters.jumpApexHeight, 'floaty jumps higher');
+  assert.ok(floaty.parameters.airControl > plain.parameters.airControl, 'and steers better in the air');
+  assert.ok(floaty.parameters.coyoteTime > plain.parameters.coyoteTime, 'and forgives a late press');
+  assert.deepEqual(floaty.parameters.appliedTags, ['floaty'], 'the directive records what steered it');
+
+  // The tag bends the arc; it does not replace it. Provenance survives — node
+  // ids are minted per compile, so it is the count of moods that must match.
+  assert.equal(floaty.derivedFrom.length, plain.derivedFrom.length, 'the same moods still produced it');
+  assert.ok(floaty.derivedFrom.length > 0, 'and it is still traceable to them');
+});
+
+test('an unrecognized tag is reported, never silently dropped', () => {
+  const { directiveSet } = compile(tagged(['floaty', 'metroidvania']));
+  assert.deepEqual(directiveSet.tags.applied, ['floaty']);
+  assert.deepEqual(directiveSet.tags.unrecognized, ['metroidvania'],
+    'an author who asks for something the compiler cannot do is told so');
+});
+
+test('a gravity tag reaches the world the jump was derived through', () => {
+  // The failure this guards: apex height is authored and the impulse derived
+  // from gravity. If a tag lowers gravity for the player but not for the world,
+  // every authored height is wrong and the player sails over the level.
+  const { directiveSet, bundle } = compile(tagged(['low_gravity']));
+  const movement = directiveSet.directives.find(d => d.family === 'movement');
+
+  assert.ok(movement.parameters.gravityScale < 1, 'the world pulls less');
+  const worldGravity = -bundle.game.config.gravity.y;
+  assert.ok(Math.abs(worldGravity - 9.81 * movement.parameters.gravityScale) < 0.01,
+    'the emitted world runs at the gravity the directive asked for');
+
+  const apex = movement.parameters.jumpForce ** 2 / (2 * worldGravity);
+  assert.ok(Math.abs(apex - movement.parameters.jumpApexHeight) < 0.05,
+    'and the impulse still lands the player exactly at the authored apex height');
+});
+
+test('a family tag re-shapes every enemy the source produced', () => {
+  const { directiveSet, compiled } = compile({ ...TENSE, experience: { ...TENSE.experience, tags: ['zoning'] } });
+  const combat = directiveSet.directives.filter(d => d.family === 'combat');
+
+  assert.ok(combat.length > 0, 'the source still produces its own threats');
+  assert.ok(combat.every(d => d.parameters.family === 'zoning'), 'and the author decided how they fight');
+  for (const enemy of compiled.enemies) {
+    const tree = compiled.stateMachines.find(m => m.id === enemy.stateMachineId);
+    assert.ok(tree.states.some(s => s.id === 'MaintainDistance'), `${enemy.label} holds a band`);
+  }
+});
+
+test('an untagged package is unaffected by the tag layer', () => {
+  const { directiveSet } = compile(CALM);
+  assert.deepEqual(directiveSet.tags, { applied: [], unrecognized: [] });
+  const movement = directiveSet.directives.find(d => d.family === 'movement');
+  assert.equal(movement.parameters.gravityScale, 1, 'nothing was bent');
+});
+
 // ---- Stage 4 input: the emitted bundle ----
 
 test('the bundle places enemies, geometry and props from the compiled plans', () => {
@@ -331,6 +531,56 @@ test('the bundle places enemies, geometry and props from the compiled plans', ()
   assert.ok(props.length > 0, 'regions are furnished');
   assert.ok(bundle.assets.length > 0, 'the sprite vocabulary is declared');
   assert.ok(bundle.directors.length > 0 && bundle.sequences.length > 0);
+});
+
+test('a region places its own danger, capped by the budget its layout was sized for', () => {
+  const { directiveSet, compiled, bundle } = compile(TENSE);
+
+  for (const plan of compiled.environments) {
+    const traversal = directiveSet.directives.find(
+      d => d.family === 'traversal' && d.targetId === plan.regionId
+    );
+    assert.ok(plan.hazards.length <= traversal.parameters.hazardBudget,
+      `${plan.regionId} places no more danger than its hazardBudget allows`);
+    for (const hazard of plan.hazards) {
+      assert.ok(hazard.damage > 0, 'a hazard that costs nothing is scenery');
+      assert.ok(['peak', 'build', 'calm', 'release'].includes(hazard.beat), 'it sits on a named beat');
+    }
+  }
+
+  // A hazard zone is terrain: it damages on contact and is never despawned.
+  const zones = bundle.entities.filter(e => e.tags.includes('hazard'));
+  assert.ok(zones.length > 0, 'the emitter placed them');
+  for (const zone of zones) {
+    const trigger = bundle.triggers.find(t => t.id === `${zone.id}-contact`);
+    assert.ok(trigger, `${zone.id} costs something to touch`);
+    const damage = trigger.actions.find(a => a.type === 'ApplyAttack');
+    assert.ok(damage.parameters.cooldown > 0,
+      'a cooldown, or standing in a hazard drains the player in one frame');
+    assert.ok(!trigger.actions.some(a => a.type === 'DespawnEntity'),
+      'terrain is not cleared by walking into it');
+  }
+  assert.ok(bundle.assets.some(a => a.spriteId === 'hazard_zone'), 'and it has a declared sprite');
+});
+
+test('a collectible is placed in the region its content belongs to', () => {
+  // These item nodes reached the environment plan and stopped there: the emitter
+  // spread inventory round-robin and dropped everything the plans knew about.
+  const { compiled, bundle } = compile(TENSE);
+  const planned = compiled.environments.flatMap(plan => plan.items);
+  assert.ok(planned.length > 0, 'the compiler worked out which region owns which item');
+
+  const collectibles = bundle.entities.filter(e => e.tags.includes('collectible'));
+  for (const item of planned) {
+    const placed = collectibles.find(e => e.label === item.label);
+    assert.ok(placed, `${item.label} was placed rather than dropped`);
+    const scene = bundle.scenes.find(s => s.entities.includes(placed.id));
+    assert.equal(scene.regionId, compiled.environments.find(p => p.items.includes(item)).regionId,
+      'and it was placed in its OWN region, not wherever round-robin landed');
+  }
+
+  const labels = collectibles.map(e => String(e.label).toLowerCase());
+  assert.equal(new Set(labels).size, labels.length, 'and it was placed exactly once');
 });
 
 test('every state machine, sprite and scene reference in the bundle resolves', () => {
